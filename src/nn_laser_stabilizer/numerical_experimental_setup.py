@@ -26,7 +26,7 @@ class NumericalExperimentalSetup(PidTuningExperimentalSetup):
         process_variable = self.system.reset()
         self.controller.reset()
 
-        return self.system.x, 0.0, self.controller.setpoint
+        return process_variable, 0.0, self.controller.setpoint
 
     def set_seed(self, seed: Optional[int]):
         self.system.set_seed(seed)
