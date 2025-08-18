@@ -12,7 +12,7 @@ class PidTuningExperimentalEnv(EnvBase):
         self.experimental_setup = experimental_setup
 
         # Действия: [Kp, Ki, Kd]
-        self.action_spec = BoundedContinuous(low=0, high=10, shape=(3,), device=device)
+        self.action_spec = BoundedContinuous(low=0, high=100, shape=(3,), device=device)
         # Наблюдения: [process_variable, control_output, setpoint]
         self.observation_spec = UnboundedContinuous(shape=(3,), device=device)
         # Вознаграждение: скаляр
