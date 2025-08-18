@@ -34,7 +34,7 @@ def simulate_oscillator(T: float, dt: float) -> Tuple[np.ndarray, np.ndarray, np
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
     
     ax1.plot(times, positions, label='Положение (x)', color='blue')
-    ax1.plot(times, setpoints, label='Уставка', color='red', linestyle='-.')
+    ax1.plot(times, setpoints, label='Установленное значение', color='red', linestyle='-.')
     ax1.set_ylabel('Значение')
     ax1.set_title('Эволюция положения')
     ax1.grid(True)
