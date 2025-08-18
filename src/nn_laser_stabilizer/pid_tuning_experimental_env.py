@@ -1,6 +1,6 @@
 import torch
 from torchrl.envs import EnvBase
-from torchrl.data import UnboundedContinuous
+from torchrl.data import UnboundedContinuous, BoundedContinuous
 from tensordict import TensorDict
 
 from pid_tuning_experimental_setup import PidTuningExperimentalSetup
@@ -12,7 +12,7 @@ class PidTuningExperimentalEnv(EnvBase):
         self.experimental_setup = experimental_setup
 
         # Действия: [Kp, Ki, Kd]
-        self.action_spec = UnboundedContinuous(shape=(3,), device=device)
+        self.action_spec = BoundedContinuous(low=0, high=10, shape=(3,), device=device)
         # Наблюдения: [process_variable, control_output, setpoint]
         self.observation_spec = UnboundedContinuous(shape=(3,), device=device)
         # Вознаграждение: скаляр
@@ -43,7 +43,7 @@ class PidTuningExperimentalEnv(EnvBase):
             batch_size=[]
         )
 
-    def _reset(self, tensordict: TensorDict | None = None) -> TensorDict:
+    def _reset(self, unused: TensorDict | None = None) -> TensorDict:
         process_variable, control_output, setpoint = self.experimental_setup.reset()
 
         observation = torch.tensor(

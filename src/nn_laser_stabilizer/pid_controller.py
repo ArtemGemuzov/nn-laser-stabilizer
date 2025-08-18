@@ -2,7 +2,7 @@ class PIDController:
     def __init__(self, setpoint: float = 1.0):
         self.setpoint = setpoint
 
-        self.kp = 1.0
+        self.kp = 0.0
         self.ki = 0.0
         self.kd = 0.0
 
@@ -10,7 +10,9 @@ class PIDController:
         self.prev_error = 0.0
 
     def set_params(self, kp: float, ki: float, kd: float):
-        self.kp, self.ki, self.kd = kp, ki, kd
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
 
     def reset(self):
         self.integral = 0.0
