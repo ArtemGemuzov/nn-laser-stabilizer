@@ -8,16 +8,16 @@ from tensordict.nn import TensorDictModule, TensorDictSequential
 from torchrl.collectors import SyncDataCollector
 from torchrl.modules import MLP, ValueOperator, TanhModule, AdditiveGaussianModule, LSTMModule
 from torchrl.envs import set_exploration_type, ExplorationType, TransformedEnv, DoubleToFloat, Compose, ObservationNorm, InitTracker, StepCounter
-from torchrl.data import ReplayBuffer, BoundedContinuous
+from torchrl.data import ReplayBuffer, BoundedContinuous, TensorStorage, ListStorage
 from torchrl.objectives import TD3Loss, SoftUpdate
 
 from pid_controller import PIDController
-from oscillator import Oscillator
+from oscillator import DuffingOscillator
 from numerical_experimental_setup import NumericalExperimentalSetup
 
 from pid_tuning_experimental_env import PidTuningExperimentalEnv
 
-SETPOINT = 10000.0
+SETPOINT = 100.0
 
 MASS = 1.0
 K = 1.0
@@ -34,7 +34,7 @@ HIDDEN_SIZE = 128
 NUM_LAYERS = 2
 
 pid = PIDController(setpoint=SETPOINT)
-oscillator = Oscillator(mass=MASS, k=K, c=C)
+oscillator = DuffingOscillator(mass=MASS, k_linear=K, c_noise=C)
 numerical_model = NumericalExperimentalSetup(oscillator, pid)
 
 base_env = PidTuningExperimentalEnv(numerical_model, device=DEVICE)
@@ -116,7 +116,9 @@ collector = SyncDataCollector(
 )
 collector.set_seed(SEED)
 
-buffer = ReplayBuffer()
+buffer = ReplayBuffer(
+    storage=ListStorage(max_size=10_000)
+)
 
 loss_module = TD3Loss(
     actor_network=model[0],
@@ -128,9 +130,9 @@ loss_module.make_value_estimator(gamma=0.9)
 
 target_net_updater = SoftUpdate(loss_module, eps=0.995)
 
-batch_size = 256      # Размер батча для обучения
+batch_size = 64    # Размер батча для обучения
 learning_rate = 1e-5   # Скорость обучения
-update_target_freq = 2  # Частота обновления целевых сетей (в шагах)
+update_target_freq = 4  # Частота обновления целевых сетей (в шагах)
 log_interval = 1     # Частота логирования (в шагах)
 
 critic_params = list(loss_module.qvalue_network_params.flatten_keys().values())
@@ -153,7 +155,8 @@ rewards = []
 kp_log, ki_log, kd_log = [], [], []
 x_log, sp_log = [], []
 
-n_opt = 1
+n_opt = 16
+max_train_step = 5000
 
 try: 
     for tensordict_data in collector:
@@ -173,35 +176,36 @@ try:
         current_reward = tensordict_data["next", "reward"].mean().item()
         rewards.append(current_reward)
 
-        if len(buffer) >= batch_size:
-            for _ in range(n_opt):
-                batch = buffer.sample(batch_size=batch_size).to(DEVICE)
+        if total_collected_frames < max_train_step:
+            if len(buffer) >= batch_size:
+                for i in range(n_opt):
+                    batch = buffer.sample(batch_size=batch_size).to(DEVICE)
 
-                loss_qvalue = loss_module(batch)["loss_qvalue"]
+                    loss_qvalue = loss_module(batch)["loss_qvalue"]
 
-                loss_qvalue.backward()
-                optimizer_critic.step()
-                optimizer_critic.zero_grad(set_to_none=True)
-                
-                if total_collected_frames % update_target_freq == 0:
-                    loss_actor = loss_module(batch)["loss_actor"]
+                    loss_qvalue.backward()
+                    optimizer_critic.step()
+                    optimizer_critic.zero_grad(set_to_none=True)
+                    
+                    if i % update_target_freq == 0:
+                        loss_actor = loss_module(batch)["loss_actor"]
 
-                    loss_actor.backward()
-                    optimizer_actor.step()
-                    optimizer_actor.zero_grad(set_to_none=True)
+                        loss_actor.backward()
+                        optimizer_actor.step()
+                        optimizer_actor.zero_grad(set_to_none=True)
 
-                    target_net_updater.step()
-                
-                with torch.no_grad():
-                    current_loss_dict = loss_module(batch)
-                    loss_actor_val = current_loss_dict["loss_actor"].item()
-                    loss_qvalue_val = current_loss_dict["loss_qvalue"].item()
-                    losses.append(loss_actor_val + loss_qvalue_val)
+                        target_net_updater.step()
+                    
+                    with torch.no_grad():
+                        current_loss_dict = loss_module(batch)
+                        loss_actor_val = current_loss_dict["loss_actor"].item()
+                        loss_qvalue_val = current_loss_dict["loss_qvalue"].item()
+                        losses.append(loss_actor_val + loss_qvalue_val)
 
         if total_collected_frames % log_interval == 0:
             print(f"Frame {total_collected_frames}, "
-                    f"Loss: {np.mean(losses[-log_interval:]):.4f}, "
-                    f"Average Reward: {np.mean(rewards[-log_interval:]):.4f}")
+                    f"Loss: {np.mean(losses[-log_interval:]):.8f}, "
+                    f"Average Reward: {np.mean(rewards[-log_interval:]):.8f}")
 
 
 except KeyboardInterrupt:
