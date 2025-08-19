@@ -17,7 +17,7 @@ from numerical_experimental_setup import NumericalExperimentalSetup
 
 from pid_tuning_experimental_env import PidTuningExperimentalEnv
 
-SETPOINT = 100.0
+SETPOINT = 10000.0
 
 MASS = 1.0
 K = 1.0
@@ -34,7 +34,7 @@ HIDDEN_SIZE = 128
 NUM_LAYERS = 2
 
 pid = PIDController(setpoint=SETPOINT)
-oscillator = Oscillator(mass=MASS, k=K, c=C, noise_level=NOISE_LEVEL)
+oscillator = Oscillator(mass=MASS, k=K, c=C)
 numerical_model = NumericalExperimentalSetup(oscillator, pid)
 
 base_env = PidTuningExperimentalEnv(numerical_model, device=DEVICE)
