@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Tuple
-from nn_laser_stabilizer.oscillator import Oscillator
+from nn_laser_stabilizer.oscillator import DuffingOscillator
 from pid_controller import PIDController
 from numerical_experimental_setup import NumericalExperimentalSetup
 
 def simulate_oscillator(T: float, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    oscillator = Oscillator(mass=1.0, k=1.0, c=0.1)
+    oscillator = DuffingOscillator(mass=1.0, k_linear=1.0, c_noise=0.1)
     controller = PIDController(setpoint=1.0)
     setup = NumericalExperimentalSetup(oscillator, controller, dt=dt)
 

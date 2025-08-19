@@ -1,18 +1,11 @@
 import random
 
-class Oscillator:
-    def __init__(self, mass: float = 1.0, k: float = 1.0, c: float = 0.1):
-        """
-        m * x'' + c * x' + k * x = F
-
-        Args:
-            mass: масса
-            k: коэффициент жесткости
-            c: коэффициент сопротивления
-        """
+class DuffingOscillator:
+    def __init__(self, mass: float = 1.0, k_linear: float = 1.0, k_nonlinear : float = 0.1 ,c_noise: float = 0.1):
         self.m = mass
-        self.k = k
-        self.c = c
+        self.k_nonlinear = k_nonlinear
+        self.k_linear = k_linear
+        self.c_noise = c_noise
 
         self._rng = None
 
@@ -35,11 +28,11 @@ class Oscillator:
 
     def step(self, force: float, dt : float = 0.01) -> float:
         """
-        Выполняем шаг по уравнениям движения.
+        Выполняем шаг по уравнению движения.
         
-        x'' = (F - c*v - k*x) / m
+        x'' = (F - c * v - k_linear * x - k_nonlinear * x^3) / m
         """
-        a = (force - self.c * self.v - self.k * self.x) / self.m
+        a = (force - self.c_noise * self.v - self.k_linear * self.x - self.k_nonlinear * self.x ** 3) / self.m
 
         self.v += a * dt
         self.x += self.v * dt

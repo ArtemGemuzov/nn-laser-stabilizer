@@ -1,12 +1,12 @@
 from typing import Optional, Tuple
 
-from oscillator import Oscillator
+from oscillator import DuffingOscillator
 from pid_controller import PIDController
 
 from pid_tuning_experimental_setup import PidTuningExperimentalSetup
 
 class NumericalExperimentalSetup(PidTuningExperimentalSetup):
-    def __init__(self, system : Oscillator, controller : PIDController, dt : float = 0.01):
+    def __init__(self, system : DuffingOscillator, controller : PIDController, dt : float = 0.01):
         self.system = system
         self.controller = controller
 
