@@ -1,0 +1,15 @@
+[project]
+name = "nn-laser-stabilizer"
+version = "0.1.0"
+description = "Neural network based laser stabilizer"
+authors = [
+    { name = "Artem Gemuzov", email = "a.gemuzov@g.nsu.ru" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+laser-stabilizer = "nn_laser_stabilizer.__main__:main"
