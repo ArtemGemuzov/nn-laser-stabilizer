@@ -6,7 +6,7 @@ from pid_controller import PIDController
 from numerical_experimental_setup import NumericalExperimentalSetup
 
 def simulate_oscillator(T: float, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    oscillator = DuffingOscillator(mass=1.0, k_linear=1.0, c_noise=0.1)
+    oscillator = DuffingOscillator(mass=1.0, k_linear=1.0, k_noise=0.1)
     controller = PIDController(setpoint=1.0)
     setup = NumericalExperimentalSetup(oscillator, controller, dt=dt)
 
