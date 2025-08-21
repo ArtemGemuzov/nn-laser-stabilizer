@@ -9,10 +9,11 @@ from nn_laser_stabilizer.numerical_experimental_setup import NumericalExperiment
 
 
 def simulate_oscillator(T: float, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    oscillator = DuffingOscillator(mass=1.0, k_linear=1.0, k_noise=0.1)
+    oscillator = DuffingOscillator()
     controller = PIDController(setpoint=1.0)
     setup = NumericalExperimentalSetup(oscillator, controller, dt=dt)
 
+    np.random.seed(42)
     setup.set_seed(42)
 
     _, _, setpoint = setup.reset()
@@ -23,9 +24,9 @@ def simulate_oscillator(T: float, dt: float) -> Tuple[np.ndarray, np.ndarray, np
     controls = np.zeros(n_steps)
     setpoints = np.zeros(n_steps)
 
-    kp = 0.0
-    ki = 0.0
-    kd = 0.0
+    kp = 50.0
+    ki = 20.0
+    kd = 1.0
 
     for i in range(n_steps):
         position, control, setpoint = setup.step(kp, ki, kd)
@@ -54,3 +55,6 @@ def simulate_oscillator(T: float, dt: float) -> Tuple[np.ndarray, np.ndarray, np
     plt.show()
 
     return times, positions, controls, setpoints
+
+if __name__ == '__main__':
+    simulate_oscillator(dt=0.01, T=100)
