@@ -16,10 +16,12 @@ from nn_laser_stabilizer.train_utils import (
     train_step,
     plot_results
 )
+from nn_laser_stabilizer.find_configs_dir import find_configs_dir, DEFAULE_CONFIG_NAME
 
-@hydra.main(config_path="configs", config_name="config", version_base="1.1")
-def main(cfg: DictConfig) -> None:
-    config = Config(**cfg)
+
+@hydra.main(config_path=find_configs_dir(), config_name=DEFAULE_CONFIG_NAME, version_base=None)
+def main(config: DictConfig) -> None:
+    config = Config(**config)
     
     set_seeds(config.seed)
     
