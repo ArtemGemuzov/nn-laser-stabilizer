@@ -29,7 +29,11 @@ nn-laser-stabilizer/
    ```
 1. Перейдите в загруженную директорию:
    ```bash
-      cd nn-laser-stabilizer
+   cd nn-laser-stabilizer
+   ```
+1. Создайте окружение в Conda (опционально, если нет действующего)
+   ```bash
+   conda create -n your_env python=3.10.13
    ```
 1. Активируйте свое окружение в Conda:
    ```bash
