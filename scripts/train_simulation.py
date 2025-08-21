@@ -18,6 +18,9 @@ from nn_laser_stabilizer.train_utils import (
 )
 from nn_laser_stabilizer.find_configs_dir import find_configs_dir, DEFAULE_CONFIG_NAME
 
+from logging import getLogger
+logger = getLogger(__name__)
+
 
 @hydra.main(config_path=find_configs_dir(), config_name=DEFAULE_CONFIG_NAME, version_base=None)
 def main(config: DictConfig) -> None:
@@ -40,6 +43,8 @@ def main(config: DictConfig) -> None:
     rewards = []
     kp_log, ki_log, kd_log = [], [], []
     x_log, sp_log = [], []
+
+    logger.info("Training started")
 
     try: 
         for tensordict_data in collector:
@@ -77,17 +82,21 @@ def main(config: DictConfig) -> None:
                         else:
                             losses.append(loss_qvalue_val)
 
+            logger.info(
+                f"Frame {total_collected_frames}, "
+                f"Average Reward: {np.mean(rewards):.8f}"
+            )
+            
             if len(losses) != 0:
-                print(f"Frame {total_collected_frames}, "
-                        f"Loss: {np.mean(losses):.8f}, "
-                        f"Average Reward: {np.mean(rewards):.8f}")
+                logger.info(f"Loss: {np.mean(losses):.8f}")
 
     except KeyboardInterrupt:
-        print("Training interrupted by user.")
+        logger.warning("Training interrupted by user.")
     finally:
         collector.shutdown()
         env.close()
-        
+
+        logger.info("Training finished, plotting results...")
         plot_results(kp_log, ki_log, kd_log, x_log, sp_log)
 
 
