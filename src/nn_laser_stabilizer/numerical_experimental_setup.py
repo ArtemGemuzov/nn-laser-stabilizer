@@ -1,9 +1,8 @@
 from typing import Optional, Tuple
 
-from oscillator import DuffingOscillator
-from pid_controller import PIDController
-
-from pid_tuning_experimental_setup import PidTuningExperimentalSetup
+from nn_laser_stabilizer.oscillator import DuffingOscillator
+from nn_laser_stabilizer.pid_controller import PIDController
+from nn_laser_stabilizer.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 
 class NumericalExperimentalSetup(PidTuningExperimentalSetup):
     def __init__(self, system : DuffingOscillator, controller : PIDController, dt : float = 0.01):

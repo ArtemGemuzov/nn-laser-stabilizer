@@ -13,10 +13,10 @@ from torchrl.envs import set_exploration_type, ExplorationType, TransformedEnv, 
 from torchrl.data import ReplayBuffer, LazyTensorStorage
 from torchrl.objectives import TD3Loss, SoftUpdate
 
-from pid_controller import PIDController
-from oscillator import DuffingOscillator
-from numerical_experimental_setup import NumericalExperimentalSetup
-from pid_tuning_experimental_env import PidTuningExperimentalEnv
+from nn_laser_stabilizer.pid_controller import PIDController
+from nn_laser_stabilizer.oscillator import DuffingOscillator
+from nn_laser_stabilizer.numerical_experimental_setup import NumericalExperimentalSetup
+from nn_laser_stabilizer.pid_tuning_experimental_env import PidTuningExperimentalEnv
 
 
 @dataclass
