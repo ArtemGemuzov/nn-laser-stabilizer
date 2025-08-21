@@ -6,17 +6,17 @@ from torchrl.data import UnboundedContinuous, BoundedContinuous
 from nn_laser_stabilizer.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 
 class PidTuningExperimentalEnv(EnvBase):
-    def __init__(self, experimental_setup : PidTuningExperimentalSetup, device="cpu"):
-        super().__init__(device=device)
+    def __init__(self, experimental_setup : PidTuningExperimentalSetup):
+        super().__init__()
 
         self.experimental_setup = experimental_setup
 
         # Действия: [Kp, Ki, Kd]
-        self.action_spec = BoundedContinuous(low=0, high=100, shape=(3,), device=device)
+        self.action_spec = BoundedContinuous(low=0, high=100, shape=(3,))
         # Наблюдения: [process_variable, control_output, setpoint]
-        self.observation_spec = UnboundedContinuous(shape=(3,), device=device)
+        self.observation_spec = UnboundedContinuous(shape=(3,))
         # Вознаграждение: скаляр
-        self.reward_spec = UnboundedContinuous(shape=(1,), device=device)
+        self.reward_spec = UnboundedContinuous(shape=(1,))
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         kp, ki, kd = tensordict["action"].tolist()

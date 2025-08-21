@@ -1,0 +1,3 @@
+frames_per_batch: 50
+total_frames: -1
+buffer_size: 10000

@@ -2,12 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
+import random
 
 import torch
 import torch.nn as nn
 
 from tensordict.nn import TensorDictModule, TensorDictSequential
-from torchrl.collectors import SyncDataCollector
+from torchrl.collectors import SyncDataCollector, aSyncDataCollector
 from torchrl.modules import MLP, ValueOperator, TanhModule, AdditiveGaussianModule, LSTMModule, get_primers_from_module
 from torchrl.envs import set_exploration_type, ExplorationType, TransformedEnv, DoubleToFloat, Compose, InitTracker
 from torchrl.data import ReplayBuffer, LazyTensorStorage
@@ -28,12 +29,8 @@ class Config:
     k_damping: float
     process_noise_std: float
     measurement_noise_std: float
-    hidden_size: int
-    num_layers: int
-    input_size: int
-    output_size: int
+    lstm_hidden_size: int
     seed: int
-    device: str
     batch_size: int
     learning_rate: float
     update_target_freq: int
@@ -45,16 +42,13 @@ class Config:
     update_to_data: int
     max_train_steps: int
     exploration_annealing_steps: int
-    qvalue_num_cells: int
-    qvalue_depth: int
-    qvalue_out_features: int
     num_qvalue_nets: int
 
 
 def set_seeds(seed: int) -> None:
     torch.manual_seed(seed)
     np.random.seed(seed)
-
+    random.seed(42)
 
 def make_env(config: Config) -> TransformedEnv:
     pid = PIDController(setpoint=config.setpoint)
@@ -68,7 +62,7 @@ def make_env(config: Config) -> TransformedEnv:
     )
     numerical_model = NumericalExperimentalSetup(oscillator, pid)
 
-    base_env = PidTuningExperimentalEnv(numerical_model, device=config.device)
+    base_env = PidTuningExperimentalEnv(numerical_model)
     env = TransformedEnv(
         base_env,
         Compose(
@@ -82,20 +76,18 @@ def make_env(config: Config) -> TransformedEnv:
 
 def make_actor_network(action_spec, config: Config) -> TensorDictSequential:
     actor_lstm = LSTMModule(
-        input_size=config.input_size,
-        hidden_size=config.hidden_size,
-        num_layers=config.num_layers,
+        input_size=3, # TODO убрать
+        hidden_size=config.lstm_hidden_size,
         in_key="observation",
-        out_key="param",
-        device=config.device,
+        out_key="param"
     )
 
-    actor_mlp = MLP(
-        out_features=config.output_size,
-        activation_class=nn.Tanh,
-        device=config.device,
-    )
-    actor_mlp = TensorDictModule(actor_mlp, in_keys=["param"], out_keys=["param"])
+    actor_mlp = TensorDictModule(
+        MLP(
+            out_features=3 # TODO убрать
+        ), 
+        in_keys=["param"], 
+        out_keys=["param"])
 
     actor = TensorDictSequential(
         actor_lstm,
@@ -109,41 +101,35 @@ def make_actor_network(action_spec, config: Config) -> TensorDictSequential:
     return actor
 
 
-def make_qvalue_network(in_keys: List[str], config: Config) -> ValueOperator:
+def make_qvalue_network(config: Config) -> ValueOperator:
     qvalue_net = MLP(
-        num_cells=config.qvalue_num_cells,
-        depth=config.qvalue_depth,
-        out_features=config.qvalue_out_features,
-        activation_class=nn.ReLU,
-        device=config.device,
+        out_features=1
     )
 
     qvalue = ValueOperator(
-        in_keys=["action"] + in_keys,
+        in_keys=["action", "observation"],
         module=qvalue_net,
     )
     return qvalue
 
 
 def make_td3_agent(env: TransformedEnv, config: Config) -> Tuple[nn.ModuleList, TensorDictSequential, AdditiveGaussianModule]:
-    in_keys = ["observation"]
-    action_spec = env.action_spec_unbatched.to(config.device)
+    action_spec = env.action_spec_unbatched
     
     actor = make_actor_network(action_spec, config)
-    qvalue = make_qvalue_network(in_keys, config)
+    qvalue = make_qvalue_network(config)
     model = nn.ModuleList([actor, qvalue])
 
     primers = get_primers_from_module(model)
     env.append_transform(primers)
 
     with torch.no_grad(), set_exploration_type(ExplorationType.RANDOM):
-        td = env.fake_tensordict().to(config.device)
+        td = env.fake_tensordict()
         for net in model:
             net(td)
 
     exploration_module = AdditiveGaussianModule(
         spec=action_spec,
-        device=config.device,
         annealing_num_steps=config.exploration_annealing_steps
     )
 
@@ -156,12 +142,11 @@ def make_td3_agent(env: TransformedEnv, config: Config) -> Tuple[nn.ModuleList, 
 
 
 def make_collector(env: TransformedEnv, actor_model_explore: TensorDictSequential, config: Config) -> SyncDataCollector:
-    collector = SyncDataCollector(
+    collector = aSyncDataCollector(
         env,
         actor_model_explore,
         frames_per_batch=config.frames_per_batch,
-        total_frames=config.total_frames,
-        device=config.device,
+        total_frames=config.total_frames
     )
     collector.set_seed(config.seed)
     return collector

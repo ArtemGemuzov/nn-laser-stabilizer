@@ -33,7 +33,7 @@ def main(config: DictConfig) -> None:
     collector = make_collector(env, actor_model_explore, config)
     buffer = make_buffer(config)
     
-    action_spec = env.action_spec_unbatched.to(config.device)
+    action_spec = env.action_spec_unbatched
     loss_module = make_loss_module(model, action_spec, config)
     optimizer_actor, optimizer_critic = make_optimizers(loss_module, config)
     target_net_updater = make_target_updater(loss_module, config)
@@ -70,7 +70,7 @@ def main(config: DictConfig) -> None:
             if total_collected_frames < config.max_train_steps:
                 if len(buffer) >= config.batch_size:
                     for i in range(config.update_to_data):
-                        batch = buffer.sample(batch_size=config.batch_size).to(config.device)
+                        batch = buffer.sample(batch_size=config.batch_size)
                         
                         loss_qvalue_val, loss_actor_val = train_step(
                             batch, loss_module, optimizer_actor, optimizer_critic, 
