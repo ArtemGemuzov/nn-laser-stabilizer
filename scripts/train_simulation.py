@@ -4,19 +4,21 @@ import hydra
 from omegaconf import DictConfig
 
 from nn_laser_stabilizer.train_utils import (
-    Config,
     set_seeds,
-    make_env,
+    plot_results
+)
+from nn_laser_stabilizer.agents.td3 import (
     make_td3_agent,
-    make_collector,
-    make_buffer,
+    add_exploration,
     make_loss_module,
     make_optimizers,
     make_target_updater,
     train_step,
-    plot_results
+    warmup
 )
-from nn_laser_stabilizer.find_configs_dir import find_configs_dir, DEFAULE_CONFIG_NAME
+from nn_laser_stabilizer.envs.utils import make_env
+from nn_laser_stabilizer.data.utils import make_buffer, make_collector
+from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir, DEFAULE_CONFIG_NAME
 
 from logging import getLogger
 logger = getLogger(__name__)
@@ -24,17 +26,19 @@ logger = getLogger(__name__)
 
 @hydra.main(config_path=find_configs_dir(), config_name=DEFAULE_CONFIG_NAME, version_base=None)
 def main(config: DictConfig) -> None:
-    config = Config(**config)
-    
     set_seeds(config.seed)
     
     env = make_env(config)
-    model, actor_model_explore, exploration_module = make_td3_agent(env, config)
-    collector = make_collector(env, actor_model_explore, config)
-    buffer = make_buffer(config)
-    
     action_spec = env.action_spec_unbatched
-    loss_module = make_loss_module(model, action_spec, config)
+
+    actor, qvalue = make_td3_agent(action_spec, config)
+    actor, exploration_module = add_exploration(actor, action_spec, config)
+
+    warmup(env, actor, qvalue)
+
+    collector = make_collector(env, actor, config)
+    buffer = make_buffer(config)
+    loss_module = make_loss_module(actor, qvalue, action_spec, config)
     optimizer_actor, optimizer_critic = make_optimizers(loss_module, config)
     target_net_updater = make_target_updater(loss_module, config)
 
@@ -48,8 +52,6 @@ def main(config: DictConfig) -> None:
 
     try: 
         for tensordict_data in collector:
-            collector.update_policy_weights_()
-
             observation = tensordict_data["observation"]
             x_log.extend(observation[:, 0].tolist())
             sp_log.extend(observation[:, 2].tolist())

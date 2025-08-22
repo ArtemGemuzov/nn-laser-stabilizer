@@ -3,7 +3,7 @@ from tensordict import TensorDict
 from torchrl.envs import EnvBase
 from torchrl.data import UnboundedContinuous, BoundedContinuous
 
-from nn_laser_stabilizer.pid_tuning_experimental_setup import PidTuningExperimentalSetup
+from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 
 class PidTuningExperimentalEnv(EnvBase):
     def __init__(self, experimental_setup : PidTuningExperimentalSetup):
