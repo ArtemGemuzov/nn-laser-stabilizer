@@ -1,5 +1,0 @@
-lstm_hidden_size: 64
-
-num_qvalue_nets: 2
-
-exploration_annealing_steps: 1000

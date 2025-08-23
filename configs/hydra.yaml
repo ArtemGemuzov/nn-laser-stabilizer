@@ -1,3 +1,0 @@
-hydra:
-  run:
-    dir: experiments/${now:%Y-%m-%d}/${now:%H-%M-%S}

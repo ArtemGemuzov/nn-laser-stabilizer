@@ -1,8 +1,49 @@
-defaults:
-  - hydra
-  - env
-  - agent
-  - train
-  - data
-  - _self_
+seed: 42 
 
+hydra:
+  run:
+    dir: experiments/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+data:
+  frames_per_batch: 50
+  total_frames: 50000
+
+  buffer_size: 10000
+
+agent:
+  lstm_hidden_size: 64
+  lstm_num_layers: 2
+  mlp_depth: 1
+  mlp_num_cells: 64
+
+  q_mlp_depth: 2
+  q_mlp_num_cells: 64
+
+  gamma: 0.99
+  num_qvalue_nets: 2
+  target_update_eps: 0.95
+
+  learning_rate_actor: 1e-5
+  learning_rate_critic: 1e-5
+
+  exploration_sigma_init: 0.3
+  exploration_sigma_end: 0.05
+  exploration_annealing_steps: 5000
+
+env:
+  setpoint: 10.0
+  mass: 1.0
+  k_linear: 1.0
+  k_nonlinear: 1.0
+  k_damping: 0.1
+
+  process_noise_std: 0.05
+  measurement_noise_std: 0.02
+
+train:
+  batch_size: 4
+  
+  update_to_data: 16
+  update_actor_freq: 2 
+
+  total_train_steps: 50_000
