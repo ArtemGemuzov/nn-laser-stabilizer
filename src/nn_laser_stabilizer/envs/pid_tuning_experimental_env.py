@@ -64,3 +64,14 @@ class PidTuningExperimentalEnv(EnvBase):
         if "observation" not in tensordict:
             tensordict = self.reset()
         return self.step(tensordict)
+
+def to_pid_params(tensordict_action):
+    kp = tensordict_action[:, 0].tolist()
+    ki = tensordict_action[:, 1].tolist()
+    kd = tensordict_action[:, 2].tolist()
+    return kp, ki, kd
+
+def to_oscillator_params(tensordict_observation):
+    x = tensordict_observation[:, 0].tolist()
+    setpoint = tensordict_observation[:, 2].to_list()
+    return x, setpoint

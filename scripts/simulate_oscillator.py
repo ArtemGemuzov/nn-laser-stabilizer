@@ -3,14 +3,14 @@ from typing import Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-from nn_laser_stabilizer.oscillator import DuffingOscillator
-from nn_laser_stabilizer.pid_controller import PIDController
-from nn_laser_stabilizer.numerical_experimental_setup import NumericalExperimentalSetup
+from nn_laser_stabilizer.envs.oscillator import DuffingOscillator
+from nn_laser_stabilizer.envs.pid_controller import PIDController
+from nn_laser_stabilizer.envs.numerical_experimental_setup import NumericalExperimentalSetup
 
 
 def simulate_oscillator(T: float, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     oscillator = DuffingOscillator()
-    controller = PIDController(setpoint=1.0)
+    controller = PIDController(setpoint=10.0)
     setup = NumericalExperimentalSetup(oscillator, controller, dt=dt)
 
     np.random.seed(42)
