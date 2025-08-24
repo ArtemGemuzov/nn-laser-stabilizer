@@ -16,7 +16,8 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
         hidden_size=agent_cfg.lstm_hidden_size,
         num_layers=agent_cfg.lstm_num_layers,
         in_key="observation",
-        out_key="param"
+        out_key="param",
+        default_recurrent_mode=True
     )
 
     actor_mlp = TensorDictModule(
