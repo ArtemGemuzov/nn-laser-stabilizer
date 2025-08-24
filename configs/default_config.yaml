@@ -6,9 +6,9 @@ hydra:
 
 data:
   frames_per_batch: 50
-  total_frames: 50000
+  total_frames: 50_000
 
-  buffer_size: 10000
+  buffer_size: 50_000
 
 agent:
   lstm_hidden_size: 64
@@ -46,4 +46,4 @@ train:
   update_to_data: 16
   update_actor_freq: 2 
 
-  total_train_steps: 50_000
+  total_train_steps: 5_000
