@@ -45,12 +45,12 @@ def main(config: DictConfig) -> None:
     observation_spec = env.observation_spec_unbatched["observation"]
 
     actor, qvalue = make_td3_agent(config, observation_spec, action_spec)
-    actor, exploration_module = add_exploration(config, actor, action_spec)
+    actor_with_exploration, exploration_module = add_exploration(config, actor, action_spec)
 
-    warmup(env, actor, qvalue)
+    warmup(env, actor_with_exploration, qvalue)
 
     buffer = make_buffer(config)
-    collector = make_collector(config, env, actor, buffer)
+    collector = make_collector(config, env, actor_with_exploration, buffer)
     loss_module = make_loss_module(config, actor, qvalue, action_spec)
     optimizer_actor, optimizer_critic = make_optimizers(config, loss_module)
     target_net_updater = make_target_updater(config, loss_module)
