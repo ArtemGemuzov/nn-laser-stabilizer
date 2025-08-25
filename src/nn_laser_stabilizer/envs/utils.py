@@ -9,6 +9,7 @@ from torchrl.envs.transforms import Transform, Compose, DoubleToFloat
 from torchrl.envs.transforms import StepCounter, InitTracker
 import torch
 
+from torch.utils.tensorboard import SummaryWriter
 
 class PerStepLogger(Transform):
     """
@@ -40,9 +41,9 @@ class PerStepLogger(Transform):
         Вызывается на каждом env.step().
         tensordict: данные на шаге t
         next_tensordict: данные на шаге t+1
-        """
+        """      
         action = tensordict.get("action", None)
-        observation = next_tensordict.get("observation", None)
+        observation = tensordict.get("observation", None)
 
         if action is not None and observation is not None:
             self._log_step(action, observation)
@@ -75,7 +76,7 @@ def make_env(config) -> TransformedEnv:
     env.set_seed(config.seed)
     return env
 
-def add_logger_to_env(env: TransformedEnv, writer=None) -> TransformedEnv:
-    if writer is not None:
-         env.append_transform(PerStepLogger(writer=writer))
+def add_logger_to_env(env: TransformedEnv, logdir) -> TransformedEnv:
+    writer = SummaryWriter(log_dir=logdir)
+    env.append_transform(PerStepLogger(writer=writer))
     return env

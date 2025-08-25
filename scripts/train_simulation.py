@@ -1,3 +1,5 @@
+import os
+
 from collections import deque
 from statistics import mean
 
@@ -22,7 +24,7 @@ from nn_laser_stabilizer.agents.td3 import (
 from nn_laser_stabilizer.envs.utils import make_env, add_logger_to_env
 from nn_laser_stabilizer.envs.pid_tuning_experimental_env import to_pid_params, to_oscillator_params
 
-from nn_laser_stabilizer.data.utils import make_buffer, make_collector
+from nn_laser_stabilizer.data.utils import make_buffer, make_sync_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir, DEFAULE_CONFIG_NAME
 
 from logging import getLogger
@@ -35,10 +37,15 @@ def main(config: DictConfig) -> None:
     set_seeds(config.seed)
 
     hydra_output_dir = HydraConfig.get().runtime.output_dir
-    writer = SummaryWriter(log_dir=hydra_output_dir)
+    env_log_dir = os.path.join(hydra_output_dir, "env_logs")
+    os.makedirs(env_log_dir, exist_ok=True)
 
     env = make_env(config)
-    env = add_logger_to_env(env, writer)
+    env = add_logger_to_env(env, env_log_dir)
+
+    train_log_dir = os.path.join(hydra_output_dir, "train_logs")
+    os.makedirs(train_log_dir, exist_ok=True)
+    train_writer = SummaryWriter(log_dir=train_log_dir)
 
     action_spec = env.action_spec_unbatched
     observation_spec = env.observation_spec_unbatched["observation"]
@@ -49,7 +56,7 @@ def main(config: DictConfig) -> None:
     warmup(env, actor_with_exploration, qvalue)
 
     buffer = make_buffer(config)
-    collector = make_collector(config, env, actor_with_exploration, buffer)
+    collector = make_sync_collector(config, env, actor_with_exploration, buffer)
     loss_module = make_loss_module(config, actor, qvalue, action_spec)
     optimizer_actor, optimizer_critic = make_optimizers(config, loss_module)
     target_net_updater = make_target_updater(config, loss_module)
@@ -99,10 +106,6 @@ def main(config: DictConfig) -> None:
                 logger.info(f"Recent Loss: {avg_loss:.8f}")
             else:
                 avg_loss = None
-
-            # writer.add_scalar("Reward", avg_reward, total_collected_frames)
-            # if avg_loss is not None:
-            #     writer.add_scalar("Loss", avg_loss, total_collected_frames)
 
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
