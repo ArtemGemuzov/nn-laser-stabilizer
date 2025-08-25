@@ -1,4 +1,4 @@
-from torchrl.envs import TransformedEnv, DoubleToFloat, Compose, InitTracker, StepCounter
+from torchrl.envs import TransformedEnv, DoubleToFloat, Compose, InitTracker, GymEnv, StepCounter
 
 from nn_laser_stabilizer.envs.pid_controller import PIDController
 from nn_laser_stabilizer.envs.oscillator import DuffingOscillator
@@ -35,12 +35,13 @@ class PerStepLogger(Transform):
 
         self._t += 1
 
-    def _call(self, next_tensordict) :
+    def _step(self, tensordict, next_tensordict) :
         """
         Вызывается на каждом env.step().
+        tensordict: данные на шаге t
         next_tensordict: данные на шаге t+1
         """
-        action = next_tensordict.get("action", None)
+        action = tensordict.get("action", None)
         observation = next_tensordict.get("observation", None)
 
         if action is not None and observation is not None:
