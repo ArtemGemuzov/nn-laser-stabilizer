@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from collections import deque
 from statistics import mean
 
@@ -21,7 +19,7 @@ from nn_laser_stabilizer.agents.td3 import (
     train_step,
     warmup
 )
-from nn_laser_stabilizer.envs.utils import make_env
+from nn_laser_stabilizer.envs.utils import make_env, add_logger_to_env
 from nn_laser_stabilizer.envs.pid_tuning_experimental_env import to_pid_params, to_oscillator_params
 
 from nn_laser_stabilizer.data.utils import make_buffer, make_collector
@@ -32,7 +30,6 @@ logger = getLogger(__name__)
 
 from hydra.core.hydra_config import HydraConfig
 
-
 @hydra.main(config_path=find_configs_dir(), config_name=DEFAULE_CONFIG_NAME, version_base=None)
 def main(config: DictConfig) -> None:
     set_seeds(config.seed)
@@ -41,6 +38,8 @@ def main(config: DictConfig) -> None:
     writer = SummaryWriter(log_dir=hydra_output_dir)
 
     env = make_env(config)
+    env = add_logger_to_env(env, writer)
+
     action_spec = env.action_spec_unbatched
     observation_spec = env.observation_spec_unbatched["observation"]
 
@@ -60,24 +59,12 @@ def main(config: DictConfig) -> None:
     recent_rewards = deque(maxlen=window_size)
     recent_losses = deque(maxlen=window_size)
 
-    kp_log, ki_log, kd_log = [], [], []
-    x_log, sp_log = [], []
-
     logger.info("Training started")
 
     train_config = config.train
 
     try: 
         for tensordict_data in collector:
-            observation = tensordict_data["observation"]
-            x_log.extend(observation[:, 0].tolist())
-            sp_log.extend(observation[:, 2].tolist())
-
-            action = tensordict_data["action"]
-            kp_log.extend(action[:, 0].tolist())
-            ki_log.extend(action[:, 1].tolist())
-            kd_log.extend(action[:, 2].tolist())
-            
             total_collected_frames += tensordict_data.numel()
             buffer.extend(tensordict_data.unsqueeze(0).to_tensordict())
 
@@ -117,19 +104,11 @@ def main(config: DictConfig) -> None:
             # if avg_loss is not None:
             #     writer.add_scalar("Loss", avg_loss, total_collected_frames)
 
-            # if step % 10 == 0:
-            #     writer.add_scalar("Action/kp_mean", np.mean(kp_log[-window_size:]), total_collected_frames)
-            #     writer.add_scalar("Action/ki_mean", np.mean(ki_log[-window_size:]), total_collected_frames)
-            #     writer.add_scalar("Action/kd_mean", np.mean(kd_log[-window_size:]), total_collected_frames)
-
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
     finally:
         collector.shutdown()
         env.close()
-
-        logger.info("Training finished, plotting results...")
-        plot_results(kp_log, ki_log, kd_log, x_log, sp_log)
 
 
 if __name__ == "__main__":
