@@ -1,5 +1,4 @@
 import os
-
 from collections import deque
 
 from torch.utils.tensorboard import SummaryWriter
@@ -21,7 +20,7 @@ from nn_laser_stabilizer.agents.td3 import (
 )
 from nn_laser_stabilizer.envs.utils import make_env, add_logger_to_env
 
-from nn_laser_stabilizer.data.utils import make_buffer, make_sync_collector
+from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir, DEFAULE_CONFIG_NAME
 
 from logging import getLogger
@@ -37,29 +36,32 @@ def main(config: DictConfig) -> None:
     env_log_dir = os.path.join(hydra_output_dir, "env_logs")
     os.makedirs(env_log_dir, exist_ok=True)
 
-    env = make_env(config)
-    env = add_logger_to_env(env, env_log_dir)
+    def make_env_fn():
+        env = make_env(config)
+        env = add_logger_to_env(env, env_log_dir)
+        return env
 
     train_log_dir = os.path.join(hydra_output_dir, "train_logs")
     os.makedirs(train_log_dir, exist_ok=True)
     train_writer = SummaryWriter(log_dir=train_log_dir)
 
-    action_spec = env.action_spec_unbatched
-    observation_spec = env.observation_spec_unbatched["observation"]
+    temp_env = make_env(config)
+    action_spec = temp_env.action_spec_unbatched
+    observation_spec = temp_env.observation_spec_unbatched["observation"]
 
     actor, qvalue = make_td3_agent(config, observation_spec, action_spec)
     actor_with_exploration, exploration_module = add_exploration(config, actor, action_spec)
 
-    warmup(env, actor_with_exploration, qvalue)
+    warmup(temp_env, actor_with_exploration, qvalue)
+    temp_env.close()
 
     buffer = make_buffer(config)
-    collector = make_sync_collector(config, env, actor_with_exploration)
+    collector = make_async_collector(config, make_env_fn, actor_with_exploration, buffer)
 
     loss_module = make_loss_module(config, actor, qvalue, action_spec)
     optimizer_actor, optimizer_critic = make_optimizers(config, loss_module)
     target_net_updater = make_target_updater(config, loss_module)
 
-    total_collected_frames = 0
     total_train_steps = 0
 
     window_size = config.data.frames_per_batch
@@ -69,14 +71,11 @@ def main(config: DictConfig) -> None:
 
     train_config = config.train
 
-    try: 
-        for tensordict_data in collector:
-            total_collected_frames += tensordict_data.numel()
-            buffer.extend(tensordict_data.unsqueeze(0).to_tensordict())
-
-            exploration_module.step(tensordict_data.numel())
-
-            if total_train_steps < train_config.total_train_steps:
+    try:
+        collector.start()
+        
+        while total_train_steps < train_config.total_train_steps:
+            if len(buffer) > train_config.batch_size:
                 for i in range(train_config.update_to_data):
                     batch = buffer.sample(train_config.batch_size)
                     
@@ -91,17 +90,18 @@ def main(config: DictConfig) -> None:
                         total_loss += loss_actor_val
 
                     recent_losses.append(total_loss)
+
+                exploration_module.step(train_config.batch_size)
                 
-                avg_loss =  sum(recent_losses) / len(recent_losses)
+                avg_loss = sum(recent_losses) / len(recent_losses)
                 train_writer.add_scalar("Loss", avg_loss, total_train_steps)
+                
                 total_train_steps += 1
-                       
 
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
     finally:
-        collector.shutdown()
-        env.close()
+        collector.async_shutdown()
         train_writer.close()
 
 

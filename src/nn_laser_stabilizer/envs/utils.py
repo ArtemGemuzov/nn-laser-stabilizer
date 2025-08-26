@@ -5,7 +5,7 @@ from nn_laser_stabilizer.envs.oscillator import DuffingOscillator
 from nn_laser_stabilizer.envs.numerical_experimental_setup import NumericalExperimentalSetup
 from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperimentalEnv
 
-from torchrl.envs.transforms import Transform, Compose, DoubleToFloat
+from torchrl.envs.transforms import Transform, Compose, DoubleToFloat, ObservationNorm, RewardScaling
 from torchrl.envs.transforms import StepCounter, InitTracker
 import torch
 
@@ -70,7 +70,7 @@ def make_env(config) -> TransformedEnv:
         Compose(
             StepCounter(),
             InitTracker(),
-            DoubleToFloat()
+            DoubleToFloat(),
         )
     )
     env.set_seed(config.seed)

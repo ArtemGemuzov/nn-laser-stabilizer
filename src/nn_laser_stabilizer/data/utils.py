@@ -1,7 +1,7 @@
 from torchrl.collectors import SyncDataCollector, aSyncDataCollector
-from torchrl.data import ReplayBuffer, LazyTensorStorage, TensorDictReplayBuffer
+from torchrl.data import LazyTensorStorage, TensorDictReplayBuffer
 
-def make_sync_collector(config, env, actor, replay_buffer):
+def make_sync_collector(config, env, actor):
     collector = SyncDataCollector(
         env,
         actor,
