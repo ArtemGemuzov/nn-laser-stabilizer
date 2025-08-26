@@ -59,17 +59,17 @@ def main(config: DictConfig) -> None:
     optimizer_actor, optimizer_critic = make_optimizers(config, loss_module)
     target_net_updater = make_target_updater(config, loss_module)
 
+    train_config = config.train
+
     total_collected_frames = 0
     total_train_steps = 0
 
-    window_size = config.data.frames_per_batch
-    recent_losses = deque(maxlen=window_size)
-
-    logger.info("Training started")
-
-    train_config = config.train
+    recent_qvalue_losses = deque(maxlen=train_config.update_to_data)
+    recent_actor_losses = deque(maxlen=train_config.update_to_data // train_config.update_actor_freq)
 
     try: 
+        logger.info("Training started")
+
         for tensordict_data in collector:
             total_collected_frames += tensordict_data.numel()
             buffer.extend(tensordict_data.unsqueeze(0).to_tensordict())
@@ -86,20 +86,27 @@ def main(config: DictConfig) -> None:
                         target_net_updater, update_actor
                     )
                     
-                    total_loss = loss_qvalue_val
+                    recent_qvalue_losses.append(loss_qvalue_val)
                     if loss_actor_val is not None:
-                        total_loss += loss_actor_val
-
-                    recent_losses.append(total_loss)
+                        recent_actor_losses.append(loss_actor_val)
                 
-                avg_loss =  sum(recent_losses) / len(recent_losses)
-                train_writer.add_scalar("Loss", avg_loss, total_train_steps)
+                avg_qvalue_loss = sum(recent_qvalue_losses) / len(recent_qvalue_losses)
+                train_writer.add_scalar("Loss/Critic", avg_qvalue_loss, total_train_steps)
+
+                avg_actor_loss = sum(recent_actor_losses) / len(recent_actor_losses)
+                train_writer.add_scalar("Loss/Actor", avg_actor_loss, total_train_steps)
+
                 total_train_steps += 1
-                       
 
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
+
+    except Exception as ex:
+        logger.warning(f"Error while training: {ex}")
+
     finally:
+        logger.info("Training finished")
+
         collector.shutdown()
         env.close()
         train_writer.close()
