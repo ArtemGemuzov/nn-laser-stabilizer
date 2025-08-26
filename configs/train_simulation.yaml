@@ -1,12 +1,13 @@
+experiment_name: td3_train_simulation
 seed: 42 
 
 hydra:
   run:
-    dir: experiments/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 data:
-  frames_per_batch: 50
-  total_frames: 50_000
+  frames_per_batch: 1
+  total_frames: 100
 
   buffer_size: 50_000
 
@@ -23,7 +24,7 @@ agent:
   num_qvalue_nets: 2
   target_update_eps: 0.95
 
-  learning_rate_actor: 1e-5
+  learning_rate_actor: 1e-6
   learning_rate_critic: 1e-5
 
   exploration_sigma_init: 0.1
@@ -40,10 +41,21 @@ env:
   process_noise_std: 0.05
   measurement_noise_std: 0.02
 
+  bounds:
+    action:
+      low: [0.0, 0.0, 0.0]
+      high: [100.0, 100.0, 100.0]
+    observation:
+      low: [-inf, -inf, -inf]
+      high: [inf, inf, inf]
+    reward:
+      low: [-inf]
+      high: [inf]
+
 train:
   batch_size: 4
   
-  update_to_data: 16
+  update_to_data: 4
   update_actor_freq: 2 
 
-  total_train_steps: 1000
+  total_train_steps: 100

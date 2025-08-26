@@ -1,22 +1,23 @@
 import torch
 from tensordict import TensorDict
 from torchrl.envs import EnvBase
-from torchrl.data import UnboundedContinuous, BoundedContinuous
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 
 class PidTuningExperimentalEnv(EnvBase):
-    def __init__(self, experimental_setup : PidTuningExperimentalSetup):
+    def __init__(self, 
+                 experimental_setup : PidTuningExperimentalSetup, 
+                 action_spec,
+                 observation_spec,
+                 reward_spec
+    ):
         super().__init__()
 
         self.experimental_setup = experimental_setup
 
-        # Действия: [Kp, Ki, Kd]
-        self.action_spec = BoundedContinuous(low=0, high=100, shape=(3,))
-        # Наблюдения: [process_variable, control_output, setpoint]
-        self.observation_spec = UnboundedContinuous(shape=(3,))
-        # Вознаграждение: скаляр
-        self.reward_spec = UnboundedContinuous(shape=(1,))
+        self.action_spec = action_spec
+        self.observation_spec = observation_spec
+        self.reward_spec = reward_spec
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         kp, ki, kd = tensordict["action"].tolist()
@@ -32,7 +33,7 @@ class PidTuningExperimentalEnv(EnvBase):
         error = setpoint - process_variable
         reward = -abs(error)
 
-        done = False  # задать условие завершения
+        done = False  # TODO задать условие завершения
 
         return TensorDict(
             {
@@ -64,14 +65,4 @@ class PidTuningExperimentalEnv(EnvBase):
         if "observation" not in tensordict:
             tensordict = self.reset()
         return self.step(tensordict)
-
-def to_pid_params(tensordict_action):
-    kp = tensordict_action[:, 0].tolist()
-    ki = tensordict_action[:, 1].tolist()
-    kd = tensordict_action[:, 2].tolist()
-    return kp, ki, kd
-
-def to_oscillator_params(tensordict_observation):
-    x = tensordict_observation[:, 0].tolist()
-    setpoint = tensordict_observation[:, 2].to_list()
-    return x, setpoint
+    

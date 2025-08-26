@@ -29,7 +29,7 @@ logger = getLogger(__name__)
 
 from hydra.core.hydra_config import HydraConfig
 
-CONFIG_NAME = "train_simulation"
+CONFIG_NAME = "train_real"
 
 @hydra.main(config_path=find_configs_dir(), config_name=CONFIG_NAME, version_base=None)
 def main(config: DictConfig) -> None:
@@ -41,7 +41,6 @@ def main(config: DictConfig) -> None:
 
     def make_env_fn():
         env = make_env(config)
-        env = add_logger_to_env(env, env_log_dir)
         return env
 
     train_log_dir = os.path.join(hydra_output_dir, "train_logs")
@@ -88,8 +87,6 @@ def main(config: DictConfig) -> None:
                     recent_qvalue_losses.append(loss_qvalue_val)
                     if loss_actor_val is not None:
                         recent_actor_losses.append(loss_actor_val)
-
-                # TODO Попробовать вернуть exploration module
                 
                 avg_qvalue_loss = sum(recent_qvalue_losses) / len(recent_qvalue_losses)
                 train_writer.add_scalar("Loss/Critic", avg_qvalue_loss, total_train_steps)

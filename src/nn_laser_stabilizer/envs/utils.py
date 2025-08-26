@@ -7,6 +7,7 @@ from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperi
 
 from torchrl.envs.transforms import Transform, Compose, DoubleToFloat, ObservationNorm, RewardScaling
 from torchrl.envs.transforms import StepCounter, InitTracker
+from torchrl.data import UnboundedContinuous, BoundedContinuous
 import torch
 
 from torch.utils.tensorboard import SummaryWriter
@@ -50,6 +51,23 @@ class PerStepLogger(Transform):
 
         return next_tensordict
 
+def make_specs(bounds_config: dict) -> dict:
+    specs = {}
+    for key in ["action", "observation", "reward"]:
+        spec_bounds = bounds_config.get(key)
+        if spec_bounds is None:
+            raise ValueError(f"Missing bounds for {key}")
+
+        low = torch.tensor([float(x) for x in spec_bounds["low"]])
+        high = torch.tensor([float(x) for x in spec_bounds["high"]])
+
+        if torch.isinf(low).any() or torch.isinf(high).any():
+            specs[key] = UnboundedContinuous(shape=low.shape)
+        else:
+            specs[key] = BoundedContinuous(low=low, high=high, shape=low.shape)
+
+    return specs
+
 def make_env(config) -> TransformedEnv:
     env_config = config.env
 
@@ -64,7 +82,15 @@ def make_env(config) -> TransformedEnv:
     )
     numerical_model = NumericalExperimentalSetup(oscillator, pid)
 
-    base_env = PidTuningExperimentalEnv(numerical_model)
+    specs = make_specs(env_config.bounds)
+
+    base_env = PidTuningExperimentalEnv(
+        numerical_model, 
+        action_spec=specs["action"],
+        observation_spec=specs["observation"],
+        reward_spec=specs["reward"]
+    )
+    
     env = TransformedEnv(
         base_env,
         Compose(

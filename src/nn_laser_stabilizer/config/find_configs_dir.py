@@ -1,7 +1,6 @@
 from pathlib import Path
 
 DEFAULT_CONGIFS_DIR_NAME = "configs"
-DEFAULE_CONFIG_NAME = "default_config"
 
 def find_configs_dir(target: str = DEFAULT_CONGIFS_DIR_NAME) -> str:
     start = Path(__file__).resolve()

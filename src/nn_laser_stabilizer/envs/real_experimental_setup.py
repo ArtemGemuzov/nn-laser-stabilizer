@@ -8,7 +8,7 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
     Реализация протокола PidTuningExperimentalSetup для реальной установки через SerialConnection.
     Формат обмена:
         → Команда: "kp ki kd"
-        ← Ответ: "PV CO SP"
+        ← Ответ: "PV CO"
     """
 
     DEFAULT_KP = 3.5
@@ -21,9 +21,9 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
     def _parse_response(self, response: str) -> Tuple[float, float, float]:
         try:
             parts = response.strip().split()
-            if len(parts) != 3:
-                raise ValueError(f"Expected 3 values, got {len(parts)}")
-            return float(parts[0]), float(parts[1]), float(parts[2])
+            if len(parts) != 2:
+                raise ValueError(f"Expected 2 values, got {len(parts)}")
+            return float(parts[0]), float(parts[1])
         except Exception as ex:
             raise ValueError(f"Invalid response format: '{response}'") from ex
 

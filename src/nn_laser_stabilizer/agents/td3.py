@@ -3,6 +3,7 @@ from typing import Tuple, Optional
 import torch
 import torch.nn as nn
 
+from tensordict import TensorDict
 from tensordict.nn import TensorDictModule, TensorDictSequential
 from torchrl.modules import MLP, ValueOperator, TanhModule, AdditiveGaussianModule, LSTMModule, get_primers_from_module, set_recurrent_mode
 from torchrl.envs import set_exploration_type, ExplorationType
@@ -84,11 +85,28 @@ def warmup(env, actor, qvalue):
     primers = get_primers_from_module(models)
     env.append_transform(primers)
 
-    with torch.no_grad(), set_exploration_type(ExplorationType.RANDOM):
+    with torch.no_grad(), set_exploration_type(ExplorationType.DETERMINISTIC):
         td = env.fake_tensordict()
-        for net in models:
-            net(td)
+        for i in range(100):
+            for net in models:
+                net(td)
 
+def warmup_from_specs(observation_spec, action_spec, actor, qvalue, device="cpu"):
+    models = nn.ModuleList([actor, qvalue])
+
+    dummy_observation = torch.zeros(observation_spec.shape, dtype=torch.float32, device=device)
+    dummy_action = torch.zeros(action_spec.shape, dtype=torch.float32, device=device)
+
+    td = TensorDict({
+        "is_init": torch.tensor(True),
+        "observation": dummy_observation,
+        "action": dummy_action,
+    }, batch_size=[])
+
+    with torch.no_grad(), set_exploration_type(ExplorationType.DETERMINISTIC):
+        for i in range(100):
+            for net in models:
+                net(td)
 
 def make_loss_module(config, actor, qvalue, action_spec) -> TD3Loss:
     agent_cfg = config.agent
