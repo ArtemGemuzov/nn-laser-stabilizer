@@ -19,7 +19,7 @@ nn-laser-stabilizer/
 ```
 
 ## Установка
-1. Клонируйте репозиторий:
+1. Клонируйте репозиторий или скачайте zip архив (Code/Download ZIP) и разархивируйте его:
    ```bash
    git clone https://github.com/ArtemGemuzov/nn-laser-stabilizer.git
    ```
@@ -44,10 +44,11 @@ nn-laser-stabilizer/
    pip install -e .
    ```
 ## Запуск
-Запуск обучения модели:
+Запуск скрпита из директории проекта:
 ```bash
-   python scripts/name_script.py
+   python scripts/<name_script>.py
 ```
+Выходные данные будут собраны в папке experiments.
 
 ## Требования
 См. `requirements.txt` для списка необходимых библиотек.
