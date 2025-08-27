@@ -1,24 +1,29 @@
-experiment_name: td3_train_simulation
+experiment_name: td3_train_real
 seed: 42 
 
+serial: 
+  port: COM15
+  baudrate: 115200
+  timeout: 0.1
+  
 hydra:
   run:
     dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 data:
   frames_per_batch: 50
-  total_frames: 50_000
+  total_frames: -1
 
-  buffer_size: 50_000
+  buffer_size: 100_000
 
 agent:
-  lstm_hidden_size: 64
-  lstm_num_layers: 2
-  mlp_depth: 2
-  mlp_num_cells: 64
+  lstm_hidden_size: 32
+  lstm_num_layers: 1
+  mlp_depth: 1
+  mlp_num_cells: 32
 
-  q_mlp_depth: 2
-  q_mlp_num_cells: 64
+  q_mlp_depth: 1
+  q_mlp_num_cells: 32
 
   gamma: 0.99
   num_qvalue_nets: 2
@@ -27,30 +32,27 @@ agent:
   learning_rate_actor: 1e-6
   learning_rate_critic: 1e-5
 
-  exploration_sigma_init: 0.1
-  exploration_sigma_end: 0.01
-  exploration_annealing_steps: 1000
-
 env:
-  setpoint: 10.0
-  mass: 1.0
+  setpoint: 500.0
+
+  bounds:
+    action:
+      low: [0.0, 0.0, 0.0]
+      high: [17.5, 55.0, 0.01]
+    observation:
+      low: [0.0, 0.0, 0.0]
+      high: [4095.0, 10230.0, 4095.0]
+    reward:
+      low: [0.0]
+      high: [4095.0]
+
+  mass: 1.0 # TODO: Убрать после решения проблемы с двойным созданием подключения
   k_linear: 1.0
   k_nonlinear: 1.0
   k_damping: 0.1
 
   process_noise_std: 0.05
   measurement_noise_std: 0.02
-
-  bounds:
-    action:
-      low: [0.0, 0.0, 0.0]
-      high: [17.5, 55.0, 0.1]
-    observation:
-      low: [-inf, -inf, -inf]
-      high: [inf, inf, inf]
-    reward:
-      low: [-inf]
-      high: [inf]
 
 train:
   batch_size: 4

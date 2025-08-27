@@ -4,6 +4,9 @@ from nn_laser_stabilizer.envs.pid_controller import PIDController
 from nn_laser_stabilizer.envs.oscillator import DuffingOscillator
 from nn_laser_stabilizer.envs.numerical_experimental_setup import NumericalExperimentalSetup
 from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperimentalEnv
+from nn_laser_stabilizer.serial_connection import SerialConnection
+from nn_laser_stabilizer.mock_serial_connection import MockSerialConnection
+from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 
 from torchrl.envs.transforms import Transform, Compose, DoubleToFloat, ObservationNorm, RewardScaling
 from torchrl.envs.transforms import StepCounter, InitTracker
@@ -68,7 +71,7 @@ def make_specs(bounds_config: dict) -> dict:
 
     return specs
 
-def make_env(config) -> TransformedEnv:
+def make_simulated_env(config) -> TransformedEnv:
     env_config = config.env
 
     pid = PIDController(setpoint=env_config.setpoint)
@@ -94,13 +97,73 @@ def make_env(config) -> TransformedEnv:
     env = TransformedEnv(
         base_env,
         Compose(
-            StepCounter(),
             InitTracker(),
             DoubleToFloat(),
         )
     )
     env.set_seed(config.seed)
     return env
+
+def make_real_env(config) -> TransformedEnv:
+    """
+    Создает окружение TorchRL для взаимодействия с реальной установкой через SerialConnection.
+    
+    Args:
+        config: Конфигурация, содержащая:
+            - env.setpoint: целевое значение (setpoint)
+            - env.bounds: границы для спецификаций
+            - serial.port: COM порт для подключения
+            - serial.baudrate: скорость передачи (опционально, по умолчанию 115200)
+            - serial.timeout: таймаут (опционально, по умолчанию 0.1)
+            - seed: зерно для генератора случайных чисел
+    
+    Returns:
+        TransformedEnv: Окружение TorchRL
+    """
+    env_config = config.env
+    serial_config = config.serial
+    
+    serial_connection = MockSerialConnection(
+        port=serial_config.port,
+        baudrate=serial_config.baudrate,
+        timeout=serial_config.timeout,
+    )
+    
+    serial_connection.open_connection()
+    
+    real_setup = RealExperimentalSetup(
+        serial_connection=serial_connection,
+        setpoint=env_config.setpoint
+    )
+    
+    specs = make_specs(env_config.bounds)
+    
+    base_env = PidTuningExperimentalEnv(
+        real_setup,
+        action_spec=specs["action"],
+        observation_spec=specs["observation"],
+        reward_spec=specs["reward"]
+    )
+    
+    env = TransformedEnv(
+        base_env,
+        Compose(
+            InitTracker(),
+            DoubleToFloat(),
+        )
+    )
+    
+    env.set_seed(config.seed)
+    return env
+
+
+def close_real_env(env: TransformedEnv):
+    try:
+        real_setup = env.base_env.experimental_setup
+        if hasattr(real_setup, 'serial_connection'):
+            real_setup.serial_connection.close_connection()
+    except Exception as e:
+        print(f"Warning: Could not close serial connection properly: {e}")
 
 def add_logger_to_env(env: TransformedEnv, logdir) -> TransformedEnv:
     writer = SummaryWriter(log_dir=logdir)

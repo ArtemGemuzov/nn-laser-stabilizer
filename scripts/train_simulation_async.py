@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 import hydra
 from omegaconf import DictConfig
 
-from nn_laser_stabilizer.train_utils import (
+from nn_laser_stabilizer.utils import (
     set_seeds
 )
 from nn_laser_stabilizer.agents.td3 import (
@@ -19,7 +19,7 @@ from nn_laser_stabilizer.agents.td3 import (
     warmup,
     warmup_from_specs
 )
-from nn_laser_stabilizer.envs.utils import make_env, add_logger_to_env, make_specs
+from nn_laser_stabilizer.envs.utils import make_simulated_env, add_logger_to_env, make_specs
 
 from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
@@ -40,7 +40,7 @@ def main(config: DictConfig) -> None:
     os.makedirs(env_log_dir, exist_ok=True)
 
     def make_env_fn():
-        env = make_env(config)
+        env = make_simulated_env(config)
         env = add_logger_to_env(env, env_log_dir)
         return env
 

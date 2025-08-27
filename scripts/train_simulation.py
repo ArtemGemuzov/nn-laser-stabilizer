@@ -4,7 +4,7 @@ from collections import deque
 from torch.utils.tensorboard import SummaryWriter
 import hydra
 from omegaconf import DictConfig
-from nn_laser_stabilizer.train_utils import set_seeds
+from nn_laser_stabilizer.utils import set_seeds
 from nn_laser_stabilizer.agents.td3 import (
     make_td3_agent,
     add_exploration,
@@ -14,7 +14,7 @@ from nn_laser_stabilizer.agents.td3 import (
     train_step,
     warmup
 )
-from nn_laser_stabilizer.envs.utils import make_env, add_logger_to_env
+from nn_laser_stabilizer.envs.utils import make_simulated_env, add_logger_to_env
 from nn_laser_stabilizer.data.utils import make_buffer, make_sync_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
 from logging import getLogger
@@ -31,7 +31,7 @@ def main(config: DictConfig) -> None:
     env_log_dir = os.path.join(hydra_output_dir, "env_logs")
     os.makedirs(env_log_dir, exist_ok=True)
 
-    env = make_env(config)
+    env = make_simulated_env(config)
     env = add_logger_to_env(env, env_log_dir)
 
     train_log_dir = os.path.join(hydra_output_dir, "train_logs")

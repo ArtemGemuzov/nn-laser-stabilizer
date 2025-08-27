@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 import hydra
 from omegaconf import DictConfig
 
-from nn_laser_stabilizer.train_utils import (
+from nn_laser_stabilizer.utils import (
     set_seeds
 )
 from nn_laser_stabilizer.agents.td3 import (
@@ -19,7 +19,7 @@ from nn_laser_stabilizer.agents.td3 import (
     warmup,
     warmup_from_specs
 )
-from nn_laser_stabilizer.envs.utils import make_env, add_logger_to_env, make_specs
+from nn_laser_stabilizer.envs.utils import make_simulated_env, make_real_env, make_specs, add_logger_to_env, close_real_env
 
 from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
@@ -28,6 +28,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 from hydra.core.hydra_config import HydraConfig
+from functools import partial
 
 CONFIG_NAME = "train_real"
 
@@ -39,9 +40,23 @@ def main(config: DictConfig) -> None:
     env_log_dir = os.path.join(hydra_output_dir, "env_logs")
     os.makedirs(env_log_dir, exist_ok=True)
 
-    def make_env_fn():
-        env = make_env(config)
-        return env
+    def make_env(config, log_dir):
+        env = make_real_env(config)
+        return add_logger_to_env(env, log_dir)
+
+    def make_env_factory(config, log_dir):
+        first_call = True
+
+        def env_fn():
+            nonlocal first_call
+            if first_call:
+                first_call = False
+                return make_simulated_env(config)
+            return make_env(config, log_dir)
+
+        return env_fn
+
+    make_env_fn = make_env_factory(config, env_log_dir)
 
     train_log_dir = os.path.join(hydra_output_dir, "train_logs")
     os.makedirs(train_log_dir, exist_ok=True)
@@ -87,6 +102,8 @@ def main(config: DictConfig) -> None:
                     recent_qvalue_losses.append(loss_qvalue_val)
                     if loss_actor_val is not None:
                         recent_actor_losses.append(loss_actor_val)
+
+                collector.update_policy_weights_()
                 
                 avg_qvalue_loss = sum(recent_qvalue_losses) / len(recent_qvalue_losses)
                 train_writer.add_scalar("Loss/Critic", avg_qvalue_loss, total_train_steps)

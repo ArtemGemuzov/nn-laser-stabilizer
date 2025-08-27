@@ -25,6 +25,7 @@ def make_async_collector(config, make_env_fn, actor, replay_buffer):
 
 def make_buffer(config):
     buffer = TensorDictReplayBuffer(
-        storage=LazyTensorStorage(max_size=config.data.buffer_size)
+        storage=LazyTensorStorage(max_size=config.data.buffer_size),
+        compilable=True 
     )
     return buffer
