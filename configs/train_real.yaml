@@ -1,4 +1,4 @@
-experiment_name: td3_train_real
+experiment_name: td3_train_real_async
 seed: 42 
 
 serial: 
@@ -12,7 +12,7 @@ hydra:
 
 data:
   frames_per_batch: 50
-  total_frames: -1
+  total_frames: -1 # Обучение идет до прерывания через CTRL + C
 
   buffer_size: 100_000
 
@@ -29,8 +29,8 @@ agent:
   num_qvalue_nets: 2
   target_update_eps: 0.95
 
-  learning_rate_actor: 1e-6
-  learning_rate_critic: 1e-5
+  learning_rate_actor: 1e-5
+  learning_rate_critic: 1e-4
 
 env:
   setpoint: 500.0
@@ -60,4 +60,4 @@ train:
   update_to_data: 16
   update_actor_freq: 2 
 
-  total_train_steps: 10_000
+  total_train_steps: 1_000_000_000 # Обучение идет до прерывания через CTRL + C

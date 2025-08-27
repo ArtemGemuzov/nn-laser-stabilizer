@@ -1,6 +1,7 @@
 import os
 from collections import deque
 
+import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import hydra
@@ -122,6 +123,15 @@ def main(config: DictConfig) -> None:
 
     finally:
         logger.info("Training finished")
+
+        model_save_dir = os.path.join(hydra_output_dir, "saved_models")
+        os.makedirs(model_save_dir, exist_ok=True)
+
+        actor_path = os.path.join(model_save_dir, "actor.pth")
+        torch.save(actor.state_dict(), actor_path)
+
+        qvalue_path = os.path.join(model_save_dir, "qvalue.pth")
+        torch.save(qvalue.state_dict(), qvalue_path)
         
         collector.async_shutdown()
         train_writer.close()
