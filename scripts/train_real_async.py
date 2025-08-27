@@ -44,6 +44,7 @@ def main(config: DictConfig) -> None:
         env = make_real_env(config)
         return add_logger_to_env(env, log_dir)
 
+    # TODO: aSyncDataCollector внутри себя создает фейковое окружение, поэтому при первом вызове нужно вернуть симуляцию окружения
     def make_env_factory(config, log_dir):
         first_call = True
 
