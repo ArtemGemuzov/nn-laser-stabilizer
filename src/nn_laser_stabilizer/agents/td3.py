@@ -36,6 +36,7 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
             in_keys=["param"],
             out_keys=["action"],
             spec=action_spec,
+            clamp=True
         ),
     )
     return actor
