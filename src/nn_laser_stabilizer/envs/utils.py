@@ -123,7 +123,7 @@ def make_real_env(config) -> TransformedEnv:
     env_config = config.env
     serial_config = config.serial
     
-    serial_connection = MockSerialConnection(
+    serial_connection = SerialConnection(
         port=serial_config.port,
         baudrate=serial_config.baudrate,
         timeout=serial_config.timeout,
