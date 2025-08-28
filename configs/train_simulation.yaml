@@ -14,17 +14,17 @@ data:
 agent:
   lstm_hidden_size: 32
   lstm_num_layers: 1
-  mlp_depth: 1
+  mlp_depth: 0
   mlp_num_cells: 32
 
-  q_mlp_depth: 1
+  q_mlp_depth: 0
   q_mlp_num_cells: 32
 
   gamma: 0.99
   num_qvalue_nets: 2
   target_update_eps: 0.95
 
-  learning_rate_actor: 1e-6
+  learning_rate_actor: 1e-5
   learning_rate_critic: 1e-5
 
   exploration_sigma_init: 0.1

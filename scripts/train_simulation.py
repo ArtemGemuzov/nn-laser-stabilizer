@@ -79,9 +79,9 @@ def main(config: DictConfig) -> None:
                 num_frames = tensordict_data.numel()
                 time_per_frame = collector_duration / num_frames if num_frames > 0 else 0
                 total_collected_frames += num_frames
+                logger.info(f"Data collection step completed in {collector_duration:.4f} seconds, {time_per_frame:.6f} seconds per frame ({num_frames} frames)")
 
                 buffer.extend(tensordict_data.unsqueeze(0).to_tensordict())
-                logger.info(f"Data collection step completed in {collector_duration:.4f} seconds, {time_per_frame:.6f} seconds per frame ({num_frames} frames)")
 
                 exploration_module.step(tensordict_data.numel())
 
@@ -97,12 +97,12 @@ def main(config: DictConfig) -> None:
                         )
 
                         step_duration = time.time() - step_start_time
+                        logger.info(f"Training step {total_train_steps * train_config.update_to_data + i + 1} completed in {step_duration:.4f} seconds")
                         
                         recent_qvalue_losses.append(loss_qvalue_val)
                         if loss_actor_val is not None:
                             recent_actor_losses.append(loss_actor_val)
                         
-                        logger.info(f"Training step {total_train_steps * train_config.update_to_data + i + 1} completed in {step_duration:.4f} seconds")
                         total_training_time += step_duration
                         total_iterations += 1
                     

@@ -1,39 +1,13 @@
 experiment_name: td3_train_real_async
 seed: 42 
 
-serial: 
-  port: COM15
+serial: # CHECK
+  port: COM15 
   baudrate: 115200
   timeout: 0.1
-  
-hydra:
-  run:
-    dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
-
-data:
-  frames_per_batch: 50
-  total_frames: -1 # Обучение идет до прерывания через CTRL + C
-
-  buffer_size: 100_000
-
-agent:
-  lstm_hidden_size: 32
-  lstm_num_layers: 1
-  mlp_depth: 1
-  mlp_num_cells: 32
-
-  q_mlp_depth: 1
-  q_mlp_num_cells: 32
-
-  gamma: 0.99
-  num_qvalue_nets: 2
-  target_update_eps: 0.95
-
-  learning_rate_actor: 1e-5
-  learning_rate_critic: 1e-4
 
 env:
-  setpoint: 500.0
+  setpoint: 500.0 # CHECK
 
   bounds:
     action:
@@ -41,10 +15,10 @@ env:
       high: [17.5, 55.0, 0.01]
     observation:
       low: [0.0, 0.0, 0.0]
-      high: [4095.0, 10230.0, 4095.0]
+      high: [10230.0, 4095.0, 10230.0]
     reward:
-      low: [0.0]
-      high: [4095.0]
+      low: [-10230.0]
+      high: [0]
 
   mass: 1.0 # TODO: Убрать после решения проблемы с двойным созданием подключения
   k_linear: 1.0
@@ -53,6 +27,32 @@ env:
 
   process_noise_std: 0.05
   measurement_noise_std: 0.02
+
+hydra:
+  run:
+    dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+data:
+  frames_per_batch: 50
+  total_frames: 1_000_000 # Обучение идет приблизительно 30 мин
+
+  buffer_size: 100_000
+
+agent:
+  lstm_hidden_size: 32
+  lstm_num_layers: 1
+  mlp_depth: 0
+  mlp_num_cells: 32
+
+  q_mlp_depth: 0
+  q_mlp_num_cells: 32
+
+  gamma: 0.99
+  num_qvalue_nets: 2
+  target_update_eps: 0.95
+
+  learning_rate_actor: 1e-4
+  learning_rate_critic: 1e-4
 
 train:
   batch_size: 4

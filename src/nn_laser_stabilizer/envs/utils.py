@@ -1,4 +1,4 @@
-from torchrl.envs import TransformedEnv, DoubleToFloat, Compose, InitTracker, GymEnv, StepCounter
+from torchrl.envs import TransformedEnv, DoubleToFloat, Compose, InitTracker
 
 from nn_laser_stabilizer.envs.pid_controller import PIDController
 from nn_laser_stabilizer.envs.oscillator import DuffingOscillator
@@ -141,8 +141,8 @@ def make_real_env(config) -> TransformedEnv:
     base_env = PidTuningExperimentalEnv(
         real_setup,
         action_spec=specs["action"],
-        observation_spec=specs["observation"],
-        reward_spec=specs["reward"]
+        observation_spec=BoundedContinuous(low=-1, high=1, shape=(3,)),
+        reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,))
     )
     
     env = TransformedEnv(

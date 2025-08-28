@@ -20,7 +20,7 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
         self.serial_connection = serial_connection
         self.setpoint = setpoint
 
-    def _parse_response(self, response: str) -> Tuple[float, float, float]:
+    def _parse_response(self, response: str) -> Tuple[float, float]:
         try:
             parts = response.strip().split()
             if len(parts) != 2:
