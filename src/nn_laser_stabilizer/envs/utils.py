@@ -8,6 +8,7 @@ from nn_laser_stabilizer.serial_connection import SerialConnection
 from nn_laser_stabilizer.mock_serial_connection import MockSerialConnection
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 
+from torchrl.envs import GymEnv
 from torchrl.envs.transforms import Transform, Compose, DoubleToFloat, ObservationNorm, RewardScaling
 from torchrl.envs.transforms import StepCounter, InitTracker
 from torchrl.data import UnboundedContinuous, BoundedContinuous
@@ -70,6 +71,21 @@ def make_specs(bounds_config: dict) -> dict:
             specs[key] = BoundedContinuous(low=low, high=high, shape=low.shape)
 
     return specs
+
+def make_gym_env(config) -> TransformedEnv:
+    env_config = config.env
+
+    base_env = GymEnv(env_config.name)
+    env = TransformedEnv(
+        base_env,
+        Compose(
+            InitTracker(),
+            StepCounter(),
+            DoubleToFloat(),
+        )
+    )
+    env.set_seed(config.seed)
+    return env
 
 def make_simulated_env(config) -> TransformedEnv:
     env_config = config.env
