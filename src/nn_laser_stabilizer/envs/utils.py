@@ -40,7 +40,7 @@ class PerStepLogger(Transform):
 
         self._t += 1
 
-    def _step(self, tensordict, next_tensordict) :
+    def _step(self, tensordict, next_tensordict):
         """
         Вызывается на каждом env.step().
         tensordict: данные на шаге t
