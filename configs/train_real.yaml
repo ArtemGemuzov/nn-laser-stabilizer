@@ -39,6 +39,9 @@ data:
   buffer_size: 100_000
 
 agent:
+  use_lstm_policy: True
+  python_based_lstm_policy: True
+  
   lstm_hidden_size: 32
   lstm_num_layers: 1
   mlp_depth: 0
