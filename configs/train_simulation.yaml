@@ -6,8 +6,8 @@ hydra:
     dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 data:
-  frames_per_batch: 1000
-  total_frames: -1
+  frames_per_batch: 200
+  total_frames: 50_000
 
   buffer_size: 100_000
 
@@ -18,17 +18,15 @@ agent:
   lstm_hidden_size: 32
   lstm_num_layers: 1
 
-  mlp_depth: 1
-  mlp_num_cells: 256
+  mlp_num_cells: [256, 256]
 
   use_lstm_qvalue: False
   python_based_lstm_qvalue: False
 
-  q_lstm_hidden_size: 32
-  q_lstm_num_layers: 1
+  q_lstm_hidden_size: ${agent.lstm_hidden_size}
+  q_lstm_num_layers: ${agent.lstm_num_layers}
 
-  q_mlp_depth: 1
-  q_mlp_num_cells: 256
+  q_mlp_num_cells: ${agent.mlp_num_cells}
 
   policy_noise: 0.2
   noise_clip: 0.5
@@ -40,17 +38,35 @@ agent:
   learning_rate_actor: 1e-3
   learning_rate_critic: 1e-3
 
-  exploration_sigma_init: 0.1
-  exploration_sigma_end: 0.01
-  exploration_annealing_steps: 1000
-
 env:
-  name: "Pendulum-v1"
+  name: "InvertedPendulum-v5" # "InvertedPendulum-v5" "Pendulum-v1" # "InvertedDoublePendulum-v5"
+
+  # TODO убрать (необходимо для поддержки benchmark)
+  setpoint: 1.0 # CHECK
+
+  bounds:
+    action:
+      low: [0.0, 0.0, 0.0]
+      high: [17.5, 55.0, 0.01]
+    observation:
+      low: [0.0, 0.0, 0.0]
+      high: [10230.0, 4095.0, 10230.0]
+    reward:
+      low: [-10230.0]
+      high: [0]
+
+  mass: 1.0 # TODO: Убрать после решения проблемы с двойным созданием подключения
+  k_linear: 1.0
+  k_nonlinear: 1.0
+  k_damping: 0.1
+
+  process_noise_std: 0.05
+  measurement_noise_std: 0.02
 
 train:
-  batch_size: 256
+  batch_size: 4
   
-  update_to_data: 16
+  update_to_data: ${data.frames_per_batch}
   update_actor_freq: 2
 
   total_train_steps: 1_000_000
