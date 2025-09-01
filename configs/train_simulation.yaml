@@ -6,8 +6,8 @@ hydra:
     dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 data:
-  frames_per_batch: 10
-  total_frames: 100
+  frames_per_batch: 50
+  total_frames: -1
 
   buffer_size: 50_000
 
@@ -65,7 +65,7 @@ env:
 train:
   batch_size: 4
   
-  update_to_data: 4
+  update_to_data: 16
   update_actor_freq: 2 
 
-  total_train_steps: 100
+  total_train_steps: 1000
