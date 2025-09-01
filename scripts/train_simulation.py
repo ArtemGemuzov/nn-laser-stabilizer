@@ -39,12 +39,14 @@ def main(config: DictConfig) -> None:
     observation_spec = env.observation_spec_unbatched["observation"]
 
     actor, qvalue = make_td3_agent(config, observation_spec, action_spec)
-    actor_with_exploration, _ = add_exploration(config, actor, action_spec)
 
-    warmup(env, actor_with_exploration, qvalue)
+    # Exploration не используется здесь, поскольку он не используется в async версии
+    # actor_with_exploration, _ = add_exploration(config, actor, action_spec)
+
+    warmup(env, actor, qvalue)
 
     buffer = make_buffer(config)
-    collector = make_sync_collector(config, env, actor_with_exploration)
+    collector = make_sync_collector(config, env, actor)
 
     loss_module = make_loss_module(config, actor, qvalue, action_spec)
     optimizer_actor, optimizer_critic = make_optimizers(config, loss_module)
@@ -63,7 +65,7 @@ def main(config: DictConfig) -> None:
 
         for tensordict_data in collector:
             total_collected_frames += tensordict_data.numel()
-            buffer.extend(tensordict_data)
+            buffer.extend(tensordict_data.unsqueeze(0).to_tensordict())
 
             rewards = tensordict_data.get(("next", "reward"))
             steps = tensordict_data.get(("next", "step_count"))
