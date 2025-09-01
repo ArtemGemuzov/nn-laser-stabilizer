@@ -31,8 +31,8 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
     actor_mlp = TensorDictModule(
         MLP(
             out_features=action_spec.shape[-1],
-            depth=agent_cfg.mlp_depth,
-            num_cells=agent_cfg.mlp_num_cells
+            num_cells=agent_cfg.mlp_num_cells,
+            activation_class=nn.ReLU
         ),
         in_keys=[mlp_input_key],
         out_keys=["param"]
@@ -95,8 +95,8 @@ def make_qvalue_network(config, observation_spec, action_spec):
     qvalue_mlp = TensorDictModule(
         module=MLP(
             out_features=1,
-            depth=agent_cfg.q_mlp_depth,
             num_cells=agent_cfg.q_mlp_num_cells,
+            activation_class=nn.ReLU,
         ),
         in_keys=mlp_input_keys,
         out_keys=["state_action_value"],
