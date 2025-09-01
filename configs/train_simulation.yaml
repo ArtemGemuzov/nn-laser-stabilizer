@@ -6,66 +6,51 @@ hydra:
     dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 data:
-  frames_per_batch: 50
+  frames_per_batch: 1000
   total_frames: -1
 
-  buffer_size: 50_000
+  buffer_size: 100_000
 
 agent:
-  use_lstm_policy: True
+  use_lstm_policy: False
   python_based_lstm_policy: False
 
   lstm_hidden_size: 32
   lstm_num_layers: 1
 
-  mlp_depth: 0
-  mlp_num_cells: 32
+  mlp_depth: 1
+  mlp_num_cells: 256
 
-  use_lstm_qvalue: True
+  use_lstm_qvalue: False
   python_based_lstm_qvalue: False
 
   q_lstm_hidden_size: 32
   q_lstm_num_layers: 1
 
-  q_mlp_depth: 0
-  q_mlp_num_cells: 32
+  q_mlp_depth: 1
+  q_mlp_num_cells: 256
+
+  policy_noise: 0.2
+  noise_clip: 0.5
 
   gamma: 0.99
   num_qvalue_nets: 2
   target_update_eps: 0.95
 
-  learning_rate_actor: 1e-5
-  learning_rate_critic: 1e-5
+  learning_rate_actor: 1e-3
+  learning_rate_critic: 1e-3
 
   exploration_sigma_init: 0.1
   exploration_sigma_end: 0.01
   exploration_annealing_steps: 1000
 
 env:
-  setpoint: 10.0
-  mass: 1.0
-  k_linear: 1.0
-  k_nonlinear: 1.0
-  k_damping: 0.1
-
-  process_noise_std: 0.05
-  measurement_noise_std: 0.02
-
-  bounds:
-    action:
-      low: [0.0, 0.0, 0.0]
-      high: [100.0, 100.0, 100.0]
-    observation:
-      low: [-inf, -inf, -inf]
-      high: [inf, inf, inf]
-    reward:
-      low: [-inf]
-      high: [inf]
+  name: "Pendulum-v1"
 
 train:
-  batch_size: 4
+  batch_size: 256
   
   update_to_data: 16
-  update_actor_freq: 2 
+  update_actor_freq: 2
 
-  total_train_steps: 1000
+  total_train_steps: 1_000_000
