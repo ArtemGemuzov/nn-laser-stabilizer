@@ -49,7 +49,7 @@ agent:
   mlp_num_cells: 32
 
   use_lstm_qvalue: True # TODO переименовать в q_
-  python_based_lstm_qvalue: True
+  python_based_lstm_qvalue: False
 
   q_mlp_depth: 0
   q_mlp_num_cells: 32
