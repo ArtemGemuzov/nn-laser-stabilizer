@@ -40,15 +40,22 @@ data:
 
 agent:
   use_lstm_policy: True
-  python_based_lstm_policy: True
-  
+  python_based_lstm_policy: False
+
   lstm_hidden_size: 32
   lstm_num_layers: 1
+
   mlp_depth: 0
   mlp_num_cells: 32
 
+  use_lstm_qvalue: True # TODO переименовать в q_
+  python_based_lstm_qvalue: True
+
   q_mlp_depth: 0
   q_mlp_num_cells: 32
+
+  q_lstm_hidden_size: 32
+  q_lstm_num_layers: 1
 
   gamma: 0.99
   num_qvalue_nets: 2

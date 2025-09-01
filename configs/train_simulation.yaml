@@ -6,14 +6,14 @@ hydra:
     dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 data:
-  frames_per_batch: 1
+  frames_per_batch: 10
   total_frames: 100
 
   buffer_size: 50_000
 
 agent:
   use_lstm_policy: True
-  python_based_lstm_policy: True
+  python_based_lstm_policy: False
 
   lstm_hidden_size: 32
   lstm_num_layers: 1
@@ -23,6 +23,9 @@ agent:
 
   use_lstm_qvalue: True
   python_based_lstm_qvalue: True
+
+  q_lstm_hidden_size: 32
+  q_lstm_num_layers: 1
 
   q_mlp_depth: 0
   q_mlp_num_cells: 32
