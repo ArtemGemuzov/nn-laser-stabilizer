@@ -12,55 +12,104 @@ from torchrl.objectives import TD3Loss, SoftUpdate
 def make_actor_network(config, observation_spec, action_spec) -> TensorDictSequential:
     agent_cfg = config.agent
 
-    actor_lstm = LSTMModule(
-        input_size=observation_spec.shape[-1],
-        hidden_size=agent_cfg.lstm_hidden_size,
-        num_layers=agent_cfg.lstm_num_layers,
-        in_key="observation",
-        out_key="param",
-    )
+    modules = []
+
+    if agent_cfg.use_lstm_policy:
+        actor_lstm = LSTMModule(
+            input_size=observation_spec.shape[-1],
+            hidden_size=agent_cfg.lstm_hidden_size,
+            num_layers=agent_cfg.lstm_num_layers,
+            in_key="observation",
+            out_key="param",
+            python_based=agent_cfg.python_based_lstm_policy
+        )
+        modules.append(actor_lstm)
+        mlp_input_key = "param"
+    else:
+        mlp_input_key = "observation"
 
     actor_mlp = TensorDictModule(
         MLP(
             out_features=action_spec.shape[-1],
             depth=agent_cfg.mlp_depth,
             num_cells=agent_cfg.mlp_num_cells
-        ), 
-        in_keys=["param"], 
-        out_keys=["param"])
+        ),
+        in_keys=[mlp_input_key],
+        out_keys=["param"]
+    )
+    modules.append(actor_mlp)
 
-    actor = TensorDictSequential(
-        actor_lstm,
-        actor_mlp,
+    modules.append(
         TanhModule(
             in_keys=["param"],
             out_keys=["action"],
             spec=action_spec,
             clamp=True
-        ),
+        )
     )
+
+    actor = TensorDictSequential(*modules)
     return actor
 
+class CatObsActModule(nn.Module):
+    def __init__(self, dim=-1, num_layers=1, hidden_size=32):
+        super().__init__()
+        self.dim = dim
+        self.num_layers = num_layers
+        self.hidden_size = hidden_size
 
-def make_qvalue_network(config) -> ValueOperator:
+    def forward(self, observation, action):
+        obs_act = torch.cat([observation, action], dim=self.dim)
+        return obs_act
+    
+def make_qvalue_network(config, observation_spec, action_spec):
     agent_cfg = config.agent
+    qvalue_feature_name = "qvalue_feature"
+    modules = []
 
-    qvalue_net = MLP(
-        out_features=1,
-        depth=agent_cfg.q_mlp_depth,
-        num_cells=agent_cfg.q_mlp_num_cells,
-    )
+    if agent_cfg.use_lstm_qvalue:
+        cat_module = TensorDictModule(
+            module=CatObsActModule(
+                dim=-1,
+                num_layers=agent_cfg.q_lstm_num_layers,
+                hidden_size=agent_cfg.q_lstm_hidden_size,
+            ),
+            in_keys=["observation", "action"], 
+            out_keys=["observation_action"], 
+        )
+        modules.append(cat_module)
 
-    qvalue = ValueOperator(
-        in_keys=["action", "observation"],
-        module=qvalue_net,
+        qvalue_lstm = LSTMModule(
+            input_size=observation_spec.shape[-1] + action_spec.shape[-1],
+            hidden_size=agent_cfg.q_lstm_hidden_size,
+            num_layers=agent_cfg.q_lstm_num_layers,
+            in_keys=["observation_action", "q_h", "q_c"],
+            out_keys=[qvalue_feature_name, ("next", "q_h"), ("next", "q_c")],
+            python_based=agent_cfg.python_based_lstm_qvalue
+        )
+        modules.append(qvalue_lstm)
+        mlp_input_keys = [qvalue_feature_name]
+    else:
+        mlp_input_keys = ["observation", "action"]
+
+    qvalue_mlp = TensorDictModule(
+        module=MLP(
+            out_features=1,
+            depth=agent_cfg.q_mlp_depth,
+            num_cells=agent_cfg.q_mlp_num_cells,
+        ),
+        in_keys=mlp_input_keys,
+        out_keys=["state_action_value"],
     )
+    modules.append(qvalue_mlp)
+
+    qvalue = TensorDictSequential(*modules)
     return qvalue
 
 
 def make_td3_agent(config, observation_spec, action_spec) -> Tuple[nn.ModuleList, TensorDictSequential, AdditiveGaussianModule]:
     actor = make_actor_network(config, observation_spec, action_spec)
-    qvalue = make_qvalue_network(config)
+    qvalue = make_qvalue_network(config, observation_spec, action_spec)
     return actor, qvalue
 
 def add_exploration(config, actor, action_spec):
@@ -81,15 +130,18 @@ def add_exploration(config, actor, action_spec):
 
 
 def warmup(env, actor, qvalue):
-    models = nn.ModuleList([actor, qvalue])
+    primers = get_primers_from_module(actor)
+    if primers is not None:
+        env.append_transform(primers)
 
-    primers = get_primers_from_module(models)
-    env.append_transform(primers)
+    primers = get_primers_from_module(qvalue)
+    if primers is not None:
+        env.append_transform(primers)
 
     with torch.no_grad(), set_exploration_type(ExplorationType.DETERMINISTIC):
         td = env.fake_tensordict()
-        for i in range(100):
-            for net in models:
+        for _ in range(100):
+            for net in [actor, qvalue]:
                 net(td)
 
 def warmup_from_specs(observation_spec, action_spec, actor, qvalue, device="cpu"):
@@ -112,13 +164,17 @@ def warmup_from_specs(observation_spec, action_spec, actor, qvalue, device="cpu"
 def make_loss_module(config, actor, qvalue, action_spec) -> TD3Loss:
     agent_cfg = config.agent
 
+    # Использование LSTM для Q-function несовместимо с vmap
+    deactivate_vmap = True if agent_cfg.use_lstm_qvalue else False
+
     loss_module = TD3Loss(
         actor_network=actor,
         qvalue_network=qvalue,
         num_qvalue_nets=agent_cfg.num_qvalue_nets,
         action_spec=action_spec,
         delay_actor=True,
-        delay_qvalue=True
+        delay_qvalue=True,
+        deactivate_vmap=deactivate_vmap
     )
     loss_module.make_value_estimator(gamma=agent_cfg.gamma)
     return loss_module
