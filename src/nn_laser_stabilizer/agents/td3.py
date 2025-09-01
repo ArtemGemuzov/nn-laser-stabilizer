@@ -174,7 +174,9 @@ def make_loss_module(config, actor, qvalue, action_spec) -> TD3Loss:
         action_spec=action_spec,
         delay_actor=True,
         delay_qvalue=True,
-        deactivate_vmap=deactivate_vmap
+        deactivate_vmap=deactivate_vmap,
+        noise_clip=agent_cfg.noise_clip,
+        policy_noise=agent_cfg.policy_noise,
     )
     loss_module.make_value_estimator(gamma=agent_cfg.gamma)
     return loss_module
