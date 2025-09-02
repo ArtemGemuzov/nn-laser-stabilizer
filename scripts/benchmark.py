@@ -20,11 +20,10 @@ from nn_laser_stabilizer.agents.td3 import (
 )
 from nn_laser_stabilizer.envs.utils import make_simulated_env, make_specs, add_logger_to_env
 
-from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector, make_sync_collector
+from nn_laser_stabilizer.data.utils import make_buffer, make_sync_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 @hydra.main(config_path=find_configs_dir(), config_name="train_simulation", version_base=None)
 def main(config: DictConfig) -> None:
@@ -49,7 +48,7 @@ def main(config: DictConfig) -> None:
     warmup_from_specs(observation_spec, action_spec, actor, qvalue)
 
     buffer = make_buffer(config)
-    collector = make_sync_collector(config, make_env_no_logger(), actor)
+    collector = make_sync_collector(config, make_env_with_logger(), actor)
 
     loss_module = make_loss_module(config, actor, qvalue, action_spec)
     optimizer_actor, optimizer_critic = make_optimizers(config, loss_module)

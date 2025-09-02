@@ -19,7 +19,7 @@ from nn_laser_stabilizer.agents.td3 import (
     warmup,
     warmup_from_specs
 )
-from nn_laser_stabilizer.envs.utils import make_simulated_env, add_logger_to_env, make_specs
+from nn_laser_stabilizer.envs.utils import make_gym_env, add_logger_to_env, make_specs
 
 from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
@@ -27,30 +27,18 @@ from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
 from logging import getLogger
 logger = getLogger(__name__)
 
-from hydra.core.hydra_config import HydraConfig
-
 CONFIG_NAME = "train_simulation"
 
 @hydra.main(config_path=find_configs_dir(), config_name=CONFIG_NAME, version_base=None)
 def main(config: DictConfig) -> None:
     set_seeds(config.seed)
 
-    hydra_output_dir = HydraConfig.get().runtime.output_dir
-    env_log_dir = os.path.join(hydra_output_dir, "env_logs")
-    os.makedirs(env_log_dir, exist_ok=True)
-
     def make_env_fn():
-        env = make_simulated_env(config)
-        env = add_logger_to_env(env, env_log_dir)
-        return env
-
-    train_log_dir = os.path.join(hydra_output_dir, "train_logs")
-    os.makedirs(train_log_dir, exist_ok=True)
-    train_writer = SummaryWriter(log_dir=train_log_dir)
-
-    specs = make_specs(config.env.bounds)
-    action_spec = specs["action"]
-    observation_spec = specs["observation"]
+        return make_gym_env(config)
+    
+    eval_env = make_env_fn()
+    action_spec = eval_env.action_spec_unbatched
+    observation_spec = eval_env.observation_spec_unbatched["observation"]
 
     actor, qvalue = make_td3_agent(config, observation_spec, action_spec)
 
@@ -89,15 +77,28 @@ def main(config: DictConfig) -> None:
                     if loss_actor_val is not None:
                         recent_actor_losses.append(loss_actor_val)
 
+                collector.update_policy_weights_()
+
                 # TODO Попробовать вернуть exploration module
                 
                 avg_qvalue_loss = sum(recent_qvalue_losses) / len(recent_qvalue_losses)
-                train_writer.add_scalar("Loss/Critic", avg_qvalue_loss, total_train_steps)
+                logger.info(f"Loss/Q-function = {avg_qvalue_loss} on step {total_train_steps}")
 
                 avg_actor_loss = sum(recent_actor_losses) / len(recent_actor_losses)
-                train_writer.add_scalar("Loss/Actor", avg_actor_loss, total_train_steps)
-                
+                logger.info(f"Loss/Actor = {avg_actor_loss} on step {total_train_steps}")
+
                 total_train_steps += 1
+
+                tensordict_data = eval_env.rollout(max_steps=config.data.frames_per_batch, policy=actor, break_when_any_done=False)
+
+                rewards = tensordict_data.get(("next", "reward"))
+                steps = tensordict_data.get(("next", "step_count"))
+
+                avg_reward = rewards.mean().item()
+                logger.info(f"[Environment] Average reward per step = {avg_reward:.4f}")
+
+                max_episode_length = steps.max().item()
+                logger.info(f"[Environment] Max episode length = {max_episode_length}")
 
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
@@ -109,7 +110,6 @@ def main(config: DictConfig) -> None:
         logger.info("Training finished")
         
         collector.async_shutdown()
-        train_writer.close()
 
 
 if __name__ == "__main__":

@@ -27,8 +27,6 @@ from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
 from logging import getLogger
 logger = getLogger(__name__)
 
-from hydra.core.hydra_config import HydraConfig
-
 @hydra.main(config_path=find_configs_dir(), config_name="train_simulation", version_base=None)
 def main(config: DictConfig) -> None:
     set_seeds(config.seed)
@@ -60,12 +58,18 @@ def main(config: DictConfig) -> None:
     recent_qvalue_losses = deque(maxlen=train_config.update_to_data)
     recent_actor_losses = deque(maxlen=train_config.update_to_data // train_config.update_actor_freq)
 
+    use_lstm = config.agent.use_lstm
+
     try: 
         logger.info("Training started")
 
         for tensordict_data in collector:
             total_collected_frames += tensordict_data.numel()
-            buffer.extend(tensordict_data.unsqueeze(0).to_tensordict())
+
+            if use_lstm:
+                buffer.extend(tensordict_data.unsqueeze(0).to_tensordict())
+            else:
+                buffer.extend(tensordict_data)
 
             rewards = tensordict_data.get(("next", "reward"))
             steps = tensordict_data.get(("next", "step_count"))
