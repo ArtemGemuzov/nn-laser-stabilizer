@@ -28,5 +28,6 @@ def tensorboard_to_df(logdir : str):
                 "value": e.value
             })
 
-    return pd.DataFrame(all_data)
+    df = pd.DataFrame(all_data)
+    return df.pivot(index="step", columns="tag", values="value").reset_index()
 
