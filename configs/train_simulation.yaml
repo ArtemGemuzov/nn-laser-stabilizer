@@ -1,45 +1,18 @@
 experiment_name: td3_train_simulation
 seed: 42 
 
-hydra:
-  run:
-    dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+defaults:
+  - agent: agent
+  - _self_
 
 data:
-  frames_per_batch: 200
+  frames_per_batch: 100 # 1000 для "InvertedPendulum-v5" и "InvertedDoublePendulum-v5"; 200 для "Pendulum-v1"
   total_frames: 50_000
 
   buffer_size: 100_000
 
-agent:
-  use_lstm_policy: False
-  python_based_lstm_policy: False
-
-  lstm_hidden_size: 32
-  lstm_num_layers: 1
-
-  mlp_num_cells: [256, 256]
-
-  use_lstm_qvalue: False
-  python_based_lstm_qvalue: False
-
-  q_lstm_hidden_size: ${agent.lstm_hidden_size}
-  q_lstm_num_layers: ${agent.lstm_num_layers}
-
-  q_mlp_num_cells: ${agent.mlp_num_cells}
-
-  policy_noise: 0.2
-  noise_clip: 0.5
-
-  gamma: 0.99
-  num_qvalue_nets: 2
-  target_update_eps: 0.95
-
-  learning_rate_actor: 1e-3
-  learning_rate_critic: 1e-3
-
 env:
-  name: "InvertedPendulum-v5" # "InvertedPendulum-v5" "Pendulum-v1" # "InvertedDoublePendulum-v5"
+  name: "Pendulum-v1" # "InvertedPendulum-v5" "Pendulum-v1" # "InvertedDoublePendulum-v5"
 
   # TODO убрать (необходимо для поддержки benchmark)
   setpoint: 1.0 # CHECK
@@ -64,9 +37,13 @@ env:
   measurement_noise_std: 0.02
 
 train:
-  batch_size: 4
+  batch_size: 128
   
   update_to_data: ${data.frames_per_batch}
   update_actor_freq: 2
 
   total_train_steps: 1_000_000
+
+hydra:
+  run:
+    dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
