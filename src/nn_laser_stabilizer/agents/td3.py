@@ -14,7 +14,7 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
 
     modules = []
 
-    if agent_cfg.use_lstm_policy:
+    if agent_cfg.use_lstm:
         actor_lstm = LSTMModule(
             input_size=observation_spec.shape[-1],
             hidden_size=agent_cfg.lstm_hidden_size,
@@ -67,7 +67,7 @@ def make_qvalue_network(config, observation_spec, action_spec):
     qvalue_feature_name = "qvalue_feature"
     modules = []
 
-    if agent_cfg.use_lstm_qvalue:
+    if agent_cfg.use_lstm:
         cat_module = TensorDictModule(
             module=CatObsActModule(
                 dim=-1,
@@ -165,7 +165,7 @@ def make_loss_module(config, actor, qvalue, action_spec) -> TD3Loss:
     agent_cfg = config.agent
 
     # Использование LSTM для Q-function несовместимо с vmap
-    deactivate_vmap = True if agent_cfg.use_lstm_qvalue else False
+    deactivate_vmap = True if agent_cfg.use_lstm else False
 
     loss_module = TD3Loss(
         actor_network=actor,
