@@ -22,7 +22,7 @@ class PerStepLogger(Transform):
     """
     Логирует kp, ki, kd (из action) и x, setpoint (из observation) каждый шаг.
     """
-    def __init__(self, writer=None):
+    def __init__(self, writer):
         super().__init__()
         self.writer = writer
         self._t = 0 
@@ -56,16 +56,22 @@ class PerStepLogger(Transform):
             self._log_step(action, observation)
 
         return next_tensordict
+    
+    def close(self):
+        self.writer.close()
+    
+    def __del__(self):
+        self.close()
 
 class PerStepLoggerAsync(Transform):
     """
     Логирует kp, ki, kd (из action) и x, setpoint (из observation) каждый шаг с использованием отдельного потока записи.
     """
-    def __init__(self, writer=None):
+    def __init__(self, writer):
         super().__init__()
         self.writer = writer
         self._t = 0
-        self._q = queue.Queue(maxsize=1000)
+        self._q = queue.Queue(maxsize=100_000)
         self._stop = False
 
         self._thread = threading.Thread(target=self._worker, daemon=True)
@@ -80,20 +86,17 @@ class PerStepLoggerAsync(Transform):
             self._t += 1
 
     def _worker(self):
-        while not self._stop or not self._q.empty():
+        while not self._stop:
             try:
                 t, action_vals, obs_vals = self._q.get(timeout=0.1)
-                self.writer.add_scalars(
-                    "StepValues",
-                    {
-                        "Action/kp": action_vals[0],
-                        "Action/ki": action_vals[1],
-                        "Action/kd": action_vals[2],
-                        "Observation/x": obs_vals[0],
-                        "Observation/setpoint": obs_vals[1]
-                    },
-                    global_step=t
-                )
+
+                self.writer.add_scalar("Action/kp", action_vals[0], global_step=t)
+                self.writer.add_scalar("Action/ki", action_vals[1], global_step=t)
+                self.writer.add_scalar("Action/kd", action_vals[2], global_step=t)
+
+                self.writer.add_scalar("Observation/x", obs_vals[0], global_step=t)
+                self.writer.add_scalar("Observation/setpoint", obs_vals[1], global_step=t)
+
             except queue.Empty:
                 continue
 
@@ -103,6 +106,15 @@ class PerStepLoggerAsync(Transform):
         if action is not None and observation is not None:
             self._log_step_async(action, observation)
         return next_tensordict
+    
+    def close(self):
+        self._stop = True
+        self._thread.join()
+        self.writer.close()
+    
+    def __del__(self):
+        self.close()
+
 
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
