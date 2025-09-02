@@ -15,6 +15,8 @@ from torchrl.data import UnboundedContinuous, BoundedContinuous
 import torch
 
 from torch.utils.tensorboard import SummaryWriter
+import threading
+import queue
 
 class PerStepLogger(Transform):
     """
@@ -53,6 +55,53 @@ class PerStepLogger(Transform):
         if action is not None and observation is not None:
             self._log_step(action, observation)
 
+        return next_tensordict
+
+class PerStepLoggerAsync(Transform):
+    """
+    Логирует kp, ki, kd (из action) и x, setpoint (из observation) каждый шаг с использованием отдельного потока записи.
+    """
+    def __init__(self, writer=None):
+        super().__init__()
+        self.writer = writer
+        self._t = 0
+        self._q = queue.Queue(maxsize=1000)
+        self._stop = False
+
+        self._thread = threading.Thread(target=self._worker, daemon=True)
+        self._thread.start()
+
+    def _log_step_async(self, action_row, observation_row):
+        try:
+            self._q.put_nowait((self._t, action_row[:3].tolist(), observation_row[[0,2]].tolist()))
+        except queue.Full:
+            pass
+        finally:
+            self._t += 1
+
+    def _worker(self):
+        while not self._stop or not self._q.empty():
+            try:
+                t, action_vals, obs_vals = self._q.get(timeout=0.1)
+                self.writer.add_scalars(
+                    "StepValues",
+                    {
+                        "Action/kp": action_vals[0],
+                        "Action/ki": action_vals[1],
+                        "Action/kd": action_vals[2],
+                        "Observation/x": obs_vals[0],
+                        "Observation/setpoint": obs_vals[1]
+                    },
+                    global_step=t
+                )
+            except queue.Empty:
+                continue
+
+    def _step(self, tensordict, next_tensordict):
+        action = tensordict.get("action", None)
+        observation = tensordict.get("observation", None)
+        if action is not None and observation is not None:
+            self._log_step_async(action, observation)
         return next_tensordict
 
 def make_specs(bounds_config: dict) -> dict:
@@ -183,5 +232,5 @@ def close_real_env(env: TransformedEnv):
 
 def add_logger_to_env(env: TransformedEnv, logdir) -> TransformedEnv:
     writer = SummaryWriter(log_dir=logdir)
-    env.append_transform(PerStepLogger(writer=writer))
+    env.append_transform(PerStepLoggerAsync(writer=writer))
     return env
