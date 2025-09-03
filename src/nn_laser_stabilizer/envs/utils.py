@@ -7,6 +7,7 @@ from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperi
 from nn_laser_stabilizer.serial_connection import SerialConnection
 from nn_laser_stabilizer.mock_serial_connection import MockSerialConnection
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
+from nn_laser_stabilizer.envs.partial_observed_envs import PendulumNoVelEnv
 
 from torchrl.envs import GymEnv
 from torchrl.envs.transforms import Transform, Compose, DoubleToFloat, ObservationNorm, RewardScaling
@@ -136,7 +137,12 @@ def make_specs(bounds_config: dict) -> dict:
 def make_gym_env(config) -> TransformedEnv:
     env_config = config.env
 
-    base_env = GymEnv(env_config.name)
+    env_name = env_config.name
+    if env_name == "PendulumNoVel":
+        base_env = PendulumNoVelEnv()
+    else: 
+        base_env = GymEnv(env_config.name)
+
     env = TransformedEnv(
         base_env,
         Compose(
