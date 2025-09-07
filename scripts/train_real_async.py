@@ -29,13 +29,17 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 from hydra.core.hydra_config import HydraConfig
-from functools import partial
 
 CONFIG_NAME = "train_real"
 
 @hydra.main(config_path=find_configs_dir(), config_name=CONFIG_NAME, version_base=None)
 def main(config: DictConfig) -> None:
     set_seeds(config.seed)
+
+    setpoint = config.env.get("setpoint", None)
+    if setpoint is None:
+        setpoint = float(input("Введите значение setpoint для среды: "))
+    logger.info(f"Setpoint = {setpoint}")
 
     hydra_output_dir = HydraConfig.get().runtime.output_dir
     env_log_dir = os.path.join(hydra_output_dir, "env_logs")
