@@ -6,13 +6,13 @@ defaults:
   - _self_
 
 data:
-  frames_per_batch: 100 # 1000 для "InvertedPendulum-v5" и "InvertedDoublePendulum-v5"; 200 для "Pendulum-v1"
-  total_frames: 50_000
+  frames_per_batch: 200 # 1000 для "InvertedPendulum-v5" и "InvertedDoublePendulum-v5"; 200 для "Pendulum-v1" и "PendulumNoVel"
+  total_frames: -1
 
   buffer_size: 100_000
 
 env:
-  name: "Pendulum-v1" # "InvertedPendulum-v5" "Pendulum-v1" # "InvertedDoublePendulum-v5"
+  name: "PendulumNoVel" # "InvertedPendulum-v5" "Pendulum-v1" "InvertedDoublePendulum-v5" "PendulumNoVel"
 
   # TODO убрать (необходимо для поддержки benchmark)
   setpoint: 1.0 # CHECK
