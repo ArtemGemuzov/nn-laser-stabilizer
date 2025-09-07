@@ -8,6 +8,7 @@ from tensordict.nn import TensorDictModule, TensorDictSequential
 from torchrl.modules import MLP, ValueOperator, TanhModule, AdditiveGaussianModule, LSTMModule, get_primers_from_module, set_recurrent_mode
 from torchrl.envs import set_exploration_type, ExplorationType
 from torchrl.objectives import TD3Loss, SoftUpdate
+   
 
 def make_actor_network(config, observation_spec, action_spec) -> TensorDictSequential:
     agent_cfg = config.agent
@@ -16,10 +17,10 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
 
     if agent_cfg.use_lstm:
         actor_lstm = LSTMModule(
-            input_size=observation_spec.shape[-1],
+            input_size=observation_spec.shape[-1] + action_spec.shape[-1],
             hidden_size=agent_cfg.lstm_hidden_size,
             num_layers=agent_cfg.lstm_num_layers,
-            in_key="observation",
+            in_key="observation_action",
             out_key="param",
             python_based=agent_cfg.python_based_lstm_policy
         )
@@ -50,17 +51,6 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
 
     actor = TensorDictSequential(*modules)
     return actor
-
-class CatObsActModule(nn.Module):
-    def __init__(self, dim=-1, num_layers=1, hidden_size=32):
-        super().__init__()
-        self.dim = dim
-        self.num_layers = num_layers
-        self.hidden_size = hidden_size
-
-    def forward(self, observation, action):
-        obs_act = torch.cat([observation, action], dim=self.dim)
-        return obs_act
     
 def make_qvalue_network(config, observation_spec, action_spec):
     agent_cfg = config.agent
@@ -68,23 +58,12 @@ def make_qvalue_network(config, observation_spec, action_spec):
     modules = []
 
     if agent_cfg.use_lstm:
-        cat_module = TensorDictModule(
-            module=CatObsActModule(
-                dim=-1,
-                num_layers=agent_cfg.q_lstm_num_layers,
-                hidden_size=agent_cfg.q_lstm_hidden_size,
-            ),
-            in_keys=["observation", "action"], 
-            out_keys=["observation_action"], 
-        )
-        modules.append(cat_module)
-
         qvalue_lstm = LSTMModule(
             input_size=observation_spec.shape[-1] + action_spec.shape[-1],
             hidden_size=agent_cfg.q_lstm_hidden_size,
             num_layers=agent_cfg.q_lstm_num_layers,
-            in_keys=["observation_action", "q_h", "q_c"],
-            out_keys=[qvalue_feature_name, ("next", "q_h"), ("next", "q_c")],
+            in_key="observation_action",
+            out_key=qvalue_feature_name,
             python_based=agent_cfg.python_based_lstm_qvalue
         )
         modules.append(qvalue_lstm)
@@ -131,10 +110,6 @@ def add_exploration(config, actor, action_spec):
 
 def warmup(env, actor, qvalue):
     primers = get_primers_from_module(actor)
-    if primers is not None:
-        env.append_transform(primers)
-
-    primers = get_primers_from_module(qvalue)
     if primers is not None:
         env.append_transform(primers)
 
