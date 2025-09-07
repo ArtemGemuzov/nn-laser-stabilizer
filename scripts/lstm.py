@@ -83,6 +83,7 @@ class FastRecurrentReplayBuffer:
         self.next_observations = np.zeros((capacity, obs_dim), dtype=np.float32)
 
     def push(self, observation, action, reward, next_observation):
+        # TODO: циклическая вставка может ломать формирование последовательностей
         self.observations[self.index] = observation
         self.actions[self.index] = action
         self.rewards[self.index] = reward
@@ -316,15 +317,14 @@ class RecurrentTD3:
         return critic1_loss.item() + critic2_loss.item(), actor_loss.item() if actor_loss is not None else None
 
 
-def collect_data_episode(env: gym.Env, agent: RecurrentTD3, replay_buffer: RecurrentReplayBuffer, max_steps=1000):
+def collect_data_episode(env: gym.Env, agent: RecurrentTD3, replay_buffer: RecurrentReplayBuffer, num_steps=1000):
     agent.reset_hidden_states()
     observation, _ = env.reset()
     action = np.zeros(env.action_space.shape)
 
     total_reward = 0
-    step = 0
 
-    while step < max_steps:
+    for _ in range(num_steps):
         action = agent.select_action(observation)
         next_observation, reward, _, _, _ = env.step(action)
 
@@ -332,7 +332,6 @@ def collect_data_episode(env: gym.Env, agent: RecurrentTD3, replay_buffer: Recur
 
         observation = next_observation
         total_reward += reward
-        step += 1
 
     return total_reward
 
@@ -354,14 +353,15 @@ class PendulumNoVelWrapper(gym.ObservationWrapper):
 
 def main():
     env_name = "Pendulum-v1"
-    max_episodes = 200
-    max_steps = 200
-    seq_len = 10
-    batch_size = 128
+    num_episodes = 500
+    num_steps = 200
+
+    seq_len = 20
+    batch_size = 64
     update_to_data = 16
     
     env = gym.make(env_name)
-    # env = PendulumNoVelWrapper(env)
+    env = PendulumNoVelWrapper(env)
 
     seed = 42
     np.random.seed(seed)
@@ -383,40 +383,45 @@ def main():
     
     print("Начинаем обучение...")
     
-    for episode in range(max_episodes):
-        episode_reward = collect_data_episode(env, agent, replay_buffer=replay_buffer, max_steps=max_steps)
-        episode_rewards.append(episode_reward)
+    try:
+        for episode in range(num_episodes):
+            episode_mean_reward = collect_data_episode(env, agent, replay_buffer=replay_buffer, num_steps=num_steps) / num_steps
+            episode_rewards.append(episode_mean_reward)
+            
+            if len(replay_buffer) > batch_size * seq_len:
+                for _ in range(update_to_data): 
+                    critic_loss, actor_loss = agent.train(replay_buffer, batch_size=batch_size, seq_len=seq_len)
         
-        if len(replay_buffer) > batch_size:
-            for _ in range(update_to_data): 
-                critic_loss, actor_loss = agent.train(replay_buffer, batch_size=batch_size, seq_len=seq_len)
-       
-        print(f"Эпизод {episode}, Средняя награда: {episode_reward / max_steps:.2f}")
-    
-    env.close()
-    
-    plt.figure(figsize=(12, 4))
-    
-    plt.subplot(1, 2, 1)
-    plt.plot(episode_rewards)
-    plt.title('Награда за эпизод')
-    plt.xlabel('Эпизод')
-    plt.ylabel('Награда')
-    
-    plt.subplot(1, 2, 2)
+            print(f"Эпизод {episode}, Средняя награда: {episode_mean_reward:.2f}")
 
-    window_size = 10
-    smoothed_rewards = [np.mean(episode_rewards[max(0, i-window_size):i+1]) 
-                       for i in range(len(episode_rewards))]
-    plt.plot(smoothed_rewards)
-    plt.title(f'Скользящее среднее наград (окно {window_size})')
-    plt.xlabel('Эпизод')
-    plt.ylabel('Средняя награда')
-    
-    plt.tight_layout()
-    plt.show()
-    
-    print("Обучение завершено!")
+    except KeyboardInterrupt:
+        print("Обучение прервано")
+
+    finally:
+        env.close()
+
+        plt.figure(figsize=(12, 4))
+        
+        plt.subplot(1, 2, 1)
+        plt.plot(episode_rewards)
+        plt.title('Средняя награда за эпизод')
+        plt.xlabel('Эпизод')
+        plt.ylabel('Награда')
+        
+        plt.subplot(1, 2, 2)
+
+        window_size = 10
+        smoothed_rewards = [np.mean(episode_rewards[max(0, i-window_size):i+1]) 
+                        for i in range(len(episode_rewards))]
+        plt.plot(smoothed_rewards)
+        plt.title(f'Скользящее среднее наград (окно {window_size})')
+        plt.xlabel('Эпизод')
+        plt.ylabel('Средняя награда')
+        
+        plt.tight_layout()
+        plt.show()
+        
+        print("Обучение завершено")
 
 if __name__ == "__main__":
     main()
