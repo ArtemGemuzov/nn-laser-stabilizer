@@ -4,8 +4,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import gymnasium as gym
-import random
-from collections import deque
 import matplotlib.pyplot as plt
 
 class TanhScaler(nn.Module):
@@ -18,55 +16,6 @@ class TanhScaler(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.tanh(x)
         return self.min_val + (x + 1) * (self.max_val - self.min_val) / 2
-    
-class RecurrentReplayBuffer:
-    def __init__(self, capacity=100000):
-        self.buffer = deque(maxlen=capacity)
-
-    def push(self, state, action, reward, next_state):
-        self.buffer.append((state, action, reward, next_state))
-
-    def sample(self, batch_size, seq_len, device='cpu'):
-        """Сэмплирует последовательность и возвращает тензоры"""
-        sequences = []
-        max_start = len(self.buffer) - seq_len
-        start_indices = [random.randint(0, max_start) for _ in range(batch_size)]
-        
-        for start_idx in start_indices:
-            seq = [self.buffer[start_idx + i] for i in range(seq_len)]
-            sequences.append(seq)
-        
-        observations = []
-        actions = []
-        rewards = []
-        next_observations = []
-        
-        for seq in sequences:
-            seq_obs = []
-            seq_actions = []
-            seq_rewards = []
-            seq_next_obs = []
-            
-            for transition in seq:
-                seq_obs.append(transition[0])
-                seq_actions.append(transition[1])
-                seq_rewards.append(transition[2])
-                seq_next_obs.append(transition[3])
-            
-            observations.append(seq_obs)
-            actions.append(seq_actions)
-            rewards.append(seq_rewards)
-            next_observations.append(seq_next_obs)
-        
-        observations = torch.FloatTensor(observations).to(device)
-        actions = torch.FloatTensor(actions).to(device)
-        rewards = torch.FloatTensor(rewards).to(device)
-        next_observations = torch.FloatTensor(next_observations).to(device)
-        
-        return observations, actions, rewards, next_observations
-
-    def __len__(self):
-        return len(self.buffer)
     
 class FastRecurrentReplayBuffer:
     def __init__(self, obs_dim, action_dim, capacity=100_000):
@@ -160,17 +109,21 @@ class MLPCritic(nn.Module):
     def forward(self, observation_summary, action):
         return self.net(torch.cat([observation_summary, action], dim=-1))
 
+def soft_update(source_net, target_net, tau):
+    for param, target_param in zip(source_net.parameters(), target_net.parameters()):
+        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+
 class RecurrentTD3:
     def __init__(self, obs_dim, action_dim, 
-                 hidden_size=32, num_layers=1, 
+                 mlp_hidden_size=256, rnn_hidden_size=32, num_rnn_layers=1, 
                  max_action=1.0, min_action=-1.0,
                  lr=1e-3, gamma=0.99, tau=0.05, policy_noise=0.2, noise_clip=0.5, 
                  policy_freq=2, device='cpu'):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
 
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
+        self.hidden_size = rnn_hidden_size
+        self.num_layers = num_rnn_layers
 
         self.max_action = max_action
         self.min_action = min_action
@@ -182,31 +135,33 @@ class RecurrentTD3:
         self.device = device
         self.total_it = 0
         
-        self.actor_summarizer = Summarizer(obs_dim, hidden_size, num_layers).to(device)
-        self.actor_mlp = MLPTanhActor(hidden_size, action_dim, 
+        # TODO: отключить градиенты всем target сетям
+
+        self.actor_summarizer = Summarizer(obs_dim, rnn_hidden_size, num_rnn_layers).to(device)
+        self.actor_mlp = MLPTanhActor(rnn_hidden_size, action_dim, hidden_size=mlp_hidden_size,
                                     max_action=max_action, min_action=min_action).to(device)
         
-        self.actor_summarizer_target = Summarizer(obs_dim, hidden_size, num_layers).to(device)
-        self.actor_mlp_target = MLPTanhActor(hidden_size, action_dim,
+        self.actor_summarizer_target = Summarizer(obs_dim, rnn_hidden_size, num_rnn_layers).to(device)
+        self.actor_mlp_target = MLPTanhActor(rnn_hidden_size, action_dim, hidden_size=mlp_hidden_size,
                                            max_action=max_action, min_action=min_action).to(device)
         
         self.actor_summarizer_target.load_state_dict(self.actor_summarizer.state_dict())
         self.actor_mlp_target.load_state_dict(self.actor_mlp.state_dict())
         
-        self.critic1_summarizer = Summarizer(obs_dim, hidden_size, num_layers).to(device)
-        self.critic1_mlp = MLPCritic(hidden_size, action_dim).to(device)
+        self.critic1_summarizer = Summarizer(obs_dim, rnn_hidden_size, num_rnn_layers).to(device)
+        self.critic1_mlp = MLPCritic(rnn_hidden_size, action_dim, hidden_size=mlp_hidden_size).to(device)
         
-        self.critic1_summarizer_target = Summarizer(obs_dim, hidden_size, num_layers).to(device)
-        self.critic1_mlp_target = MLPCritic(hidden_size, action_dim).to(device)
+        self.critic1_summarizer_target = Summarizer(obs_dim, rnn_hidden_size, num_rnn_layers).to(device)
+        self.critic1_mlp_target = MLPCritic(rnn_hidden_size, action_dim, hidden_size=mlp_hidden_size).to(device)
         
         self.critic1_summarizer_target.load_state_dict(self.critic1_summarizer.state_dict())
         self.critic1_mlp_target.load_state_dict(self.critic1_mlp.state_dict())
         
-        self.critic2_summarizer = Summarizer(obs_dim, hidden_size, num_layers).to(device)
-        self.critic2_mlp = MLPCritic(hidden_size, action_dim).to(device)
+        self.critic2_summarizer = Summarizer(obs_dim, rnn_hidden_size, num_rnn_layers).to(device)
+        self.critic2_mlp = MLPCritic(rnn_hidden_size, action_dim).to(device)
         
-        self.critic2_summarizer_target = Summarizer(obs_dim, hidden_size, num_layers).to(device)
-        self.critic2_mlp_target = MLPCritic(hidden_size, action_dim).to(device)
+        self.critic2_summarizer_target = Summarizer(obs_dim, rnn_hidden_size, num_rnn_layers).to(device)
+        self.critic2_mlp_target = MLPCritic(rnn_hidden_size, action_dim).to(device)
         
         self.critic2_summarizer_target.load_state_dict(self.critic2_summarizer.state_dict())
         self.critic2_mlp_target.load_state_dict(self.critic2_mlp.state_dict())
@@ -236,7 +191,7 @@ class RecurrentTD3:
         
         return action.cpu().numpy()
     
-    def train(self, replay_buffer, batch_size=32, seq_len=10):
+    def train_step(self, replay_buffer, batch_size=32, seq_len=10):
         self.total_it += 1
         
         observations, actions, rewards, next_observations = replay_buffer.sample(
@@ -291,33 +246,24 @@ class RecurrentTD3:
             actor_loss.backward()
             self.actor_optimizer.step()
             
-            for param, target_param in zip(self.actor_summarizer.parameters(), self.actor_summarizer_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-            
-            for param, target_param in zip(self.actor_mlp.parameters(), self.actor_mlp_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-            
-            for param, target_param in zip(self.critic1_summarizer.parameters(), self.critic1_summarizer_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-            
-            for param, target_param in zip(self.critic1_mlp.parameters(), self.critic1_mlp_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-            
-            for param, target_param in zip(self.critic2_summarizer.parameters(), self.critic2_summarizer_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-            
-            for param, target_param in zip(self.critic2_mlp.parameters(), self.critic2_mlp_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+            # TODO: использовать partial
+            soft_update(self.actor_summarizer, self.actor_summarizer_target, self.tau)
+            soft_update(self.actor_mlp, self.actor_mlp_target, self.tau)
+
+            soft_update(self.critic1_summarizer, self.critic1_summarizer_target, self.tau)
+            soft_update(self.critic1_mlp, self.critic1_mlp_target, self.tau)
+
+            soft_update(self.critic2_summarizer, self.critic2_summarizer_target, self.tau)
+            soft_update(self.critic2_mlp, self.critic2_mlp_target, self.tau)
         
         return critic1_loss.item() + critic2_loss.item(), actor_loss.item() if actor_loss is not None else None
 
 
-def collect_data_episode(env: gym.Env, agent: RecurrentTD3, replay_buffer: RecurrentReplayBuffer, num_steps=1000):
+def collect_data_episode(env: gym.Env, agent: RecurrentTD3, replay_buffer: FastRecurrentReplayBuffer, num_steps=1000):
     agent.reset_hidden()
     observation, _ = env.reset()
 
-    total_reward = 0
-
+    rewards = []
     for _ in range(num_steps):
         action = agent.select_action(observation)
         next_observation, reward, _, _, _ = env.step(action)
@@ -325,9 +271,9 @@ def collect_data_episode(env: gym.Env, agent: RecurrentTD3, replay_buffer: Recur
         replay_buffer.push(observation.copy(), action.copy(), reward, next_observation.copy())
 
         observation = next_observation
-        total_reward += reward
-
-    return total_reward
+        rewards.append(reward)
+        
+    return rewards
 
 
 class PendulumNoVelWrapper(gym.ObservationWrapper):
@@ -364,6 +310,7 @@ def main():
 
     obs_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
+
     max_action = float(env.action_space.high[0])
     min_action = float(env.action_space.low[0])
     
@@ -379,12 +326,13 @@ def main():
     
     try:
         for episode in range(num_episodes):
-            episode_mean_reward = collect_data_episode(env, agent, replay_buffer=replay_buffer, num_steps=num_steps) / num_steps
+            rewards = collect_data_episode(env, agent, replay_buffer=replay_buffer, num_steps=num_steps)
+            episode_mean_reward = np.mean(rewards)
             episode_rewards.append(episode_mean_reward)
             
             if len(replay_buffer) > batch_size * seq_len:
                 for _ in range(update_to_data): 
-                    critic_loss, actor_loss = agent.train(replay_buffer, batch_size=batch_size, seq_len=seq_len)
+                    critic_loss, actor_loss = agent.train_step(replay_buffer, batch_size=batch_size, seq_len=seq_len)
         
             print(f"Эпизод {episode}, Средняя награда: {episode_mean_reward:.2f}")
 
