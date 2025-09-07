@@ -67,6 +67,53 @@ class RecurrentReplayBuffer:
 
     def __len__(self):
         return len(self.buffer)
+    
+class FastRecurrentReplayBuffer:
+    def __init__(self, obs_dim, action_dim, capacity=100_000):
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+
+        self.capacity = capacity
+        self.size = 0
+        self.index = 0
+        
+        self.observations = np.zeros((capacity, obs_dim), dtype=np.float32)
+        self.actions = np.zeros((capacity, action_dim), dtype=np.float32)
+        self.rewards = np.zeros(capacity, dtype=np.float32)
+        self.next_observations = np.zeros((capacity, obs_dim), dtype=np.float32)
+
+    def push(self, observation, action, reward, next_observation):
+        self.observations[self.index] = observation
+        self.actions[self.index] = action
+        self.rewards[self.index] = reward
+        self.next_observations[self.index] = next_observation
+        
+        self.index = (self.index + 1) % self.capacity
+        self.size = min(self.size + 1, self.capacity)
+
+    def sample(self, batch_size, seq_len, device='cpu'):
+        if self.size < seq_len:
+            raise ValueError("Buffer too small for sequence length")
+        
+        valid_indices = np.arange(self.size - seq_len + 1)
+        start_indices = np.random.choice(valid_indices, size=batch_size, replace=True)
+        
+        indices = start_indices[:, np.newaxis] + np.arange(seq_len)
+        
+        observations_batch = self.observations[indices]
+        actions_batch = self.actions[indices]
+        rewards_batch = self.rewards[indices]
+        next_observations_batch = self.next_observations[indices]
+        
+        observations_tensor = torch.from_numpy(observations_batch).to(device)
+        actions_tensor = torch.from_numpy(actions_batch).to(device)
+        rewards_tensor = torch.from_numpy(rewards_batch).to(device)
+        next_observations_tensor = torch.from_numpy(next_observations_batch).to(device)
+        
+        return observations_tensor, actions_tensor, rewards_tensor, next_observations_tensor
+
+    def __len__(self):
+        return self.size
 
 class Summarizer(nn.Module):
     def __init__(self, input_dim, hidden_size=32):
@@ -321,7 +368,7 @@ def main():
     torch.manual_seed(seed)
     env.reset(seed=seed)
 
-    state_dim = env.observation_space.shape[0]
+    obs_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
     max_action = float(env.action_space.high[0])
     min_action = float(env.action_space.low[0])
@@ -329,8 +376,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Используется устройство: {device}")
     
-    agent = RecurrentTD3(state_dim, action_dim, max_action, min_action, device=device)
-    replay_buffer = RecurrentReplayBuffer()
+    agent = RecurrentTD3(obs_dim, action_dim, max_action, min_action, device=device)
+    replay_buffer = FastRecurrentReplayBuffer(obs_dim=obs_dim, action_dim=action_dim)
     
     episode_rewards = []
     
