@@ -117,21 +117,19 @@ class FastRecurrentReplayBuffer:
         return self.size
 
 class Summarizer(nn.Module):
-    def __init__(self, input_dim, hidden_size=32):
+    def __init__(self, input_dim, hidden_size=32, num_layers=2):
         super(Summarizer, self).__init__()
-        self.hidden_size = hidden_size
-        self.lstm = nn.LSTM(input_dim, hidden_size, batch_first=True)
-        
+        self.lstm = nn.LSTM(input_dim, hidden_size, num_layers, batch_first=True)
+        self.hidden = None
+
     def forward(self, observation, hidden=None):
         if len(observation.shape) == 2:
             observation = observation.unsqueeze(1)
         lstm_out, hidden = self.lstm(observation, hidden)
         return lstm_out, hidden
     
-    def init_hidden(self, batch_size=1, device='cpu'):
-        h = torch.zeros(1, batch_size, self.hidden_size).to(device)
-        c = torch.zeros(1, batch_size, self.hidden_size).to(device)
-        return (h, c)
+    def reset_hidden(self):
+        self.hidden = None
 
 class MLPTanhActor(nn.Module):
     def __init__(self, input_dim, action_dim, hidden_size=256, max_action=1.0, min_action=-1.0):
@@ -145,8 +143,8 @@ class MLPTanhActor(nn.Module):
         )
         self.scaler = TanhScaler(min_val=min_action, max_val=max_action)
 
-    def forward(self, x):
-        return self.scaler(self.net(x))
+    def forward(self, observation_summary):
+        return self.scaler(self.net(observation_summary))
 
 class MLPCritic(nn.Module):
     def __init__(self, input_dim, action_dim, hidden_size=256):
@@ -159,16 +157,21 @@ class MLPCritic(nn.Module):
             nn.Linear(hidden_size, 1)
         )
 
-    def forward(self, state_summary, action):
-        sa = torch.cat([state_summary, action], dim=-1)
-        return self.net(sa)
+    def forward(self, observation_summary, action):
+        return self.net(torch.cat([observation_summary, action], dim=-1))
 
 class RecurrentTD3:
-    def __init__(self, obs_dim, action_dim, max_action=1.0, min_action=-1.0,
+    def __init__(self, obs_dim, action_dim, 
+                 hidden_size=32, num_layers=1, 
+                 max_action=1.0, min_action=-1.0,
                  lr=1e-3, gamma=0.99, tau=0.05, policy_noise=0.2, noise_clip=0.5, 
                  policy_freq=2, device='cpu'):
         self.obs_dim = obs_dim
         self.action_dim = action_dim
+
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
         self.max_action = max_action
         self.min_action = min_action
         self.gamma = gamma
@@ -179,31 +182,31 @@ class RecurrentTD3:
         self.device = device
         self.total_it = 0
         
-        self.actor_summarizer = Summarizer(obs_dim).to(device)
-        self.actor_mlp = MLPTanhActor(self.actor_summarizer.hidden_size, action_dim, 
+        self.actor_summarizer = Summarizer(obs_dim, hidden_size, num_layers).to(device)
+        self.actor_mlp = MLPTanhActor(hidden_size, action_dim, 
                                     max_action=max_action, min_action=min_action).to(device)
         
-        self.actor_summarizer_target = Summarizer(obs_dim).to(device)
-        self.actor_mlp_target = MLPTanhActor(self.actor_summarizer.hidden_size, action_dim,
+        self.actor_summarizer_target = Summarizer(obs_dim, hidden_size, num_layers).to(device)
+        self.actor_mlp_target = MLPTanhActor(hidden_size, action_dim,
                                            max_action=max_action, min_action=min_action).to(device)
         
         self.actor_summarizer_target.load_state_dict(self.actor_summarizer.state_dict())
         self.actor_mlp_target.load_state_dict(self.actor_mlp.state_dict())
         
-        self.critic1_summarizer = Summarizer(obs_dim).to(device)
-        self.critic1_mlp = MLPCritic(self.critic1_summarizer.hidden_size, action_dim).to(device)
+        self.critic1_summarizer = Summarizer(obs_dim, hidden_size, num_layers).to(device)
+        self.critic1_mlp = MLPCritic(hidden_size, action_dim).to(device)
         
-        self.critic1_summarizer_target = Summarizer(obs_dim).to(device)
-        self.critic1_mlp_target = MLPCritic(self.critic1_summarizer.hidden_size, action_dim).to(device)
+        self.critic1_summarizer_target = Summarizer(obs_dim, hidden_size, num_layers).to(device)
+        self.critic1_mlp_target = MLPCritic(hidden_size, action_dim).to(device)
         
         self.critic1_summarizer_target.load_state_dict(self.critic1_summarizer.state_dict())
         self.critic1_mlp_target.load_state_dict(self.critic1_mlp.state_dict())
         
-        self.critic2_summarizer = Summarizer(obs_dim).to(device)
-        self.critic2_mlp = MLPCritic(self.critic2_summarizer.hidden_size, action_dim).to(device)
+        self.critic2_summarizer = Summarizer(obs_dim, hidden_size, num_layers).to(device)
+        self.critic2_mlp = MLPCritic(hidden_size, action_dim).to(device)
         
-        self.critic2_summarizer_target = Summarizer(obs_dim).to(device)
-        self.critic2_mlp_target = MLPCritic(self.critic2_summarizer.hidden_size, action_dim).to(device)
+        self.critic2_summarizer_target = Summarizer(obs_dim, hidden_size, num_layers).to(device)
+        self.critic2_mlp_target = MLPCritic(hidden_size, action_dim).to(device)
         
         self.critic2_summarizer_target.load_state_dict(self.critic2_summarizer.state_dict())
         self.critic2_mlp_target.load_state_dict(self.critic2_mlp.state_dict())
@@ -218,11 +221,10 @@ class RecurrentTD3:
             list(self.critic2_summarizer.parameters()) + list(self.critic2_mlp.parameters()), lr=lr
         )
     
+        self.reset_hidden()
+
+    def reset_hidden(self):
         self.actor_hidden = None
-        self.reset_hidden_states()
-    
-    def reset_hidden_states(self):
-        self.actor_hidden = self.actor_summarizer.init_hidden(device=self.device)
     
     def select_action(self, observation):
         observation = torch.FloatTensor(observation.reshape(1, -1)).to(self.device)
@@ -242,31 +244,26 @@ class RecurrentTD3:
         )
 
         with torch.no_grad():
-            target_actor_hidden = self.actor_summarizer_target.init_hidden(batch_size, self.device)
-            target_summary, _ = self.actor_summarizer_target(next_observations, target_actor_hidden)
+            target_summary, _ = self.actor_summarizer_target(next_observations)
             next_actions = self.actor_mlp_target(target_summary)
             
             noise = (torch.randn_like(next_actions) * self.policy_noise).clamp(
                 -self.noise_clip, self.noise_clip)
             next_actions = (next_actions + noise).clamp(self.min_action, self.max_action)
             
-            target_critic1_hidden = self.critic1_summarizer_target.init_hidden(batch_size, self.device)
-            target_critic1_summary, _ = self.critic1_summarizer_target(next_observations, target_critic1_hidden)
+            target_critic1_summary, _ = self.critic1_summarizer_target(next_observations)
             target_q1 = self.critic1_mlp_target(target_critic1_summary, next_actions)
             
-            target_critic2_hidden = self.critic2_summarizer_target.init_hidden(batch_size, self.device)
-            target_critic2_summary, _ = self.critic2_summarizer_target(next_observations, target_critic2_hidden)
+            target_critic2_summary, _ = self.critic2_summarizer_target(next_observations)
             target_q2 = self.critic2_mlp_target(target_critic2_summary, next_actions)
             
             target_q = torch.min(target_q1, target_q2)
             target_q = rewards.unsqueeze(-1) + self.gamma * target_q
-        
-        critic1_hidden = self.critic1_summarizer.init_hidden(batch_size, self.device)
-        critic1_summary, _ = self.critic1_summarizer(observations, critic1_hidden)
+
+        critic1_summary, _ = self.critic1_summarizer(observations)
         current_q1 = self.critic1_mlp(critic1_summary, actions)
         
-        critic2_hidden = self.critic2_summarizer.init_hidden(batch_size, self.device)
-        critic2_summary, _ = self.critic2_summarizer(observations, critic2_hidden)
+        critic2_summary, _ = self.critic2_summarizer(observations)
         current_q2 = self.critic2_mlp(critic2_summary, actions)
         
         critic1_loss = F.mse_loss(current_q1, target_q)
@@ -282,12 +279,10 @@ class RecurrentTD3:
         
         actor_loss = None
         if self.total_it % self.policy_freq == 0:
-            actor_hidden = self.actor_summarizer.init_hidden(batch_size, self.device)
-            actor_summary, _ = self.actor_summarizer(observations, actor_hidden)
+            actor_summary, _ = self.actor_summarizer(observations)
             actor_actions = self.actor_mlp(actor_summary)
             
-            critic1_hidden = self.critic1_summarizer.init_hidden(batch_size, self.device)
-            critic1_summary, _ = self.critic1_summarizer(observations, critic1_hidden)
+            critic1_summary, _ = self.critic1_summarizer(observations)
             actor_q1 = self.critic1_mlp(critic1_summary, actor_actions)
             
             actor_loss = -actor_q1.mean()
@@ -318,9 +313,8 @@ class RecurrentTD3:
 
 
 def collect_data_episode(env: gym.Env, agent: RecurrentTD3, replay_buffer: RecurrentReplayBuffer, num_steps=1000):
-    agent.reset_hidden_states()
+    agent.reset_hidden()
     observation, _ = env.reset()
-    action = np.zeros(env.action_space.shape)
 
     total_reward = 0
 
@@ -376,7 +370,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Используется устройство: {device}")
     
-    agent = RecurrentTD3(obs_dim, action_dim, max_action, min_action, device=device)
+    agent = RecurrentTD3(obs_dim, action_dim, max_action=max_action, min_action=min_action, device=device)
     replay_buffer = FastRecurrentReplayBuffer(obs_dim=obs_dim, action_dim=action_dim)
     
     episode_rewards = []
