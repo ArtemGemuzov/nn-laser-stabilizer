@@ -13,43 +13,68 @@ from torchrl.envs import GymEnv
 from torchrl.envs.transforms import Transform, Compose, DoubleToFloat, ObservationNorm, RewardScaling
 from torchrl.envs.transforms import StepCounter, InitTracker
 from torchrl.data import UnboundedContinuous, BoundedContinuous
+from tensordict import TensorDictBase
 import torch
 
-from torch.utils.tensorboard import SummaryWriter
 import threading
 import queue
+from pathlib import Path
+
+class SimpleFileLogger:
+    """
+    Простой логгер, который записывает все в один файл одной строкой с переносом.
+    """
+    
+    def __init__(self, log_dir: str): 
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.log_file = self.log_dir / "log.txt"
+        self._file_handle = None
+        
+        print(f"SimpleFileLogger initialized. Logs: {self.log_file}")
+    
+    def log(self, message: str):
+        """
+        Записывает сообщение в файл.
+        """
+        # Предполгается однопоточная запись
+        if self._file_handle is None:
+            self._file_handle = open(self.log_file, 'w', encoding='utf-8')
+        
+        self._file_handle.write(message + "\n")
+        self._file_handle.flush()  # Сразу записываем на диск
+    
+    def close(self):
+        if self._file_handle:
+            self._file_handle.close()
+            self._file_handle = None
+    
+    def __del__(self):
+        try:
+            self.close()
+        except:
+            pass
 
 class PerStepLogger(Transform):
     """
     Логирует kp, ki, kd (из action) и x, setpoint (из observation) каждый шаг.
     """
-    def __init__(self, writer):
+    def __init__(self, log_dir: str = None):
         super().__init__()
-        self.writer = writer
+        self.logger = SimpleFileLogger(log_dir=log_dir)
         self._t = 0 
 
     def _log_step(self, action_row: torch.Tensor, observation_row: torch.Tensor):
-        kp = action_row[0].item()
-        ki = action_row[1].item()
-        kd = action_row[2].item()
+        kp, ki, kd = action_row.tolist()
+        x, control_output, setpoint = observation_row.tolist()
 
-        x = observation_row[0].item()
-        setpoint = observation_row[2].item()
-
-        self.writer.add_scalar("Action/kp", kp, self._t)
-        self.writer.add_scalar("Action/ki", ki, self._t)
-        self.writer.add_scalar("Action/kd", kd, self._t)
-        self.writer.add_scalar("Observation/x", x, self._t)
-        self.writer.add_scalar("Observation/setpoint", setpoint, self._t)
+        log_line = f"step={self._t} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
+        self.logger.log(log_line)
 
         self._t += 1
 
     def _step(self, tensordict, next_tensordict):
-        """
-        Вызывается на каждом env.step().
-        tensordict: данные на шаге t
-        next_tensordict: данные на шаге t+1
-        """      
         action = tensordict.get("action", None)
         observation = tensordict.get("observation", None)
 
@@ -59,18 +84,20 @@ class PerStepLogger(Transform):
         return next_tensordict
     
     def close(self):
-        self.writer.close()
+        self.logger.close()
     
     def __del__(self):
         self.close()
 
+
 class PerStepLoggerAsync(Transform):
     """
-    Логирует kp, ki, kd (из action) и x, setpoint (из observation) каждый шаг с использованием отдельного потока записи.
+    Логирует kp, ki, kd (из action) и x, setpoint (из observation) каждый шаг 
+    с использованием отдельного потока записи.
     """
-    def __init__(self, writer):
+    def __init__(self, log_dir: str = None):
         super().__init__()
-        self.writer = writer
+        self.logger = SimpleFileLogger(log_dir=log_dir)
         self._t = 0
         self._q = queue.Queue(maxsize=100_000)
         self._stop = False
@@ -80,7 +107,11 @@ class PerStepLoggerAsync(Transform):
 
     def _log_step_async(self, action_row, observation_row):
         try:
-            self._q.put_nowait((self._t, action_row[:3].tolist(), observation_row[[0,2]].tolist()))
+            kp, ki, kd = action_row.tolist()
+            x, control_output, setpoint = observation_row.tolist()
+            
+            log_line = f"step={self._t} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
+            self._q.put_nowait(log_line)
         except queue.Full:
             pass
         finally:
@@ -89,15 +120,8 @@ class PerStepLoggerAsync(Transform):
     def _worker(self):
         while not self._stop:
             try:
-                t, action_vals, obs_vals = self._q.get(timeout=0.1)
-
-                self.writer.add_scalar("Action/kp", action_vals[0], global_step=t)
-                self.writer.add_scalar("Action/ki", action_vals[1], global_step=t)
-                self.writer.add_scalar("Action/kd", action_vals[2], global_step=t)
-
-                self.writer.add_scalar("Observation/x", obs_vals[0], global_step=t)
-                self.writer.add_scalar("Observation/setpoint", obs_vals[1], global_step=t)
-
+                log_line = self._q.get(timeout=0.1)
+                self.logger.log(log_line)
             except queue.Empty:
                 continue
 
@@ -111,11 +135,63 @@ class PerStepLoggerAsync(Transform):
     def close(self):
         self._stop = True
         self._thread.join()
-        self.writer.close()
+        self.logger.close()
     
     def __del__(self):
         self.close()
 
+class ObservationActionConcat(Transform):
+    def __init__(self, obs_key="observation", action_key="action",
+                 out_key="observation_action", dim=-1):
+        super().__init__(in_keys=[obs_key], out_keys=[out_key])
+        self.obs_key = obs_key
+        self.action_key = action_key
+        self.out_key = out_key
+        self.dim = dim
+
+    def _get_zero_action(self, tensordict: TensorDictBase) -> torch.Tensor:
+        action_spec = self.parent.action_spec_unbatched
+        zero_action = torch.zeros(action_spec.shape,
+                                 dtype=action_spec.dtype,
+                                 device=tensordict.device,
+                                 requires_grad=True)
+        return zero_action
+
+    def _step(self, tensordict: TensorDictBase,
+              next_tensordict: TensorDictBase) -> TensorDictBase:
+        obs = next_tensordict.get(self.obs_key)
+        action = tensordict.get(self.action_key)
+       
+        obs_action = torch.cat([obs, action], dim=self.dim)
+        next_tensordict.set(self.out_key, obs_action)
+        return next_tensordict
+
+    def _reset(self, tensordict: TensorDictBase,
+               tensordict_reset: TensorDictBase) -> TensorDictBase:
+        obs = tensordict_reset.get(self.obs_key)
+        zero_action = self._get_zero_action(tensordict_reset)
+        obs_action = torch.cat([obs, zero_action], dim=self.dim)
+        tensordict_reset.set(self.out_key, obs_action)
+        return tensordict_reset
+
+    def transform_output_spec(self, output_spec):
+        """Добавляем новый ключ 'observation_action' в output_spec."""
+        output_spec = output_spec.clone()
+        obs_spec = output_spec["full_observation_spec"]
+
+        obs_shape = obs_spec[self.obs_key].shape
+        action_spec = self.parent.action_spec_unbatched
+        action_shape = action_spec.shape
+        dtype = obs_spec[self.obs_key].dtype
+
+        obs_action_spec = UnboundedContinuous(
+            shape=(obs_shape[-1] + action_shape[-1]),
+            dtype=dtype
+        )
+
+        obs_spec[self.out_key] = obs_action_spec
+        output_spec["full_observation_spec"] = obs_spec
+        return output_spec
 
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
@@ -149,6 +225,7 @@ def make_gym_env(config) -> TransformedEnv:
             InitTracker(),
             StepCounter(),
             DoubleToFloat(),
+            ObservationActionConcat(),
         )
     )
     env.set_seed(config.seed)
@@ -249,6 +326,5 @@ def close_real_env(env: TransformedEnv):
         print(f"Warning: Could not close serial connection properly: {e}")
 
 def add_logger_to_env(env: TransformedEnv, logdir) -> TransformedEnv:
-    writer = SummaryWriter(log_dir=logdir)
-    env.append_transform(PerStepLoggerAsync(writer=writer))
+    env.append_transform(PerStepLoggerAsync(log_dir=logdir))
     return env
