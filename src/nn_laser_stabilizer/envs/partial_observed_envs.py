@@ -1,6 +1,6 @@
 import torch
 from tensordict import TensorDict
-from torchrl.data import BoundedTensorSpec
+from torchrl.data import BoundedContinuous
 from torchrl.envs import EnvBase, GymEnv
 
 
@@ -13,11 +13,11 @@ class PendulumNoVelEnv(EnvBase):
         self.action_spec = self.env.action_spec
         self.reward_spec = self.env.reward_spec
 
-        self.observation_spec = BoundedTensorSpec(
+        self.observation_spec = BoundedContinuous(
             shape=torch.Size([2]),
             dtype=torch.float32,
-            minimum=-1.0,
-            maximum=1.0,
+            low=-1.0,
+            high=1.0,
         )
 
     def _filter_observation(self, full_obs: torch.Tensor) -> torch.Tensor:
