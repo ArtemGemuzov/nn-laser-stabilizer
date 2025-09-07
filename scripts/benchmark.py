@@ -75,7 +75,10 @@ def main(config: DictConfig) -> None:
     mean_logger = step_times_logger.mean()
     std_logger = step_times_logger.std()
 
-    logger.info(f"[With logger] Time per step: mean={mean_logger:.8f} sec, std={std_logger:.8f} sec")
+    logger.info(
+        f"[With logger] Time per step: mean={mean_logger:.8f} sec, std={std_logger:.8f} sec, "
+        f"min={step_times_logger.min():.8f} sec, max={step_times_logger.max():.8f} sec"
+    )
 
     # ===== Без логера =====
     env_no_logger = make_env_no_logger()
@@ -92,7 +95,10 @@ def main(config: DictConfig) -> None:
     mean_no_logger = step_times_no_logger.mean()
     std_no_logger = step_times_no_logger.std()
 
-    logger.info(f"[No logger] Time per step: mean={mean_no_logger:.8f} sec, std={std_no_logger:.8f} sec")
+    logger.info(
+        f"[No logger] Time per step: mean={mean_no_logger:.8f} sec, std={std_no_logger:.8f} sec, "
+        f"min={step_times_no_logger.min():.8f} sec, max={step_times_no_logger.max():.8f} sec"
+    )
 
     # ===== Разница =====
     n_steps = 20_000
@@ -115,7 +121,10 @@ def main(config: DictConfig) -> None:
     mean_policy = policy_times.mean()
     std_policy = policy_times.std()
 
-    logger.info(f"[Policy only] Time per action: mean={mean_policy:.8f} sec, std={std_policy:.8f} sec")
+    logger.info(
+        f"[Policy only] Time per action: mean={mean_policy:.8f} sec, std={std_policy:.8f} sec, "
+        f"min={policy_times.min():.8f} sec, max={policy_times.max():.8f} sec"
+    )
 
     # ==== Collector ====
     n_steps = 100
@@ -139,8 +148,10 @@ def main(config: DictConfig) -> None:
     std_frame_time = std_traj_time / trajectory.numel()
 
     logger.info(
-        f"[Collector trajectory] Time per trajectory: mean={mean_traj_time:.8f} sec, std={std_traj_time:.8f} sec;\n"
-        f"time per frame: mean={mean_frame_time:.8f} sec, std={std_frame_time:.8f} sec"
+        f"[Collector trajectory] Time per trajectory: mean={mean_traj_time:.8f} sec, std={std_traj_time:.8f} sec, "
+        f"min={traj_times.min():.8f} sec, max={traj_times.max():.8f} sec;\n"
+        f"time per frame: mean={mean_frame_time:.8f} sec, std={std_frame_time:.8f} sec, "
+        f"min={mean_traj_time / trajectory.numel():.8f} sec, max={mean_traj_time / trajectory.numel():.8f} sec"  # Для кадра макс/мин равны, если длина одинакова
     )
 
     n_train_steps = 100 
@@ -163,8 +174,10 @@ def main(config: DictConfig) -> None:
     std_actor_per_sample = std_actor_time / batch_size
 
     logger.info(
-        f"[Training step] With actor update: mean={mean_actor_time:.8f} sec, std={std_actor_time:.8f} sec;\n"
-        f"per sample: mean={mean_actor_per_sample:.8f} sec, std={std_actor_per_sample:.8f} sec"
+        f"[Training step] With actor update: mean={mean_actor_time:.8f} sec, std={std_actor_time:.8f} sec, "
+        f"min={train_times_actor.min():.8f} sec, max={train_times_actor.max():.8f} sec;\n"
+        f"per sample: mean={mean_actor_per_sample:.8f} sec, std={std_actor_per_sample:.8f} sec, "
+        f"min={train_times_actor.min()/batch_size:.8f} sec, max={train_times_actor.max()/batch_size:.8f} sec"
     )
 
     # ===== Без обновления актера =====
@@ -184,8 +197,10 @@ def main(config: DictConfig) -> None:
     std_no_actor_per_sample = std_no_actor_time / batch_size
 
     logger.info(
-        f"[Training step] No actor update: mean={mean_no_actor_time:.8f} sec, std={std_no_actor_time:.8f} sec;\n"
-        f"per sample: mean={mean_no_actor_per_sample:.8f} sec, std={std_no_actor_per_sample:.8f} sec"
+        f"[Training step] No actor update: mean={mean_no_actor_time:.8f} sec, std={std_no_actor_time:.8f} sec, "
+        f"min={train_times_no_actor.min():.8f} sec, max={train_times_no_actor.max():.8f} sec;\n"
+        f"per sample: mean={mean_no_actor_per_sample:.8f} sec, std={std_no_actor_per_sample:.8f} sec, "
+        f"min={train_times_no_actor.min()/batch_size:.8f} sec, max={train_times_no_actor.max()/batch_size:.8f} sec"
     )
 
     # ===== Время полного цикла обновлений =====
