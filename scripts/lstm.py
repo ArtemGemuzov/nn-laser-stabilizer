@@ -23,19 +23,47 @@ class RecurrentReplayBuffer:
     def __init__(self, capacity=100000):
         self.buffer = deque(maxlen=capacity)
 
-    def push(self, state, action, reward, next_state, done):
-        self.buffer.append((state, action, reward, next_state, done))
+    def push(self, state, action, reward, next_state):
+        self.buffer.append((state, action, reward, next_state))
 
-    def sample(self, batch_size, seq_len):
-        """Сэмплирует последовательность"""
+    def sample(self, batch_size, seq_len, device='cpu'):
+        """Сэмплирует последовательность и возвращает тензоры"""
         sequences = []
         max_start = len(self.buffer) - seq_len
-        for _ in range(batch_size):
-            start_idx = random.randint(0, max_start)
+        start_indices = [random.randint(0, max_start) for _ in range(batch_size)]
+        
+        for start_idx in start_indices:
             seq = [self.buffer[start_idx + i] for i in range(seq_len)]
             sequences.append(seq)
-
-        return sequences
+        
+        observations = []
+        actions = []
+        rewards = []
+        next_observations = []
+        
+        for seq in sequences:
+            seq_obs = []
+            seq_actions = []
+            seq_rewards = []
+            seq_next_obs = []
+            
+            for transition in seq:
+                seq_obs.append(transition[0])
+                seq_actions.append(transition[1])
+                seq_rewards.append(transition[2])
+                seq_next_obs.append(transition[3])
+            
+            observations.append(seq_obs)
+            actions.append(seq_actions)
+            rewards.append(seq_rewards)
+            next_observations.append(seq_next_obs)
+        
+        observations = torch.FloatTensor(observations).to(device)
+        actions = torch.FloatTensor(actions).to(device)
+        rewards = torch.FloatTensor(rewards).to(device)
+        next_observations = torch.FloatTensor(next_observations).to(device)
+        
+        return observations, actions, rewards, next_observations
 
     def __len__(self):
         return len(self.buffer)
@@ -103,7 +131,6 @@ class RecurrentTD3:
         self.device = device
         self.total_it = 0
         
-        # Actor networks
         self.actor_summarizer = Summarizer(obs_dim).to(device)
         self.actor_mlp = MLPTanhActor(self.actor_summarizer.hidden_size, action_dim, 
                                     max_action=max_action, min_action=min_action).to(device)
@@ -115,7 +142,6 @@ class RecurrentTD3:
         self.actor_summarizer_target.load_state_dict(self.actor_summarizer.state_dict())
         self.actor_mlp_target.load_state_dict(self.actor_mlp.state_dict())
         
-        # Critic networks (two separate critics)
         self.critic1_summarizer = Summarizer(obs_dim).to(device)
         self.critic1_mlp = MLPCritic(self.critic1_summarizer.hidden_size, action_dim).to(device)
         
@@ -134,7 +160,6 @@ class RecurrentTD3:
         self.critic2_summarizer_target.load_state_dict(self.critic2_summarizer.state_dict())
         self.critic2_mlp_target.load_state_dict(self.critic2_mlp.state_dict())
         
-        # Optimizers
         self.actor_optimizer = optim.Adam(
             list(self.actor_summarizer.parameters()) + list(self.actor_mlp.parameters()), lr=lr
         )
@@ -164,39 +189,9 @@ class RecurrentTD3:
     def train(self, replay_buffer, batch_size=32, seq_len=10):
         self.total_it += 1
         
-        sequences = replay_buffer.sample(batch_size, seq_len=seq_len)
-        
-        observations = []
-        actions = []
-        rewards = []
-        next_observations = []
-        dones = []
-        
-        for seq in sequences:
-            seq_obs = []
-            seq_actions = []
-            seq_rewards = []
-            seq_next_obs = []
-            seq_dones = []
-            
-            for transition in seq:
-                seq_obs.append(transition[0])
-                seq_actions.append(transition[1])
-                seq_rewards.append(transition[2])
-                seq_next_obs.append(transition[3])
-                seq_dones.append(transition[4])
-            
-            observations.append(seq_obs)
-            actions.append(seq_actions)
-            rewards.append(seq_rewards)
-            next_observations.append(seq_next_obs)
-            dones.append(seq_dones)
-        
-        observations = torch.FloatTensor(observations).to(self.device)
-        actions = torch.FloatTensor(actions).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
-        next_observations = torch.FloatTensor(next_observations).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
+        observations, actions, rewards, next_observations = replay_buffer.sample(
+            batch_size, seq_len, self.device
+        )
 
         with torch.no_grad():
             target_actor_hidden = self.actor_summarizer_target.init_hidden(batch_size, self.device)
@@ -216,7 +211,7 @@ class RecurrentTD3:
             target_q2 = self.critic2_mlp_target(target_critic2_summary, next_actions)
             
             target_q = torch.min(target_q1, target_q2)
-            target_q = rewards.unsqueeze(-1) + (1 - dones.unsqueeze(-1)) * self.gamma * target_q
+            target_q = rewards.unsqueeze(-1) + self.gamma * target_q
         
         critic1_hidden = self.critic1_summarizer.init_hidden(batch_size, self.device)
         critic1_summary, _ = self.critic1_summarizer(observations, critic1_hidden)
@@ -284,10 +279,9 @@ def collect_data_episode(env: gym.Env, agent: RecurrentTD3, replay_buffer: Recur
 
     while step < max_steps:
         action = agent.select_action(observation)
-        next_observation, reward, terminated, truncated, _ = env.step(action)
-        done = terminated or truncated
+        next_observation, reward, _, _, _ = env.step(action)
 
-        replay_buffer.push(observation.copy(), action.copy(), reward, next_observation.copy(), done)
+        replay_buffer.push(observation.copy(), action.copy(), reward, next_observation.copy())
 
         observation = next_observation
         total_reward += reward
@@ -313,7 +307,7 @@ class PendulumNoVelWrapper(gym.ObservationWrapper):
 
 def main():
     env_name = "Pendulum-v1"
-    max_episodes = 1000
+    max_episodes = 200
     max_steps = 200
     seq_len = 10
     batch_size = 128
