@@ -11,13 +11,13 @@ from nn_laser_stabilizer.recurrent.td3 import RecurrentTD3
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
 
 @hydra.main(config_path=find_configs_dir(), config_name="train_simulation_recurrent", version_base=None)
-def main(cfg: DictConfig):
-    env = gym.make(cfg.env.name)
+def main(config: DictConfig):
+    env = gym.make(config.env.name)
     env = PendulumNoVelWrapper(env)
 
-    np.random.seed(cfg.env.seed)
-    torch.manual_seed(cfg.env.seed)
-    env.reset(seed=cfg.env.seed)
+    np.random.seed(config.env.seed)
+    torch.manual_seed(config.env.seed)
+    env.reset(seed=config.env.seed)
 
     obs_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
@@ -29,17 +29,18 @@ def main(cfg: DictConfig):
     agent = RecurrentTD3(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        mlp_hidden_size=cfg.agent.mlp_hidden_size,
-        rnn_hidden_size=cfg.agent.rnn_hidden_size,
-        num_rnn_layers=cfg.agent.num_rnn_layers,
+        mlp_hidden_size=config.agent.mlp_hidden_size,
+        rnn_hidden_size=config.agent.rnn_hidden_size,
+        num_rnn_layers=config.agent.num_rnn_layers,
         max_action=max_action,
         min_action=min_action,
-        lr=cfg.agent.lr,
-        gamma=cfg.agent.gamma,
-        tau=cfg.agent.tau,
-        policy_noise=cfg.agent.policy_noise,
-        noise_clip=cfg.agent.noise_clip,
-        policy_freq=cfg.agent.policy_freq,
+        lr=config.agent.lr,
+        gamma=config.agent.gamma,
+        tau=config.agent.tau,
+        policy_noise=config.agent.policy_noise,
+        noise_clip=config.agent.noise_clip,
+        policy_freq=config.agent.policy_freq,
+        shared_summary=config.shared_summary,
         device=device
     )
 
@@ -50,19 +51,19 @@ def main(cfg: DictConfig):
     print("Начинаем обучение...")
 
     try:
-        for episode in range(cfg.env.num_episodes):
+        for episode in range(config.env.num_episodes):
             rewards = collect_data_episode(
-                env, agent, replay_buffer=replay_buffer, num_steps=cfg.env.num_steps
+                env, agent, replay_buffer=replay_buffer, num_steps=config.env.num_steps
             )
             episode_mean_reward = np.mean(rewards)
             episode_rewards.append(episode_mean_reward)
 
-            if len(replay_buffer) > cfg.agent.batch_size * cfg.agent.seq_len:
-                for _ in range(cfg.agent.update_to_data):
+            if len(replay_buffer) > config.agent.batch_size * config.agent.seq_len:
+                for _ in range(config.agent.update_to_data):
                     agent.train_step(
                         replay_buffer,
-                        batch_size=cfg.agent.batch_size,
-                        seq_len=cfg.agent.seq_len,
+                        batch_size=config.agent.batch_size,
+                        seq_len=config.agent.seq_len,
                     )
 
             print(f"Эпизод {episode}, Средняя награда: {episode_mean_reward:.2f}")

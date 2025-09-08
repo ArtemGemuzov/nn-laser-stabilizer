@@ -16,6 +16,8 @@ agent:
   batch_size: 64
   update_to_data: 16
 
+  shared_summary: False
+
   mlp_hidden_size: 256
   rnn_hidden_size: 64
   num_rnn_layers: 2

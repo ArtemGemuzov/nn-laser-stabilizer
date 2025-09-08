@@ -58,15 +58,15 @@ class Simple3x3Env(gym.Env):
         pass
 
 @hydra.main(config_path=find_configs_dir(), config_name="train_simulation_recurrent", version_base=None)
-def benchmark_recurrent(cfg: DictConfig) -> None:
+def benchmark_recurrent(config: DictConfig) -> None:
     hydra_output_dir = HydraConfig.get().runtime.output_dir
     os.makedirs(hydra_output_dir, exist_ok=True)
 
     env = Simple3x3Env()
 
-    np.random.seed(cfg.env.seed)
-    torch.manual_seed(cfg.env.seed)
-    env.reset(seed=cfg.env.seed)
+    np.random.seed(config.env.seed)
+    torch.manual_seed(config.env.seed)
+    env.reset(seed=config.env.seed)
 
     obs_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
@@ -80,17 +80,18 @@ def benchmark_recurrent(cfg: DictConfig) -> None:
     agent = RecurrentTD3(
         obs_dim=obs_dim,
         action_dim=action_dim,
-        mlp_hidden_size=cfg.agent.mlp_hidden_size,
-        rnn_hidden_size=cfg.agent.rnn_hidden_size,
-        num_rnn_layers=cfg.agent.num_rnn_layers,
+        mlp_hidden_size=config.agent.mlp_hidden_size,
+        rnn_hidden_size=config.agent.rnn_hidden_size,
+        num_rnn_layers=config.agent.num_rnn_layers,
         max_action=max_action,
         min_action=min_action,
-        lr=cfg.agent.lr,
-        gamma=cfg.agent.gamma,
-        tau=cfg.agent.tau,
-        policy_noise=cfg.agent.policy_noise,
-        noise_clip=cfg.agent.noise_clip,
-        policy_freq=cfg.agent.policy_freq,
+        lr=config.agent.lr,
+        gamma=config.agent.gamma,
+        tau=config.agent.tau,
+        policy_noise=config.agent.policy_noise,
+        noise_clip=config.agent.noise_clip,
+        policy_freq=config.agent.policy_freq,
+        shared_summary=config.shared_summary,
         device=device,
     )
 
@@ -110,7 +111,6 @@ def benchmark_recurrent(cfg: DictConfig) -> None:
     observation, _ = env.reset()
     observation_tensor = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0).unsqueeze(0)
 
-    # === Warmup ===
     warmup_steps = 1_000
     print(f"Выполняем {warmup_steps} warmup-шагов...")
     with torch.no_grad():
@@ -139,8 +139,8 @@ def benchmark_recurrent(cfg: DictConfig) -> None:
         start = time.perf_counter()
         agent.train_step(
             replay_buffer,
-            batch_size=cfg.agent.batch_size,
-            seq_len=cfg.agent.seq_len
+            batch_size=config.agent.batch_size,
+            seq_len=config.agent.seq_len
         )
         train_times.append(time.perf_counter() - start)
 
