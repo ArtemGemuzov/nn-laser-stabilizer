@@ -35,17 +35,19 @@ class FastRecurrentReplayBuffer:
         valid_indices = np.arange(self.size - seq_len + 1)
         start_indices = np.random.choice(valid_indices, size=batch_size, replace=True)
         
-        indices = start_indices[:, np.newaxis] + np.arange(seq_len + 1)
+        indices = start_indices[:, np.newaxis] + np.arange(seq_len)
         
         observations_batch = self.observations[indices]
-        actions_batch = self.actions[indices[:, :-1]]
-        rewards_batch = self.rewards[indices[:, :-1]]
+        actions_batch = self.actions[indices]
+        rewards_batch = self.rewards[indices]
+        next_observations_batch = self.next_observations[indices]
         
         observations_tensor = torch.from_numpy(observations_batch).to(device)
         actions_tensor = torch.from_numpy(actions_batch).to(device)
         rewards_tensor = torch.from_numpy(rewards_batch).to(device)
+        next_observations_tensor = torch.from_numpy(next_observations_batch).to(device)
         
-        return observations_tensor, actions_tensor, rewards_tensor
+        return observations_tensor, actions_tensor, rewards_tensor, next_observations_tensor
 
     def __len__(self):
         return self.size
