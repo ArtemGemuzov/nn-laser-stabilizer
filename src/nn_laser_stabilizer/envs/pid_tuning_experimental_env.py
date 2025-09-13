@@ -3,7 +3,7 @@ from tensordict import TensorDict
 from torchrl.envs import EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
-from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX
+from nn_laser_stabilizer.envs.normalization import normalize_adc, normalize_dac
 
 class PidTuningExperimentalEnv(EnvBase):
     def __init__(self, 
@@ -19,12 +19,6 @@ class PidTuningExperimentalEnv(EnvBase):
         self.action_spec = action_spec
         self.observation_spec = observation_spec
         self.reward_spec = reward_spec
-    
-    def _normalize_adc(self, value: float) -> float:
-        return (value / ADC_MAX) * 2.0 - 1.0
-
-    def _normalize_dac(self, value: float) -> float:
-        return (value / DAC_MAX) * 2.0 - 1.0
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         kp, ki, kd = tensordict["action"].tolist()
@@ -32,9 +26,9 @@ class PidTuningExperimentalEnv(EnvBase):
         process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd)
 
         # лежит в [-1; 1]
-        process_variable_norm = self._normalize_adc(process_variable)
-        setpoint_norm = self._normalize_adc(setpoint)
-        control_output_norm = self._normalize_dac(control_output)
+        process_variable_norm = normalize_adc(process_variable)
+        setpoint_norm = normalize_adc(setpoint)
+        control_output_norm = normalize_dac(control_output)
 
         observation = torch.tensor(
             [process_variable_norm, control_output_norm, setpoint_norm],
