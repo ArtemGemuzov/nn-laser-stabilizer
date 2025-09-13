@@ -12,11 +12,42 @@ from nn_laser_stabilizer.envs.partial_observed_envs import PendulumNoVelEnv
 from nn_laser_stabilizer.envs.reward import make_reward
 
 from torchrl.envs import GymEnv
-from torchrl.envs.transforms import Compose, DoubleToFloat, StepCounter, InitTracker, FrameSkipTransform
+from torchrl.envs.transforms import Compose, DoubleToFloat, StepCounter, InitTracker, Transform
 from torchrl.envs.transforms import StepCounter, InitTracker
 from torchrl.data import UnboundedContinuous, BoundedContinuous
 import torch
 
+class FrameSkipTransform(Transform):
+    def __init__(self, frame_skip: int = 1):
+        super().__init__()
+        if frame_skip < 1:
+            raise ValueError("frame_skip should be >= 1.")
+        self.frame_skip = frame_skip
+
+    def _aggregate_rewards(self, rewards):
+        return torch.sum(rewards)
+
+    def _step(self, tensordict, next_tensordict):
+        parent = self.parent
+        if parent is None:
+            raise RuntimeError("Parent environment not found.")
+        reward_key = parent.reward_key
+
+        rewards = torch.zeros(self.frame_skip, device=next_tensordict.get(reward_key).device)
+        rewards[0] = next_tensordict.get(reward_key)
+
+        for i in range(1, self.frame_skip):
+            next_tensordict = parent._step(tensordict)
+            rewards[i] = next_tensordict.get(reward_key)
+
+        reward = self._aggregate_rewards(rewards)
+        return next_tensordict.set(reward_key, reward)
+
+    def forward(self, tensordict):
+        raise RuntimeError(
+            "FrameSkipAverageRewardTransform can only be used when appended to a transformed env."
+        )
+    
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
     for key in ["action", "observation", "reward"]:
