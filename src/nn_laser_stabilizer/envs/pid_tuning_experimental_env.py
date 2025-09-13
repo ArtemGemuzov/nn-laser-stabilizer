@@ -3,11 +3,9 @@ from tensordict import TensorDict
 from torchrl.envs import EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
+from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX
 
 class PidTuningExperimentalEnv(EnvBase):
-    ADC_MAX = 10230.0 
-    DAC_MAX = 4095.0   
-
     def __init__(self, 
                  experimental_setup : PidTuningExperimentalSetup, 
                  action_spec,
@@ -23,10 +21,10 @@ class PidTuningExperimentalEnv(EnvBase):
         self.reward_spec = reward_spec
     
     def _normalize_adc(self, value: float) -> float:
-        return (value / self.ADC_MAX) * 2.0 - 1.0
+        return (value / ADC_MAX) * 2.0 - 1.0
 
     def _normalize_dac(self, value: float) -> float:
-        return (value / self.DAC_MAX) * 2.0 - 1.0
+        return (value / DAC_MAX) * 2.0 - 1.0
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         kp, ki, kd = tensordict["action"].tolist()
