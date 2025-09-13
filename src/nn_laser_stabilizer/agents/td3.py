@@ -16,16 +16,7 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
     modules = []
 
     if agent_cfg.use_lstm:
-        actor_lstm = LSTMModule(
-            input_size=observation_spec.shape[-1] + action_spec.shape[-1],
-            hidden_size=agent_cfg.lstm_hidden_size,
-            num_layers=agent_cfg.lstm_num_layers,
-            in_key="observation_action",
-            out_key="param",
-            python_based=agent_cfg.python_based_lstm_policy
-        )
-        modules.append(actor_lstm)
-        mlp_input_key = "param"
+        raise NotImplementedError("Recurrent policy does not supported in this version")
     else:
         mlp_input_key = "observation"
 
@@ -54,20 +45,10 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
     
 def make_qvalue_network(config, observation_spec, action_spec):
     agent_cfg = config.agent
-    qvalue_feature_name = "qvalue_feature"
     modules = []
 
     if agent_cfg.use_lstm:
-        qvalue_lstm = LSTMModule(
-            input_size=observation_spec.shape[-1] + action_spec.shape[-1],
-            hidden_size=agent_cfg.q_lstm_hidden_size,
-            num_layers=agent_cfg.q_lstm_num_layers,
-            in_key="observation_action",
-            out_key=qvalue_feature_name,
-            python_based=agent_cfg.python_based_lstm_qvalue
-        )
-        modules.append(qvalue_lstm)
-        mlp_input_keys = [qvalue_feature_name]
+        raise NotImplementedError("Recurrent policy does not supported in this version")
     else:
         mlp_input_keys = ["observation", "action"]
 

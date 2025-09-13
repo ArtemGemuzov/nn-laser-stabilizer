@@ -41,40 +41,6 @@ class SimpleFileLogger:
             pass
 
 
-class PerStepLogger(Transform):
-    """
-    Логирует kp, ki, kd (из action) и x, setpoint (из observation) каждый шаг.
-    """
-    def __init__(self, log_dir: str = None):
-        super().__init__()
-        self.logger = SimpleFileLogger(log_dir=log_dir)
-        self._t = 0
-
-    def _log_step(self, action_row: torch.Tensor, observation_row: torch.Tensor):
-        kp, ki, kd = action_row.tolist()
-        x, control_output, setpoint = observation_row.tolist()
-
-        log_line = f"step={self._t} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
-        self.logger.log(log_line)
-
-        self._t += 1
-
-    def _step(self, tensordict, next_tensordict):
-        action = tensordict.get("action", None)
-        observation = tensordict.get("observation", None)
-
-        if action is not None and observation is not None:
-            self._log_step(action, observation)
-
-        return next_tensordict
-
-    def close(self):
-        self.logger.close()
-
-    def __del__(self):
-        self.close()
-
-
 class PerStepLoggerAsync(Transform):
     """
     Логирует kp, ki, kd (из action) и x, setpoint (из observation) каждый шаг 
