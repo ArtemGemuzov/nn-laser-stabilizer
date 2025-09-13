@@ -17,6 +17,8 @@ env:
   # TODO убрать (необходимо для поддержки benchmark)
   setpoint: 1.0 # CHECK
 
+  frame_skip: 1
+
   bounds:
     action:
       low: [0.0, 0.0, 0.0]

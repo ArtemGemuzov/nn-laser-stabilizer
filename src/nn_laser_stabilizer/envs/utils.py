@@ -12,7 +12,7 @@ from nn_laser_stabilizer.envs.partial_observed_envs import PendulumNoVelEnv
 from nn_laser_stabilizer.envs.reward import make_reward
 
 from torchrl.envs import GymEnv
-from torchrl.envs.transforms import Compose, DoubleToFloat
+from torchrl.envs.transforms import Compose, DoubleToFloat, StepCounter, InitTracker, FrameSkipTransform
 from torchrl.envs.transforms import StepCounter, InitTracker
 from torchrl.data import UnboundedContinuous, BoundedContinuous
 import torch
@@ -46,9 +46,9 @@ def make_gym_env(config) -> TransformedEnv:
     env = TransformedEnv(
         base_env,
         Compose(
-            InitTracker(),
             StepCounter(),
             DoubleToFloat(),
+            FrameSkipTransform(frame_skip=env_config.frame_skip),
         )
     )
     env.set_seed(config.seed)
@@ -81,8 +81,8 @@ def make_simulated_env(config) -> TransformedEnv:
     env = TransformedEnv(
         base_env,
         Compose(
-            InitTracker(),
             DoubleToFloat(),
+            FrameSkipTransform(frame_skip=env_config.frame_skip),
         )
     )
     env.set_seed(config.seed)
@@ -133,8 +133,8 @@ def make_real_env(config) -> TransformedEnv:
     env = TransformedEnv(
         base_env,
         Compose(
-            InitTracker(),
             DoubleToFloat(),
+            FrameSkipTransform(frame_skip=env_config.frame_skip),
         )
     )
     

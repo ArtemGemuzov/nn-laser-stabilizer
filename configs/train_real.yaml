@@ -18,6 +18,8 @@ env:
     args:
       k: 10.0
 
+  frame_skip: 1
+
   bounds:
     action:
       low: [0.0, 0.0, 0.0]
