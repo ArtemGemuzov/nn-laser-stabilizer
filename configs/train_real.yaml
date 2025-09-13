@@ -13,6 +13,11 @@ serial: # CHECK
 env:
   setpoint: # CHECK
 
+  reward:
+    name: exponential # exponential absolute
+    args:
+      k: 10.0
+
   bounds:
     action:
       low: [0.0, 0.0, 0.0]

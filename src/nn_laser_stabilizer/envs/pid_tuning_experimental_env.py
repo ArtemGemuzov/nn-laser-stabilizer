@@ -10,7 +10,8 @@ class PidTuningExperimentalEnv(EnvBase):
                  experimental_setup : PidTuningExperimentalSetup, 
                  action_spec,
                  observation_spec,
-                 reward_spec
+                 reward_spec,
+                 reward_func
     ):
         super().__init__()
 
@@ -19,6 +20,8 @@ class PidTuningExperimentalEnv(EnvBase):
         self.action_spec = action_spec
         self.observation_spec = observation_spec
         self.reward_spec = reward_spec
+
+        self.reward_func = reward_func
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         kp, ki, kd = tensordict["action"].tolist()
@@ -36,16 +39,14 @@ class PidTuningExperimentalEnv(EnvBase):
             device=self.device
         )
 
-        error = setpoint_norm - process_variable_norm 
-        reward = -abs(error) # лежит в [-2; 0]
-        reward_norm = 1 + reward
+        reward = self.reward_func(process_variable, setpoint)
 
         done = False  # TODO задать условие завершения
 
         return TensorDict(
             {
                 "observation": observation,
-                "reward": torch.tensor([reward_norm], dtype=torch.float32, device=self.device),
+                "reward": torch.tensor([reward], dtype=torch.float32, device=self.device),
                 "done": torch.tensor([done], dtype=torch.bool, device=self.device),
             },
             batch_size=[]
@@ -54,9 +55,9 @@ class PidTuningExperimentalEnv(EnvBase):
     def _reset(self, unused: TensorDict | None = None) -> TensorDict:
         process_variable, control_output, setpoint = self.experimental_setup.reset()
 
-        process_variable_norm = self._normalize_adc(process_variable)
-        setpoint_norm = self._normalize_adc(setpoint)
-        control_output_norm = self._normalize_dac(control_output)
+        process_variable_norm = normalize_adc(process_variable)
+        setpoint_norm = normalize_adc(setpoint)
+        control_output_norm = normalize_dac(control_output)
 
         observation = torch.tensor(
             [process_variable_norm, control_output_norm, setpoint_norm],

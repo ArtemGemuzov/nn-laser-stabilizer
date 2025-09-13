@@ -8,6 +8,7 @@ from nn_laser_stabilizer.serial_connection import SerialConnection
 from nn_laser_stabilizer.mock_serial_connection import MockSerialConnection
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 from nn_laser_stabilizer.envs.partial_observed_envs import PendulumNoVelEnv
+from nn_laser_stabilizer.envs.reward import make_reward
 
 from torchrl.envs import GymEnv
 from torchrl.envs.transforms import Transform, Compose, DoubleToFloat, ObservationNorm, RewardScaling
@@ -251,7 +252,8 @@ def make_simulated_env(config) -> TransformedEnv:
         numerical_model, 
         action_spec=specs["action"],
         observation_spec=specs["observation"],
-        reward_spec=specs["reward"]
+        reward_spec=specs["reward"],
+        reward_func=make_reward(config)
     )
     
     env = TransformedEnv(
@@ -283,7 +285,7 @@ def make_real_env(config) -> TransformedEnv:
     env_config = config.env
     serial_config = config.serial
     
-    serial_connection = SerialConnection(
+    serial_connection = MockSerialConnection(
         port=serial_config.port,
         baudrate=serial_config.baudrate,
         timeout=serial_config.timeout,
@@ -302,7 +304,8 @@ def make_real_env(config) -> TransformedEnv:
         real_setup,
         action_spec=specs["action"],
         observation_spec=BoundedContinuous(low=-1, high=1, shape=(3,)),
-        reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,))
+        reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
+        reward_func=make_reward(config)
     )
     
     env = TransformedEnv(
