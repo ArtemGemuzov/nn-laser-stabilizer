@@ -36,10 +36,9 @@ CONFIG_NAME = "train_real"
 def main(config: DictConfig) -> None:
     set_seeds(config.seed)
 
-    setpoint = config.env.get("setpoint", None)
-    if setpoint is None:
-        setpoint = float(input("Введите значение setpoint для среды: "))
-    logger.info(f"Setpoint = {setpoint}")
+    if not config.env.get("setpoint"):
+        config.env.setpoint = float(input("Введите значение setpoint для среды: "))
+    logger.info(f"Setpoint = {config.env.setpoint}")
 
     hydra_output_dir = HydraConfig.get().runtime.output_dir
     env_log_dir = os.path.join(hydra_output_dir, "env_logs")
