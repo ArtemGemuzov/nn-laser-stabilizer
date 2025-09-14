@@ -20,8 +20,7 @@ from nn_laser_stabilizer.agents.td3 import (
     warmup,
     warmup_from_specs
 )
-from nn_laser_stabilizer.envs.utils import make_simulated_env, make_real_env, make_specs, add_logger_to_env, close_real_env
-
+from nn_laser_stabilizer.envs.utils import make_simulated_env, make_real_env, make_specs, add_logger_to_env, close_real_env, wrap_with_logger, transform_env
 from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
 
@@ -46,7 +45,8 @@ def main(config: DictConfig) -> None:
 
     def make_env(config, log_dir):
         env = make_real_env(config)
-        return add_logger_to_env(env, log_dir)
+        env_with_logger = wrap_with_logger(env, log_dir=log_dir)
+        return transform_env(config, env_with_logger)
 
     # TODO: aSyncDataCollector внутри себя создает фейковое окружение, поэтому при первом вызове нужно вернуть симуляцию окружения
     def make_env_factory(config, log_dir):

@@ -85,11 +85,9 @@ class StepsAggregateTransform(Transform):
         self._obs_key = None
 
     def _initialize(self, parent, next_tensordict):
-        if parent is None:
-            raise RuntimeError("Parent environment not found.")
-
-        self._reward_key = parent.reward_key
-        self._obs_key = parent.observation_keys[0]  # предполагается один ключ observation
+        # TODO: переделать когда-нибудь
+        self._reward_key = "reward"
+        self._obs_key = "observation" # предполагается один ключ observation
 
         obs_shape = next_tensordict.get(self._obs_key).shape
         reward_shape = next_tensordict.get(self._reward_key).shape

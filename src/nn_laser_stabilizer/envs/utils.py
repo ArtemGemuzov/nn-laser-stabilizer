@@ -1,6 +1,6 @@
 import torch
 from torchrl.data import UnboundedContinuous, BoundedContinuous
-from torchrl.envs import TransformedEnv, GymEnv, DoubleToFloat, Compose, DoubleToFloat, StepCounter
+from torchrl.envs import TransformedEnv, GymEnv, EnvBase, DoubleToFloat, Compose, DoubleToFloat, StepCounter
 
 from nn_laser_stabilizer.envs.logger import PerStepLoggerAsync
 from nn_laser_stabilizer.envs.pid_controller import PIDController
@@ -13,7 +13,7 @@ from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSet
 from nn_laser_stabilizer.envs.partial_observed_envs import PendulumNoVelEnv
 from nn_laser_stabilizer.envs.reward import make_reward
 from nn_laser_stabilizer.envs.transforms import FrameSkipTransform, InitialActionRepeatTransform, StepsAggregateTransform
-
+from nn_laser_stabilizer.envs.logger import LoggingEnvWrapper
 
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
@@ -80,13 +80,12 @@ def make_simulated_env(config) -> TransformedEnv:
         base_env,
         Compose(
             DoubleToFloat(),
-            FrameSkipTransform(frame_skip=env_config.frame_skip),
         )
     )
     env.set_seed(config.seed)
     return env
 
-def make_real_env(config) -> TransformedEnv:
+def make_real_env(config) -> EnvBase:
     """
     Создает окружение TorchRL для взаимодействия с реальной установкой через SerialConnection.
     
@@ -120,26 +119,31 @@ def make_real_env(config) -> TransformedEnv:
     
     specs = make_specs(env_config.bounds)
     
-    base_env = PidTuningExperimentalEnv(
+    env = PidTuningExperimentalEnv(
         real_setup,
         action_spec=specs["action"],
         observation_spec=BoundedContinuous(low=-1, high=1, shape=(3,)),
         reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
         reward_func=make_reward(config)
     )
-    
-    env = TransformedEnv(
+    env.set_seed(config.seed)
+    return env
+
+def transform_env(config, base_env):
+    env_config = config.env
+
+    transformed_env = TransformedEnv(
         base_env,
         Compose(
             InitialActionRepeatTransform(repeat_count=env_config.repeat_count),
             StepsAggregateTransform(frame_skip=env_config.frame_skip),
-        )
+        ),
     )
-    
-    env.set_seed(config.seed)
-    return env
+    return transformed_env
 
-
+def wrap_with_logger(env, log_dir):
+    return LoggingEnvWrapper(env, log_dir=log_dir)
+     
 def close_real_env(env: TransformedEnv):
     try:
         real_setup = env.base_env.experimental_setup
