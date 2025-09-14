@@ -12,9 +12,9 @@ from nn_laser_stabilizer.mock_serial_connection import MockSerialConnection
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 from nn_laser_stabilizer.envs.partial_observed_envs import PendulumNoVelEnv
 from nn_laser_stabilizer.envs.reward import make_reward
-from nn_laser_stabilizer.envs.transforms import FrameSkipTransform, InitialActionRepeatTransform
- 
-    
+from nn_laser_stabilizer.envs.transforms import FrameSkipTransform, InitialActionRepeatTransform, StepsAggregateTransform
+
+
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
     for key in ["action", "observation", "reward"]:
@@ -131,9 +131,8 @@ def make_real_env(config) -> TransformedEnv:
     env = TransformedEnv(
         base_env,
         Compose(
-            DoubleToFloat(),
             InitialActionRepeatTransform(repeat_count=env_config.repeat_count),
-            FrameSkipTransform(frame_skip=env_config.frame_skip),
+            StepsAggregateTransform(frame_skip=env_config.frame_skip),
         )
     )
     
