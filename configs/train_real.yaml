@@ -14,7 +14,7 @@ env:
   setpoint: 1200 # CHECK
 
   reward:
-    name: relative # exponential absolute relative
+    name: absolute # exponential absolute relative
     args:
       k: 9.0
 
