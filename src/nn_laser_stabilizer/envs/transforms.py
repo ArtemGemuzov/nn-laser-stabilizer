@@ -84,7 +84,7 @@ class StepsAggregateTransform(Transform):
         self._reward_key = None
         self._obs_key = None
 
-    def _initialize(self, parent, next_tensordict):
+    def _initialize(self, next_tensordict):
         # TODO: переделать когда-нибудь
         self._reward_key = "reward"
         self._obs_key = "observation" # предполагается один ключ observation
@@ -110,7 +110,7 @@ class StepsAggregateTransform(Transform):
     def _step(self, tensordict, next_tensordict):
         parent = self.parent
         if not self._initialized:
-            self._initialize(parent, next_tensordict)
+            self._initialize(next_tensordict)
 
         self._rewards_buf[0].copy_(next_tensordict.get(self._reward_key))
         self._obs_buf[0].copy_(next_tensordict.get(self._obs_key))
