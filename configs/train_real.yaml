@@ -19,6 +19,7 @@ env:
       k: 9.0
 
   frame_skip: 1
+  repeat_count: 1
 
   bounds:
     action:

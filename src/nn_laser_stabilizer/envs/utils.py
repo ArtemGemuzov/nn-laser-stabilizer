@@ -48,6 +48,30 @@ class FrameSkipTransform(Transform):
             "FrameSkipAverageRewardTransform can only be used when appended to a transformed env."
         )
     
+class InitialActionRepeatTransform(Transform):
+    def __init__(self, repeat_count: int = 1):
+        super().__init__()
+        if repeat_count < 1:
+            raise ValueError("repeat_count must be >= 1.")
+        self.repeat_count = repeat_count
+        self._initialized = False
+
+    def _step(self, tensordict, next_tensordict):
+        parent = self.parent
+        if parent is None:
+            raise RuntimeError("Parent environment not found.")
+
+        if not self._initialized:
+            for _ in range(1, self.repeat_count):
+                next_tensordict = parent._step(tensordict)
+            self._initialized = True
+        return next_tensordict
+
+    def forward(self, tensordict):
+        raise RuntimeError(
+            "InitialActionRepeatTransform can only be used when appended to a transformed env."
+        )
+    
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
     for key in ["action", "observation", "reward"]:
@@ -165,6 +189,7 @@ def make_real_env(config) -> TransformedEnv:
         base_env,
         Compose(
             DoubleToFloat(),
+            InitialActionRepeatTransform(repeat_count=env_config.repeat_count),
             FrameSkipTransform(frame_skip=env_config.frame_skip),
         )
     )
