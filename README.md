@@ -39,7 +39,7 @@ nn-laser-stabilizer/
    ```bash
    pip install -r requirements.txt
    ```
-1. ((Пере)установите пакет:
+1. (Пере)установите пакет:
    ```bash
    pip install -e . --force-reinstall
    ```
