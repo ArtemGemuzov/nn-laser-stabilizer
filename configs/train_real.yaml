@@ -11,7 +11,7 @@ serial: # CHECK
   timeout: 0.1
 
 env:
-  setpoint: # CHECK
+  setpoint: 1200 # CHECK
 
   reward:
     name: relative # exponential absolute relative
