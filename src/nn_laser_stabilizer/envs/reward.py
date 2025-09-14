@@ -39,9 +39,30 @@ class ExponentialErrorReward:
         setpoint_norm = normalize_adc(setpoint)
         error = abs(setpoint_norm - process_variable_norm)
         return 2 * math.exp(-self.k * error) - 1
+
+class RelativeErrorReward:
+    """
+    Награда на основе относительной ошибки:
+
+        relative_error = |setpoint - process_variable| / (|setpoint| + eps)
+        reward = max{1 - relative_error; -1}
+
+    Где:
+      - reward ∈ [-1, 1]
+      - eps нужен для защиты от деления на ноль
+    """
+    def __init__(self, eps: float = 1e-6):
+        self.eps = eps
+
+    def __call__(self, process_variable: float, setpoint: float) -> float:
+        relative_error = abs(setpoint - process_variable) / (abs(setpoint) + self.eps)
+        reward = 1 - relative_error
+        return max(-1.0, reward)
     
+
 REWARD_FUNCTIONS = {
     "absolute": AbsoluteErrorReward,
+    "relative": RelativeErrorReward,
     "exponential": ExponentialErrorReward,
 }
 
