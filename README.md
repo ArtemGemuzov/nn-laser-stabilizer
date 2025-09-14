@@ -39,9 +39,9 @@ nn-laser-stabilizer/
    ```bash
    pip install -r requirements.txt
    ```
-1. Установите пакет:
+1. ((Пере)установите пакет:
    ```bash
-   pip install -e .
+   pip install -e . --force-reinstall
    ```
 ## Запуск
 Запуск скрпита из директории проекта:
