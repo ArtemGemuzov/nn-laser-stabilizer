@@ -1,8 +1,8 @@
 from typing import Tuple, Optional
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
-from nn_laser_stabilizer.serial_connection import SerialConnection
-from nn_laser_stabilizer.mock_serial_connection import MockSerialConnection
+from nn_laser_stabilizer.connection.serial_connection import SerialConnection
+from nn_laser_stabilizer.connection.mock_serial_connection import MockSerialConnection
 
 class RealExperimentalSetup(PidTuningExperimentalSetup):
     """
