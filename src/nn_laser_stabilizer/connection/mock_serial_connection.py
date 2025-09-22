@@ -26,7 +26,7 @@ class MockSerialConnection:
             raise ConnectionError("[MOCK_SERIAL_CONNECTION] Serial connection is not open.")
         
         process_variable = random.randint(0, ADC_MAX)
-        control_output = random.randint(0, DAC_MAX)
+        control_output = random.randint(0, DAC_MAX) if self._step < 100 else random.randint(501, DAC_MAX)
         response = f"{process_variable} {control_output}"
         self._step += 1
 
