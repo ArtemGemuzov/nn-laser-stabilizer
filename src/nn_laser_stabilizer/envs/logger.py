@@ -132,12 +132,12 @@ class LoggingEnvWrapper(EnvBase):
                 continue
 
     def _step(self, tensordict):
+        next_tensordict = self.env._step(tensordict)   
+     
         action = tensordict.get("action", None)
-        observation = tensordict.get("observation", None)
+        observation = next_tensordict.get("observation", None) 
         if action is not None and observation is not None:
             self._log_step_async(action, observation)
-
-        next_tensordict = self.env._step(tensordict)
             
         return next_tensordict
 
