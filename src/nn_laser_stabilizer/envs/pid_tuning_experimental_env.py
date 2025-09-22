@@ -12,7 +12,10 @@ class PidTuningExperimentalEnv(EnvBase):
                  action_spec,
                  observation_spec,
                  reward_spec,
-                 reward_func
+                 reward_func,
+                 fixed_kp: float | None = None,
+                 fixed_ki: float | None = None,
+                 fixed_kd: float | None = None
     ):
         super().__init__()
 
@@ -36,6 +39,12 @@ class PidTuningExperimentalEnv(EnvBase):
         self._force_steps_left = 0
         self._enforcement_steps = 1000  # количество шагов принудительного режима
 
+        # Режим фиксированных коэффициентов (для тестов)
+        if fixed_kp is not None and fixed_ki is not None and fixed_kd is not None:
+            self._fixed_action = (float(fixed_kp), float(fixed_ki), float(fixed_kd))
+        else:
+            self._fixed_action = None
+
     def _apply_control_limit_rule(self, control_output: float):
         if control_output < self._force_condition_threshold:
             # Запускаем принудительный режим на полное число шагов,
@@ -53,6 +62,8 @@ class PidTuningExperimentalEnv(EnvBase):
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         kp, ki, kd = tensordict["action"].tolist()
+        if self._fixed_action is not None:
+            kp, ki, kd = self._fixed_action
         applied_min, applied_max = self._get_control_limits_for_step()
 
         process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd, applied_min, applied_max)

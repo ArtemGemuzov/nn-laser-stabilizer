@@ -68,12 +68,19 @@ def make_simulated_env(config) -> TransformedEnv:
 
     specs = make_specs(env_config.bounds)
 
+    fixed_kp = env_config.get('kp', None)
+    fixed_ki = env_config.get('ki', None)
+    fixed_kd = env_config.get('kd', None)
+
     base_env = PidTuningExperimentalEnv(
         numerical_model, 
         action_spec=specs["action"],
         observation_spec=specs["observation"],
         reward_spec=specs["reward"],
-        reward_func=make_reward(config)
+        reward_func=make_reward(config),
+        fixed_kp=fixed_kp,
+        fixed_ki=fixed_ki,
+        fixed_kd=fixed_kd,
     )
     
     env = TransformedEnv(
@@ -127,12 +134,19 @@ def make_real_env(config) -> EnvBase:
     
     specs = make_specs(env_config.bounds)
     
+    fixed_kp = env_config.get('kp', None)
+    fixed_ki = env_config.get('ki', None)
+    fixed_kd = env_config.get('kd', None)
+
     env = PidTuningExperimentalEnv(
         real_setup,
         action_spec=specs["action"],
         observation_spec=BoundedContinuous(low=-1, high=1, shape=(3,)),
         reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
-        reward_func=make_reward(config)
+        reward_func=make_reward(config),
+        fixed_kp=fixed_kp,
+        fixed_ki=fixed_ki,
+        fixed_kd=fixed_kd,
     )
     env.set_seed(config.seed)
     return env
