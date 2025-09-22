@@ -19,6 +19,9 @@ env:
 
   frame_skip: 1
 
+  reward:
+    name: "absolute"
+
   bounds:
     action:
       low: [0.0, 0.0, 0.0]
