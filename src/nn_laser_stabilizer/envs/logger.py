@@ -1,6 +1,7 @@
 from pathlib import Path
 from queue import Queue, Full, Empty
 from threading import Thread
+import time
 
 from torchrl.envs import EnvBase, Transform
 
@@ -115,8 +116,8 @@ class LoggingEnvWrapper(EnvBase):
         try:
             kp, ki, kd = action_row.tolist()
             x, control_output, setpoint = observation_row.tolist()
-
-            log_line = f"step={self._t} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
+            now = time.time()
+            log_line = f"step={self._t} time={now:.6f} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
             self._q.put_nowait(log_line)
         except Full:
             pass
