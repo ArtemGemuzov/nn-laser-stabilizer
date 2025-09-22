@@ -4,6 +4,7 @@ from torchrl.envs import EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 from nn_laser_stabilizer.envs.normalization import normalize_adc, normalize_dac
+from nn_laser_stabilizer.envs.constants import DAC_MAX
 
 class PidTuningExperimentalEnv(EnvBase):
     def __init__(self, 
@@ -23,19 +24,40 @@ class PidTuningExperimentalEnv(EnvBase):
 
         self.reward_func = reward_func
 
-    def _step(self, tensordict: TensorDict) -> TensorDict:
-        action_values = tensordict["action"].tolist()
-        if len(action_values) == 3:
-            kp, ki, kd = action_values
-            # по умолчанию используем полный диапазон DAC
-            from nn_laser_stabilizer.envs.constants import DAC_MAX
-            control_min, control_max = 0.0, DAC_MAX
-        elif len(action_values) == 5:
-            kp, ki, kd, control_min, control_max = action_values
-        else:
-            raise ValueError(f"Expected action of length 3 or 5, got {len(action_values)}")
+        self._default_min = 0.0
+        self._default_max = DAC_MAX
 
-        process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd, control_min, control_max)
+        self._current_min = self._default_min
+        self._current_max = self._default_max
+
+        # TODO: вынести в константы или конфиг
+        self._force_min_value = 2000.0
+        self._force_condition_threshold = 500.0
+        self._force_steps_left = 0
+        self._enforcement_steps = 1000  # количество шагов принудительного режима
+
+    def _apply_control_limit_rule(self, control_output: float):
+        if control_output < self._force_condition_threshold:
+            # Запускаем принудительный режим на полное число шагов,
+            # начиная со следующего шага
+            self._force_steps_left = self._enforcement_steps
+        elif self._force_steps_left > 0:
+            # Если режим уже активен и триггер не сработал на этом шаге,
+            # уменьшаем оставшееся число шагов
+            self._force_steps_left -= 1
+
+    def _get_control_limits_for_step(self) -> tuple[float, float]:
+        if self._force_steps_left > 0:
+            return self._force_min_value, self._current_max
+        return self._current_min, self._current_max
+
+    def _step(self, tensordict: TensorDict) -> TensorDict:
+        kp, ki, kd = tensordict["action"].tolist()
+        applied_min, applied_max = self._get_control_limits_for_step()
+
+        process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd, applied_min, applied_max)
+
+        self._apply_control_limit_rule(control_output)
 
         # лежит в [-1; 1]
         process_variable_norm = normalize_adc(process_variable)
@@ -62,6 +84,10 @@ class PidTuningExperimentalEnv(EnvBase):
         )
 
     def _reset(self, unused: TensorDict | None = None) -> TensorDict:
+        self._current_min = self._default_min
+        self._current_max = self._default_max
+        self._force_steps_left = 0
+
         process_variable, control_output, setpoint = self.experimental_setup.reset()
 
         process_variable_norm = normalize_adc(process_variable)
