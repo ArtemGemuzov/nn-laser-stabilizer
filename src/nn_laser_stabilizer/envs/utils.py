@@ -93,6 +93,7 @@ def make_real_env(config) -> EnvBase:
         config: Конфигурация, содержащая:
             - env.setpoint: целевое значение (setpoint)
             - env.bounds: границы для спецификаций
+            - serial.use_mock: использовать ли mock соединение (True/False)
             - serial.port: COM порт для подключения
             - serial.baudrate: скорость передачи (опционально, по умолчанию 115200)
             - serial.timeout: таймаут (опционально, по умолчанию 0.1)
@@ -104,11 +105,18 @@ def make_real_env(config) -> EnvBase:
     env_config = config.env
     serial_config = config.serial
     
-    serial_connection = MockSerialConnection(
-        port=serial_config.port,
-        baudrate=serial_config.baudrate,
-        timeout=serial_config.timeout,
-    )
+    if serial_config.use_mock:
+        serial_connection = MockSerialConnection(
+            port=serial_config.port,
+            baudrate=serial_config.baudrate,
+            timeout=serial_config.timeout,
+        )
+    else:
+        serial_connection = SerialConnection(
+            port=serial_config.port,
+            baudrate=serial_config.baudrate,
+            timeout=serial_config.timeout,
+        )
     
     serial_connection.open_connection()
     

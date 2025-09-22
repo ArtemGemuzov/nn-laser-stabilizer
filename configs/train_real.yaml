@@ -9,6 +9,7 @@ serial: # CHECK
   port: COM3 
   baudrate: 115200
   timeout: 0.1
+  use_mock: False
 
 env:
   setpoint: 1200 # CHECK
