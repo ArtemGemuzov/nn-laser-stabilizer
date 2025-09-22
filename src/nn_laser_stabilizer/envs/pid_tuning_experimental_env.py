@@ -24,9 +24,18 @@ class PidTuningExperimentalEnv(EnvBase):
         self.reward_func = reward_func
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
-        kp, ki, kd = tensordict["action"].tolist()
+        action_values = tensordict["action"].tolist()
+        if len(action_values) == 3:
+            kp, ki, kd = action_values
+            # по умолчанию используем полный диапазон DAC
+            from nn_laser_stabilizer.envs.constants import DAC_MAX
+            control_min, control_max = 0.0, DAC_MAX
+        elif len(action_values) == 5:
+            kp, ki, kd, control_min, control_max = action_values
+        else:
+            raise ValueError(f"Expected action of length 3 or 5, got {len(action_values)}")
 
-        process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd)
+        process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd, control_min, control_max)
 
         # лежит в [-1; 1]
         process_variable_norm = normalize_adc(process_variable)

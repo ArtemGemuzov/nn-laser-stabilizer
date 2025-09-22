@@ -11,7 +11,8 @@ class NumericalExperimentalSetup(PidTuningExperimentalSetup):
 
         self.dt = dt
 
-    def step(self, kp: float, ki: float, kd: float) -> Tuple[float, float, float]:
+    def step(self, kp: float, ki: float, kd: float, control_min: float, control_max: float) -> Tuple[float, float, float]:
+        # Игнорирует параметры control_min и control_max
         self.controller.set_params(kp, ki, kd)
 
         control = self.controller(self.system.process_variable, self.dt)

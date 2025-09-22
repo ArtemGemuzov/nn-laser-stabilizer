@@ -1,20 +1,22 @@
 from typing import Tuple, Optional
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
-from nn_laser_stabilizer.connection.serial_connection import SerialConnection
-from nn_laser_stabilizer.connection.mock_serial_connection import MockSerialConnection
+from nn_laser_stabilizer.envs.constants import DAC_MAX
 
 class RealExperimentalSetup(PidTuningExperimentalSetup):
     """
     Реализация протокола PidTuningExperimentalSetup для реальной установки через SerialConnection.
     Формат обмена:
-        → Команда: "kp ki kd"
+        → Команда: "kp ki kd u_min u_max"
         ← Ответ: "PV CO"
     """
 
     DEFAULT_KP = 3.5
     DEFAULT_KI = 11.0
     DEFAULT_KD = 0.002
+
+    DEFAULT_MIN_CONTROL = 0
+    DEFAULT_MAX_CONTROL = DAC_MAX
 
     def __init__(self, serial_connection, setpoint: float):
         self.serial_connection = serial_connection
@@ -29,8 +31,8 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
         except Exception as ex:
             raise ValueError(f"Invalid response format: '{response}'") from ex
 
-    def step(self, kp: float, ki: float, kd: float) -> Tuple[float, float, float]:
-        command = f"{kp:.4f} {ki:.4f} {kd:.4f}\n"
+    def step(self, kp: float, ki: float, kd: float, control_min: float, control_max: float) -> Tuple[float, float, float]:
+        command = f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min:.4f} {control_max:.4f}\n"
         self.serial_connection.send_data(command)
 
         while True:
@@ -40,7 +42,7 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
                 return process_variable, control_output, self.setpoint
             
     def reset(self) -> Tuple[float, float, float]:
-        command = f"{self.DEFAULT_KP:.4f} {self.DEFAULT_KI:.4f} {self.DEFAULT_KD:.4f}"
+        command = f"{self.DEFAULT_KP:.4f} {self.DEFAULT_KI:.4f} {self.DEFAULT_KD:.4f} {self.DEFAULT_MIN_CONTROL:.4f} {self.DEFAULT_MAX_CONTROL:.4f}"
         self.serial_connection.send_data(command)
         while True:
             response = self.serial_connection.read_data()

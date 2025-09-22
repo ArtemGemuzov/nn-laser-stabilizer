@@ -2,9 +2,10 @@ from typing import Protocol, Tuple, Optional
 
 
 class PidTuningExperimentalSetup(Protocol):
-    def step(self, kp: float, ki: float, kd: float) -> Tuple[float, float, float]:
+    def step(self, kp: float, ki: float, kd: float, control_min: float, control_max: float) -> Tuple[float, float, float]:
         """
-        Выполняет шаг эксперимента: применяет новые параметры PID и возвращает
+        Выполняет шаг эксперимента: применяет новые параметры PID и границы управления,
+        возвращает текущее состояние системы.
         текущее состояние системы.
 
         Returns:
