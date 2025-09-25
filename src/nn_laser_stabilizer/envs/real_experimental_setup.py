@@ -29,12 +29,8 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
             control_min=control_min,
             control_max=control_max,
         )
-
-        while True:
-            response = self.pid_connection.read_data()
-            if response:
-                process_variable, control_output = response
-                return process_variable, control_output, self.setpoint
+        process_variable, control_output = self.pid_connection.read_response()
+        return process_variable, control_output, self.setpoint
             
     def reset(self) -> Tuple[float, float, float]:
         # TODO: уточнить, должны ли мы инициировать обмен
@@ -45,11 +41,8 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
             control_min=DEFAULT_MIN_CONTROL,
             control_max=DEFAULT_MAX_CONTROL,
         )
-        while True:
-            response = self.pid_connection.read_data()
-            if response:
-                process_variable, control_output = response
-                return process_variable, control_output, self.setpoint
+        process_variable, control_output = self.pid_connection.read_response()
+        return process_variable, control_output, self.setpoint
 
     def set_seed(self, seed: Optional[int]):
         pass

@@ -6,7 +6,7 @@ class ConnectionToPid:
     """
     Обертка над базовым последовательным соединением для отправки PID-команд
     и чтения ответов. Формирует строку команды в формате:
-    "kp ki kd u_min u_max\n" с точностью до 4 знаков после запятой
+    "kp ki kd u_min u_max" с точностью до 4 знаков после запятой
     и разбирает ответы вида "PV CO".
     """
 
@@ -42,5 +42,16 @@ class ConnectionToPid:
             return float(parts[0]), float(parts[1])
         except Exception as ex:
             raise ValueError(f"Некорректные числовые значения в ответе PID: '{raw}'") from ex
+
+    def read_response(self) -> tuple[float, float]:
+        """
+        Блокирующее чтение до получения корректного ответа PID.
+
+        Возвращает кортеж (process_variable, control_output).
+        """
+        while True:
+            data = self.read_data()
+            if data is not None:
+                return data
 
 
