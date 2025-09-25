@@ -54,4 +54,27 @@ class ConnectionToPid:
             if data is not None:
                 return data
 
+    def send_and_read(
+        self,
+        *,
+        kp: float,
+        ki: float,
+        kd: float,
+        control_min: float,
+        control_max: float,
+    ) -> tuple[float, float]:
+        """
+        Отправляет коэффициенты, затем блокирующе читает ответ.
+
+        Возвращает (PV, CO).
+        """
+        self.send_pid_command(
+            kp=kp,
+            ki=ki,
+            kd=kd,
+            control_min=control_min,
+            control_max=control_max,
+        )
+        return self.read_response()
+
 
