@@ -3,8 +3,9 @@ import random
 from typing import Optional
 
 from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX
+from nn_laser_stabilizer.connection.base_connection import BaseConnection
 
-class MockSerialConnection:
+class MockSerialConnection(BaseConnection):
     def __init__(self, port: str, timeout: float = 0.1, baudrate: int = 115200):
         self.port = port
         self.timeout = timeout

@@ -1,6 +1,8 @@
 import serial
 
-class SerialConnection:
+from nn_laser_stabilizer.connection.base_connection import BaseConnection
+
+class SerialConnection(BaseConnection):
     def __init__(self,
                  port: str,
                  timeout: float = 0.1,

@@ -2,6 +2,7 @@ from typing import Tuple, Optional
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 from nn_laser_stabilizer.envs.constants import DAC_MAX
+from nn_laser_stabilizer.connection.pid_serial_connection import PidSerialConnection
 
 class RealExperimentalSetup(PidTuningExperimentalSetup):
     """
@@ -19,35 +20,36 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
     DEFAULT_MAX_CONTROL = DAC_MAX
 
     def __init__(self, serial_connection, setpoint: float):
-        self.serial_connection = serial_connection
+        self.pid_connection = PidSerialConnection(serial_connection)
         self.setpoint = setpoint
 
-    def _parse_response(self, response: str) -> Tuple[float, float]:
-        try:
-            parts = response.strip().split()
-            if len(parts) != 2:
-                raise ValueError(f"Expected 2 values, got {len(parts)}")
-            return float(parts[0]), float(parts[1])
-        except Exception as ex:
-            raise ValueError(f"Invalid response format: '{response}'") from ex
-
     def step(self, kp: float, ki: float, kd: float, control_min: float, control_max: float) -> Tuple[float, float, float]:
-        command = f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min:.4f} {control_max:.4f}\n"
-        self.serial_connection.send_data(command)
+        self.pid_connection.send_pid_command(
+            kp=kp,
+            ki=ki,
+            kd=kd,
+            control_min=control_min,
+            control_max=control_max,
+        )
 
         while True:
-            response = self.serial_connection.read_data()
+            response = self.pid_connection.read_data()
             if response:
-                process_variable, control_output = self._parse_response(response)
+                process_variable, control_output = response
                 return process_variable, control_output, self.setpoint
             
     def reset(self) -> Tuple[float, float, float]:
-        command = f"{self.DEFAULT_KP:.4f} {self.DEFAULT_KI:.4f} {self.DEFAULT_KD:.4f} {self.DEFAULT_MIN_CONTROL:.4f} {self.DEFAULT_MAX_CONTROL:.4f}"
-        self.serial_connection.send_data(command)
+        self.pid_connection.send_pid_command(
+            kp=self.DEFAULT_KP,
+            ki=self.DEFAULT_KI,
+            kd=self.DEFAULT_KD,
+            control_min=self.DEFAULT_MIN_CONTROL,
+            control_max=self.DEFAULT_MAX_CONTROL,
+        )
         while True:
-            response = self.serial_connection.read_data()
+            response = self.pid_connection.read_data()
             if response:
-                process_variable, control_output = self._parse_response(response)
+                process_variable, control_output = response
                 return process_variable, control_output, self.setpoint
 
     def set_seed(self, seed: Optional[int]):
