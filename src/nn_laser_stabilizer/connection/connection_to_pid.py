@@ -2,7 +2,7 @@ from typing import Optional
 
 from nn_laser_stabilizer.connection.base_connection import BaseConnection
 
-class PidSerialConnection:
+class ConnectionToPid:
     """
     Обертка над базовым последовательным соединением для отправки PID-команд
     и чтения ответов. Формирует строку команды в формате:
