@@ -6,7 +6,7 @@ import torch
 import hydra
 from omegaconf import DictConfig
 
-from nn_laser_stabilizer.utils import (
+from nn_laser_stabilizer.logging.utils import (
     set_seeds
 )
 from nn_laser_stabilizer.logging.file_logger import SimpleFileLogger

@@ -7,7 +7,7 @@ from hydra.core.hydra_config import HydraConfig
 import numpy as np
 import torch
 
-from nn_laser_stabilizer.utils import (
+from nn_laser_stabilizer.logging.utils import (
     set_seeds
 )
 from nn_laser_stabilizer.agents.td3 import (
