@@ -1,10 +1,8 @@
-from queue import Queue, Full, Empty
-from threading import Thread
 import time
 
 from torchrl.envs import EnvBase, Transform
 
-from nn_laser_stabilizer.logging.file_logger import SimpleFileLogger
+from nn_laser_stabilizer.logging.file_logger import AsyncFileLogger
 
 
 class PerStepLoggerAsync(Transform):
@@ -14,33 +12,16 @@ class PerStepLoggerAsync(Transform):
     """
     def __init__(self, log_dir: str = None):
         super().__init__()
-        self.logger = SimpleFileLogger(log_dir=log_dir)
+        self.logger = AsyncFileLogger(log_dir=log_dir)
         self._t = 0
-        self._q = Queue(maxsize=100_000)
-        self._stop = False
-
-        self._thread = Thread(target=self._worker, daemon=True)
-        self._thread.start()
 
     def _log_step_async(self, action_row, observation_row):
-        try:
-            kp, ki, kd = action_row.tolist()
-            x, control_output, setpoint = observation_row.tolist()
-            now = time.time()
-            log_line = f"step={self._t} time={now:.6f} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
-            self._q.put_nowait(log_line)
-        except Full:
-            pass
-        finally:
-            self._t += 1
-
-    def _worker(self):
-        while not self._stop:
-            try:
-                log_line = self._q.get(timeout=0.1)
-                self.logger.log(log_line)
-            except Empty:
-                continue
+        kp, ki, kd = action_row.tolist()
+        x, control_output, setpoint = observation_row.tolist()
+        now = time.time()
+        log_line = f"step={self._t} time={now:.6f} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
+        self.logger.log(log_line)
+        self._t += 1
 
     def _step(self, tensordict, next_tensordict):
         action = tensordict.get("action", None)
@@ -50,8 +31,6 @@ class PerStepLoggerAsync(Transform):
         return next_tensordict
 
     def close(self):
-        self._stop = True
-        self._thread.join()
         self.logger.close()
 
     def __del__(self):
@@ -68,33 +47,16 @@ class LoggingEnvWrapper(EnvBase):
         
         self.env = env
         
-        self.logger = SimpleFileLogger(log_dir=log_dir)
+        self.logger = AsyncFileLogger(log_dir=log_dir)
         self._t = 0
-        self._q = Queue(maxsize=100_000)
-        self._stop = False
-
-        self._thread = Thread(target=self._worker, daemon=True)
-        self._thread.start()
     
     def _log_step_async(self, action_row, observation_row):
-        try:
-            kp, ki, kd = action_row.tolist()
-            x, control_output, setpoint = observation_row.tolist()
-            now = time.time()
-            log_line = f"step={self._t} time={now:.6f} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
-            self._q.put_nowait(log_line)
-        except Full:
-            pass
-        finally:
-            self._t += 1
-
-    def _worker(self):
-        while not self._stop:
-            try:
-                log_line = self._q.get(timeout=0.1)
-                self.logger.log(log_line)
-            except Empty:
-                continue
+        kp, ki, kd = action_row.tolist()
+        x, control_output, setpoint = observation_row.tolist()
+        now = time.time()
+        log_line = f"step={self._t} time={now:.6f} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} x={x:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
+        self.logger.log(log_line)
+        self._t += 1
 
     def _step(self, tensordict):
         next_tensordict = self.env._step(tensordict)   
@@ -119,8 +81,6 @@ class LoggingEnvWrapper(EnvBase):
         return self.env.forward(tensordict)
 
     def close(self):
-        self._stop = True
-        self._thread.join()
         self.logger.close()
         
         if hasattr(self.env, 'close'):
