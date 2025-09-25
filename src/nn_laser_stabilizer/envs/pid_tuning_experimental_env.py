@@ -5,6 +5,7 @@ from torchrl.envs import EnvBase
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 from nn_laser_stabilizer.envs.normalization import normalize_adc, normalize_dac
 from nn_laser_stabilizer.envs.constants import DAC_MAX
+from nn_laser_stabilizer.envs.control_limits import ControlLimitManager, ControlLimitConfig
 
 class PidTuningExperimentalEnv(EnvBase):
     def __init__(self, 
@@ -32,46 +33,30 @@ class PidTuningExperimentalEnv(EnvBase):
 
         self.reward_func = reward_func
 
-        self._default_min = 0.0 if default_min is None else float(default_min)
-        self._default_max = DAC_MAX if default_max is None else float(default_max)
-
-        self._current_min = self._default_min
-        self._current_max = self._default_max
-
-        self._force_min_value = float(force_min_value)
-        self._force_condition_threshold = float(force_condition_threshold)
-        self._force_steps_left = 0
-        self._enforcement_steps = int(enforcement_steps)  # количество шагов принудительного режима
+        config = ControlLimitConfig(
+            default_min=0.0 if default_min is None else float(default_min),
+            default_max=DAC_MAX if default_max is None else float(default_max),
+            force_min_value=float(force_min_value),
+            force_condition_threshold=float(force_condition_threshold),
+            enforcement_steps=int(enforcement_steps),
+        )
+        self._control_limits = ControlLimitManager(config)
 
         if fixed_kp is not None and fixed_ki is not None and fixed_kd is not None:
             self._fixed_action = (float(fixed_kp), float(fixed_ki), float(fixed_kd))
         else:
             self._fixed_action = None
 
-    def _apply_control_limit_rule(self, control_output: float):
-        if control_output < self._force_condition_threshold:
-            # Запускаем принудительный режим на полное число шагов,
-            # начиная со следующего шага
-            self._force_steps_left = self._enforcement_steps
-        elif self._force_steps_left > 0:
-            # Если режим уже активен и триггер не сработал на этом шаге,
-            # уменьшаем оставшееся число шагов
-            self._force_steps_left -= 1
-
-    def _get_control_limits_for_step(self) -> tuple[float, float]:
-        if self._force_steps_left > 0:
-            return self._force_min_value, self._current_max
-        return self._current_min, self._current_max
-
     def _step(self, tensordict: TensorDict) -> TensorDict:
         kp, ki, kd = tensordict["action"].tolist()
         if self._fixed_action is not None:
             kp, ki, kd = self._fixed_action
-        applied_min, applied_max = self._get_control_limits_for_step()
+        applied_min, applied_max = self._control_limits.get_limits_for_step()
 
         process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd, applied_min, applied_max)
 
-        self._apply_control_limit_rule(control_output)
+        # TODO: возможно, тут стоит отправлять сигналы в цикле, избегая вывод информации наружу
+        self._control_limits.apply_rule(control_output)
 
         # лежит в [-1; 1]
         process_variable_norm = normalize_adc(process_variable)
@@ -98,9 +83,7 @@ class PidTuningExperimentalEnv(EnvBase):
         )
 
     def _reset(self, unused: TensorDict | None = None) -> TensorDict:
-        self._current_min = self._default_min
-        self._current_max = self._default_max
-        self._force_steps_left = 0
+        self._control_limits.reset()
 
         process_variable, control_output, setpoint = self.experimental_setup.reset()
 
