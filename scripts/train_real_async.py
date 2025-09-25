@@ -2,7 +2,6 @@ import os
 from collections import deque
 
 import torch
-from torch.utils.tensorboard import SummaryWriter
 
 import hydra
 from omegaconf import DictConfig
@@ -10,6 +9,7 @@ from omegaconf import DictConfig
 from nn_laser_stabilizer.utils import (
     set_seeds
 )
+from nn_laser_stabilizer.logging.file_logger import SimpleFileLogger
 from nn_laser_stabilizer.agents.td3 import (
     make_td3_agent,
     add_exploration,
@@ -65,7 +65,7 @@ def main(config: DictConfig) -> None:
 
     train_log_dir = os.path.join(hydra_output_dir, "train_logs")
     os.makedirs(train_log_dir, exist_ok=True)
-    train_writer = SummaryWriter(log_dir=train_log_dir)
+    train_logger = SimpleFileLogger(log_dir=train_log_dir)
 
     specs = make_specs(config.env.bounds)
     action_spec = specs["action"]
@@ -111,10 +111,9 @@ def main(config: DictConfig) -> None:
                 collector.update_policy_weights_()
                 
                 avg_qvalue_loss = sum(recent_qvalue_losses) / len(recent_qvalue_losses)
-                train_writer.add_scalar("Loss/Critic", avg_qvalue_loss, total_train_steps)
-
                 avg_actor_loss = sum(recent_actor_losses) / len(recent_actor_losses)
-                train_writer.add_scalar("Loss/Actor", avg_actor_loss, total_train_steps)
+                
+                train_logger.log(f"step={total_train_steps} Loss/Critic={avg_qvalue_loss}; Loss/Actor={avg_actor_loss}")
                 
                 total_train_steps += 1
 
@@ -137,7 +136,7 @@ def main(config: DictConfig) -> None:
         torch.save(qvalue.state_dict(), qvalue_path)
         
         collector.async_shutdown()
-        train_writer.close()
+        train_logger.close()
 
 
 if __name__ == "__main__":
