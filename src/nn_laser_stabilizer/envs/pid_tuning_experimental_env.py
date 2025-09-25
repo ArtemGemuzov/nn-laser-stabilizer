@@ -15,7 +15,12 @@ class PidTuningExperimentalEnv(EnvBase):
                  reward_func,
                  fixed_kp: float | None = None,
                  fixed_ki: float | None = None,
-                 fixed_kd: float | None = None
+                 fixed_kd: float | None = None,
+                 default_min: float | None = None,
+                 default_max: float | None = None,
+                 force_min_value: float | None = None,
+                 force_condition_threshold: float | None = None,
+                 enforcement_steps: int | None = None
     ):
         super().__init__()
 
@@ -27,19 +32,17 @@ class PidTuningExperimentalEnv(EnvBase):
 
         self.reward_func = reward_func
 
-        self._default_min = 0.0
-        self._default_max = DAC_MAX
+        self._default_min = 0.0 if default_min is None else float(default_min)
+        self._default_max = DAC_MAX if default_max is None else float(default_max)
 
         self._current_min = self._default_min
         self._current_max = self._default_max
 
-        # TODO: вынести в константы или конфиг
-        self._force_min_value = 2000.0
-        self._force_condition_threshold = 500.0
+        self._force_min_value = float(force_min_value)
+        self._force_condition_threshold = float(force_condition_threshold)
         self._force_steps_left = 0
-        self._enforcement_steps = 1000  # количество шагов принудительного режима
+        self._enforcement_steps = int(enforcement_steps)  # количество шагов принудительного режима
 
-        # Режим фиксированных коэффициентов (для тестов)
         if fixed_kp is not None and fixed_ki is not None and fixed_kd is not None:
             self._fixed_action = (float(fixed_kp), float(fixed_ki), float(fixed_kd))
         else:

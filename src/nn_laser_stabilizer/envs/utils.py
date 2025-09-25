@@ -14,6 +14,7 @@ from nn_laser_stabilizer.envs.partial_observed_envs import PendulumNoVelEnv
 from nn_laser_stabilizer.envs.reward import make_reward
 from nn_laser_stabilizer.envs.transforms import FrameSkipTransform, InitialActionRepeatTransform, StepsAggregateTransform
 from nn_laser_stabilizer.envs.logger import LoggingEnvWrapper
+from nn_laser_stabilizer.envs.constants import DAC_MAX
 
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
@@ -72,6 +73,17 @@ def make_simulated_env(config) -> TransformedEnv:
     fixed_ki = env_config.get('ki', None)
     fixed_kd = env_config.get('kd', None)
 
+    # Контроль лимитов: берем из конфига, если нет — используем дефолты
+    control_output_limits_config = getattr(env_config, 'control_output_limits', None)
+    if control_output_limits_config is None:
+        control_output_limits_config = {
+            'default_min': 0.0,
+            'default_max': DAC_MAX,
+            'force_min_value': 2000.0,
+            'force_condition_threshold': 500.0,
+            'enforcement_steps': 1000,
+        }
+
     base_env = PidTuningExperimentalEnv(
         numerical_model, 
         action_spec=specs["action"],
@@ -81,6 +93,11 @@ def make_simulated_env(config) -> TransformedEnv:
         fixed_kp=fixed_kp,
         fixed_ki=fixed_ki,
         fixed_kd=fixed_kd,
+        default_min=control_output_limits_config.get('default_min', None),
+        default_max=control_output_limits_config.get('default_max', None),
+        force_min_value=control_output_limits_config.get('force_min_value', None),
+        force_condition_threshold=control_output_limits_config.get('force_condition_threshold', None),
+        enforcement_steps=control_output_limits_config.get('enforcement_steps', None),
     )
     
     env = TransformedEnv(
@@ -138,6 +155,8 @@ def make_real_env(config) -> EnvBase:
     fixed_ki = env_config.get('ki', None)
     fixed_kd = env_config.get('kd', None)
 
+    control_output_limits_config = env_config.control_output_limits
+
     env = PidTuningExperimentalEnv(
         real_setup,
         action_spec=specs["action"],
@@ -147,6 +166,11 @@ def make_real_env(config) -> EnvBase:
         fixed_kp=fixed_kp,
         fixed_ki=fixed_ki,
         fixed_kd=fixed_kd,
+        default_min=control_output_limits_config.get('default_min', None),
+        default_max=control_output_limits_config.get('default_max', None),
+        force_min_value=control_output_limits_config.get('force_min_value', None),
+        force_condition_threshold=control_output_limits_config.get('force_condition_threshold', None),
+        enforcement_steps=control_output_limits_config.get('enforcement_steps', None),
     )
     env.set_seed(config.seed)
     return env

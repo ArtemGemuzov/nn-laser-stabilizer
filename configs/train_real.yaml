@@ -45,6 +45,14 @@ env:
   process_noise_std: 0.05
   measurement_noise_std: 0.02
 
+  control_output_limits:
+    default_min: 0.0
+    default_max: 4095.0  
+    
+    force_min_value: 2000.0  
+    force_condition_threshold: 100.0 
+    enforcement_steps: 1000  
+
 hydra:
   run:
     dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
