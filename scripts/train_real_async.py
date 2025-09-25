@@ -28,6 +28,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 from hydra.core.hydra_config import HydraConfig
+from nn_laser_stabilizer.config.hydra_paths import get_hydra_output_dir
 
 CONFIG_NAME = "train_real"
 
@@ -39,9 +40,7 @@ def main(config: DictConfig) -> None:
         config.env.setpoint = float(input("Введите значение setpoint для среды: "))
     logger.info(f"Setpoint = {config.env.setpoint}")
 
-    hydra_output_dir = HydraConfig.get().runtime.output_dir
-    env_log_dir = os.path.join(hydra_output_dir, "env_logs")
-    os.makedirs(env_log_dir, exist_ok=True)
+    env_log_dir = get_hydra_output_dir("env_logs")
 
     def make_env(config, log_dir):
         env = make_real_env(config)
@@ -63,8 +62,7 @@ def main(config: DictConfig) -> None:
 
     make_env_fn = make_env_factory(config, env_log_dir)
 
-    train_log_dir = os.path.join(hydra_output_dir, "train_logs")
-    os.makedirs(train_log_dir, exist_ok=True)
+    train_log_dir = get_hydra_output_dir("train_logs")
     train_logger = SimpleFileLogger(log_dir=train_log_dir)
 
     specs = make_specs(config.env.bounds)
@@ -126,8 +124,7 @@ def main(config: DictConfig) -> None:
     finally:
         logger.info("Training finished")
 
-        model_save_dir = os.path.join(hydra_output_dir, "saved_models")
-        os.makedirs(model_save_dir, exist_ok=True)
+        model_save_dir = get_hydra_output_dir("saved_models")
 
         actor_path = os.path.join(model_save_dir, "actor.pth")
         torch.save(actor.state_dict(), actor_path)
