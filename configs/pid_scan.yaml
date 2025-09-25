@@ -1,6 +1,8 @@
 experiment_name: pid_grid_scan
 
-serial:
+setpoint: 1200 # CHECK
+
+serial: # CHECK
   port: COM3
   baudrate: 115200
   timeout: 0.1
