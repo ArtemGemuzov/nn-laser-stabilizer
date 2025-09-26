@@ -14,19 +14,13 @@ def make_actor_network(config, observation_spec, action_spec) -> TensorDictSeque
     agent_cfg = config.agent
 
     modules = []
-
-    if agent_cfg.use_lstm:
-        raise NotImplementedError("Recurrent policy does not supported in this version")
-    else:
-        mlp_input_key = "observation"
-
     actor_mlp = TensorDictModule(
         MLP(
             out_features=action_spec.shape[-1],
             num_cells=agent_cfg.mlp_num_cells,
             activation_class=nn.ReLU
         ),
-        in_keys=[mlp_input_key],
+        in_keys=["observation"],
         out_keys=["param"]
     )
     modules.append(actor_mlp)
@@ -47,18 +41,13 @@ def make_qvalue_network(config, observation_spec, action_spec):
     agent_cfg = config.agent
     modules = []
 
-    if agent_cfg.use_lstm:
-        raise NotImplementedError("Recurrent policy does not supported in this version")
-    else:
-        mlp_input_keys = ["observation", "action"]
-
     qvalue_mlp = TensorDictModule(
         module=MLP(
             out_features=1,
             num_cells=agent_cfg.q_mlp_num_cells,
             activation_class=nn.ReLU,
         ),
-        in_keys=mlp_input_keys,
+        in_keys=["observation", "action"],
         out_keys=["state_action_value"],
     )
     modules.append(qvalue_mlp)
@@ -121,7 +110,6 @@ def make_loss_module(config, actor, qvalue, action_spec) -> TD3Loss:
     agent_cfg = config.agent
 
     # Использование LSTM для Q-function несовместимо с vmap
-    deactivate_vmap = True if agent_cfg.use_lstm else False
 
     loss_module = TD3Loss(
         actor_network=actor,
@@ -130,7 +118,6 @@ def make_loss_module(config, actor, qvalue, action_spec) -> TD3Loss:
         action_spec=action_spec,
         delay_actor=True,
         delay_qvalue=True,
-        deactivate_vmap=deactivate_vmap,
         noise_clip=agent_cfg.noise_clip,
         policy_noise=agent_cfg.policy_noise,
     )
