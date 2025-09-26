@@ -2,7 +2,7 @@ import time
 
 from torchrl.envs import EnvBase, Transform
 
-from nn_laser_stabilizer.logging.file_logger import AsyncFileLogger
+from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
 
 
 class PerStepLoggerAsync(Transform):
