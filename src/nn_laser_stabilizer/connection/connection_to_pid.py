@@ -7,11 +7,25 @@ class ConnectionToPid:
     Обертка над базовым последовательным соединением для отправки PID-команд
     и чтения ответов. Формирует строку команды в формате:
     "kp ki kd u_min u_max" с точностью до 4 знаков после запятой
-    и разбирает ответы вида "PV CO".
+    и разбирает ответы вида "process_variable control_output".
     """
 
     def __init__(self, connection: BaseConnection):
         self._connection = connection
+
+    def _format_command(self, kp: float, ki: float, kd: float, control_min: float, control_max: float) -> str:
+        """Форматирует команду PID в строку."""
+        return f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min:.4f} {control_max:.4f}"
+
+    def _parse_response(self, raw: str) -> tuple[float, float]:
+        """Парсит ответ PID из строки."""
+        parts = raw.strip().split()
+        if len(parts) != 2:
+            raise ValueError(f"Некорректный формат ответа PID: '{raw}'")
+        try:
+            return float(parts[0]), float(parts[1])
+        except Exception as ex:
+            raise ValueError(f"Некорректные числовые значения в ответе PID: '{raw}'") from ex
 
     def send_pid_command(
         self,
@@ -21,27 +35,21 @@ class ConnectionToPid:
         control_min: float,
         control_max: float,
     ) -> None:
-        command = f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min:.4f} {control_max:.4f}"
+        command = self._format_command(kp, ki, kd, control_min, control_max)
         self._connection.send_data(command)
 
     def read_data(self) -> Optional[tuple[float, float]]:
         """
         Читает и парсит ответ измерений из базового соединения.
 
-        Ожидаемый формат: "PV CO" (два числа, разделенные пробелом).
+        Ожидаемый формат: "process_variable control_output" (два числа, разделенные пробелом).
         Возвращает кортеж (process_variable, control_output) или None,
         если данных нет.
         """
         raw = self._connection.read_data()
         if not raw:
             return None
-        parts = raw.strip().split()
-        if len(parts) != 2:
-            raise ValueError(f"Некорректный формат ответа PID: '{raw}'")
-        try:
-            return float(parts[0]), float(parts[1])
-        except Exception as ex:
-            raise ValueError(f"Некорректные числовые значения в ответе PID: '{raw}'") from ex
+        return self._parse_response(raw)
 
     def read_response(self) -> tuple[float, float]:
         """

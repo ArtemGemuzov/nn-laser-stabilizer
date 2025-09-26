@@ -57,7 +57,7 @@ class SerialConnection(BaseConnection):
         if not self.serial_connection or not self.serial_connection.is_open:
             raise ConnectionError("Serial connection is not open.")
     
-        data_to_send = data_to_send if data_to_send.endswith('\n') else data_to_send + '\n'
+        data_to_send += '\n'
         try:
             self.serial_connection.write(data_to_send.encode('utf-8'))
         except Exception as ex:
