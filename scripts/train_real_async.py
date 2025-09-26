@@ -52,10 +52,15 @@ def main(config: DictConfig) -> None:
 
         def env_fn():
             nonlocal first_call
-            if first_call:
-                first_call = False
-                return make_simulated_env(config)
-            return make_env(config, log_dir)
+            if not first_call:
+                return make_env(config, log_dir)
+            
+            first_call = False
+            from copy import deepcopy
+            config_for_mocked_env = deepcopy(config)
+            if not config_for_mocked_env.serial.get("use_mock"):
+                config_for_mocked_env.serial.use_mock = True
+            return make_real_env(config_for_mocked_env)
 
         return env_fn
 
