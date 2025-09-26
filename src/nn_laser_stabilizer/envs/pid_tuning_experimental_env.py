@@ -5,7 +5,7 @@ from torchrl.envs import EnvBase
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 from nn_laser_stabilizer.envs.normalization import normalize_adc, normalize_dac
 from nn_laser_stabilizer.envs.constants import DAC_MAX
-from nn_laser_stabilizer.envs.control_limit_manager import ControlLimitManager, ControlLimitConfig
+from nn_laser_stabilizer.envs.control_limit_manager import ControlLimitManager
 from nn_laser_stabilizer.envs.fixed_pid_manager import FixedPidManager
 
 class PidTuningExperimentalEnv(EnvBase):
@@ -15,14 +15,8 @@ class PidTuningExperimentalEnv(EnvBase):
                  observation_spec,
                  reward_spec,
                  reward_func,
-                 fixed_kp: float | None = None,
-                 fixed_ki: float | None = None,
-                 fixed_kd: float | None = None,
-                 default_min: float | None = None,
-                 default_max: float | None = None,
-                 force_min_value: float | None = None,
-                 force_condition_threshold: float | None = None,
-                 enforcement_steps: int | None = None
+                 control_limits: ControlLimitManager,
+                 fixed_pid: FixedPidManager,
     ):
         super().__init__()
 
@@ -33,25 +27,10 @@ class PidTuningExperimentalEnv(EnvBase):
         self.reward_spec = reward_spec
 
         self.reward_func = reward_func
+        self._control_limits = control_limits
+        self._fixed_pid_manager = fixed_pid
 
-        config = ControlLimitConfig(
-            default_min=0.0 if default_min is None else float(default_min),
-            default_max=DAC_MAX if default_max is None else float(default_max),
-            force_min_value=float(force_min_value),
-            force_condition_threshold=float(force_condition_threshold),
-            enforcement_steps=int(enforcement_steps),
-        )
-        self._control_limits = ControlLimitManager(config)
-        
-        self._fixed_pid_manager = FixedPidManager(
-            fixed_kp=fixed_kp,
-            fixed_ki=fixed_ki,
-            fixed_kd=fixed_kd
-        )
-
-    def _step(self, tensordict: TensorDict) -> TensorDict:
-        agent_kp, agent_ki, agent_kd = tensordict["action"].tolist()
-        kp, ki, kd = self._fixed_pid_manager.get_coefficients(agent_kp, agent_ki, agent_kd)
+    def _step_internal(self, kp: float, ki: float, kd: float) -> TensorDict:
         applied_min, applied_max = self._control_limits.get_limits_for_step()
 
         process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd, applied_min, applied_max)

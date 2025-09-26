@@ -44,3 +44,17 @@ class FixedPidManager:
         if self._fixed_coefficients is not None:
             return self._fixed_coefficients
         return (agent_kp, agent_ki, agent_kd)
+
+    
+def make_fixed_pid_manager(
+    *,
+    fixed_kp: Optional[float] = None,
+    fixed_ki: Optional[float] = None,
+    fixed_kd: Optional[float] = None,
+) -> FixedPidManager:
+    """Фабрика для создания FixedPidManager из простых аргументов."""
+    return FixedPidManager(
+        fixed_kp=fixed_kp,
+        fixed_ki=fixed_ki,
+        fixed_kd=fixed_kd,
+    )

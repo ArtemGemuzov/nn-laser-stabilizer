@@ -10,6 +10,8 @@ from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSet
 from nn_laser_stabilizer.envs.reward import make_reward
 from nn_laser_stabilizer.envs.transforms import InitialActionRepeatTransform, StepsAggregateTransform
 from nn_laser_stabilizer.envs.logger import LoggingEnvWrapper
+from nn_laser_stabilizer.envs.control_limit_manager import make_control_limit_manager
+from nn_laser_stabilizer.envs.fixed_pid_manager import make_fixed_pid_manager
 
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
@@ -74,7 +76,21 @@ def make_real_env(config) -> EnvBase:
     fixed_ki = env_config.get('ki', None)
     fixed_kd = env_config.get('kd', None)
 
+    fixed_pid = make_fixed_pid_manager(
+        fixed_kp=fixed_kp,
+        fixed_ki=fixed_ki,
+        fixed_kd=fixed_kd,
+    )
+
     control_output_limits_config = env_config.control_output_limits
+    
+    control_limits = make_control_limit_manager(
+        default_min=control_output_limits_config.get('default_min', 0.0),
+        default_max=control_output_limits_config.get('default_max', 1.0),
+        force_min_value=control_output_limits_config.get('force_min_value', 0.0),
+        force_condition_threshold=control_output_limits_config.get('force_condition_threshold', 0.0),
+        enforcement_steps=control_output_limits_config.get('enforcement_steps', 0),
+    )
 
     env = PidTuningExperimentalEnv(
         real_setup,
@@ -82,14 +98,8 @@ def make_real_env(config) -> EnvBase:
         observation_spec=BoundedContinuous(low=-1, high=1, shape=(3,)),
         reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
         reward_func=make_reward(config),
-        fixed_kp=fixed_kp,
-        fixed_ki=fixed_ki,
-        fixed_kd=fixed_kd,
-        default_min=control_output_limits_config.get('default_min', None),
-        default_max=control_output_limits_config.get('default_max', None),
-        force_min_value=control_output_limits_config.get('force_min_value', None),
-        force_condition_threshold=control_output_limits_config.get('force_condition_threshold', None),
-        enforcement_steps=control_output_limits_config.get('enforcement_steps', None),
+        control_limits=control_limits,
+        fixed_pid=fixed_pid,
     )
     env.set_seed(config.seed)
     return env
