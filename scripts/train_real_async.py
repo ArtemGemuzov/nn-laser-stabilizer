@@ -6,6 +6,7 @@ import torch
 import hydra
 from omegaconf import DictConfig
 
+from nn_laser_stabilizer.envs.simulation.utils import make_simulated_env
 from nn_laser_stabilizer.logging.utils import (
     set_seeds
 )
@@ -20,7 +21,7 @@ from nn_laser_stabilizer.agents.td3 import (
     warmup,
     warmup_from_specs
 )
-from nn_laser_stabilizer.envs.utils import make_simulated_env, make_real_env, make_specs, add_logger_to_env, close_real_env, wrap_with_logger, transform_env
+from nn_laser_stabilizer.envs.utils import make_real_env, make_specs, add_logger_to_env, close_real_env, wrap_with_logger, transform_env
 from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
 

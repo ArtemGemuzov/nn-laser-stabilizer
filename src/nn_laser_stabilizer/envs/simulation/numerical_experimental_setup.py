@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 
-from nn_laser_stabilizer.envs.oscillator import DuffingOscillator
-from nn_laser_stabilizer.envs.pid_controller import PIDController
+from nn_laser_stabilizer.envs.simulation.oscillator import DuffingOscillator
+from nn_laser_stabilizer.envs.simulation.pid_controller import PIDController
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 
 class NumericalExperimentalSetup(PidTuningExperimentalSetup):

@@ -7,6 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 import hydra
 from omegaconf import DictConfig
 
+from nn_laser_stabilizer.envs.simulation.utils import make_gym_env
 from nn_laser_stabilizer.logging.utils import (
     set_seeds
 )
@@ -19,7 +20,7 @@ from nn_laser_stabilizer.agents.td3 import (
     train_step,
     warmup
 )
-from nn_laser_stabilizer.envs.utils import make_simulated_env, make_gym_env
+from nn_laser_stabilizer.envs.simulation.utils import make_simulated_env
 
 from nn_laser_stabilizer.data.utils import make_buffer, make_sync_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir

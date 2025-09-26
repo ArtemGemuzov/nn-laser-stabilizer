@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from nn_laser_stabilizer.envs.oscillator import DuffingOscillator
-from nn_laser_stabilizer.envs.pid_controller import PIDController
+from nn_laser_stabilizer.envs.simulation.pid_controller import PIDController
 from nn_laser_stabilizer.envs.numerical_experimental_setup import NumericalExperimentalSetup
 
 
