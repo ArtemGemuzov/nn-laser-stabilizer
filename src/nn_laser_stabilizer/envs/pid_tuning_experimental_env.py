@@ -66,14 +66,9 @@ class PidTuningExperimentalEnv(EnvBase):
         process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd, applied_min, applied_max)
 
         self._log_step(
-            kp=kp,
-            ki=ki,
-            kd=kd,
-            process_variable=process_variable,
-            control_output=control_output,
-            setpoint=setpoint,
-            u_min=applied_min,
-            u_max=applied_max,
+            kp=kp, ki=ki, kd=kd,
+            process_variable=process_variable, control_output=control_output, setpoint=setpoint,
+            u_min=applied_min, u_max=applied_max,
         )
 
         # TODO: возможно, тут стоит отправлять сигналы в цикле, избегая вывод информации наружу
