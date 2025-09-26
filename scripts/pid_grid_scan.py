@@ -27,12 +27,11 @@ from nn_laser_stabilizer.envs.constants import (
 )
 
 
-RECV_LOG_FMT = (
-"step={step} time={time:.8f} recv process_variable={process_variable:.4f} control_output={control_output:.4f}"
-)
-SEND_LOG_FMT = (
-    "step={step} time={time:.8f} send kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} u_min={u_min:.4f} u_max={u_max:.4f}"
-)
+def format_send_log(step: int, time_val: float, kp: float, ki: float, kd: float, u_min: float, u_max: float) -> str:
+    return f"step={step} time={time_val:.8f} send kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} u_min={u_min:.4f} u_max={u_max:.4f}"
+
+def format_recv_log(step: int, time_val: float, process_variable: float, control_output: float) -> str:
+    return f"step={step} time={time_val:.8f} recv process_variable={process_variable:.4f} control_output={control_output:.4f}"
 
 
 def linspace_inclusive(start: float, stop: float, num: int) -> Iterable[float]:
@@ -70,15 +69,7 @@ def do_exchange(
     interaction_logger: AsyncFileLogger,
 ) -> tuple[float, float]:
     interaction_logger.log(
-        SEND_LOG_FMT.format(
-            step=step,
-            time=time.time(),
-            kp=kp,
-            ki=ki,
-            kd=kd,
-            u_min=u_min,
-            u_max=u_max,
-        )
+        format_send_log(step, time.time(), kp, ki, kd, u_min, u_max)
     )
     process_variable, control_output = pid.send_and_read(
         kp=kp,
@@ -88,12 +79,7 @@ def do_exchange(
         control_max=u_max,
     )
     interaction_logger.log(
-        RECV_LOG_FMT.format(
-            step=step,
-            time=time.time(),
-            process_variable=process_variable,
-            control_output=control_output,
-        )
+        format_recv_log(step, time.time(), process_variable, control_output)
     )
     return process_variable, control_output
 
