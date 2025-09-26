@@ -43,13 +43,12 @@ class AsyncFileLogger:
                 continue
             self._write_line(line)
 
-        self._file_handle.close()
-
     def close(self) -> None:
         if self._stop:
             return
         self._stop = True
         self._thread.join()
+        self._file_handle.close()
 
     def __del__(self):
         try:
