@@ -143,22 +143,21 @@ def make_target_updater(config, loss_module: TD3Loss) -> SoftUpdate:
 
 def train_step(batch, loss_module: TD3Loss, optimizer_actor: torch.optim.Adam, 
                optimizer_critic: torch.optim.Adam, target_net_updater: SoftUpdate, update_actor : bool) -> Tuple[float, Optional[float]]:
-    with set_recurrent_mode(True):
-        loss_qvalue, _ = loss_module.value_loss(batch)
-        loss_qvalue.backward()
-        optimizer_critic.step()
-        optimizer_critic.zero_grad(set_to_none=True)
+    loss_qvalue, _ = loss_module.value_loss(batch)
+    loss_qvalue.backward()
+    optimizer_critic.step()
+    optimizer_critic.zero_grad(set_to_none=True)
 
-        loss_qvalue_val = loss_qvalue.detach().item()
-        loss_actor_val = None
+    loss_qvalue_val = loss_qvalue.detach().item()
+    loss_actor_val = None
 
-        if update_actor:
-            loss_actor, _ = loss_module.actor_loss(batch)
-            loss_actor.backward()
-            optimizer_actor.step()
-            optimizer_actor.zero_grad(set_to_none=True)
-            
-            target_net_updater.step()
-            loss_actor_val = loss_actor.detach().item()
+    if update_actor:
+        loss_actor, _ = loss_module.actor_loss(batch)
+        loss_actor.backward()
+        optimizer_actor.step()
+        optimizer_actor.zero_grad(set_to_none=True)
         
-        return loss_qvalue_val, loss_actor_val
+        target_net_updater.step()
+        loss_actor_val = loss_actor.detach().item()
+    
+    return loss_qvalue_val, loss_actor_val
