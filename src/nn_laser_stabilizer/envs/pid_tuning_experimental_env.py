@@ -5,7 +5,8 @@ from torchrl.envs import EnvBase
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 from nn_laser_stabilizer.envs.normalization import normalize_adc, normalize_dac
 from nn_laser_stabilizer.envs.constants import DAC_MAX
-from nn_laser_stabilizer.envs.control_limits import ControlLimitManager, ControlLimitConfig
+from nn_laser_stabilizer.envs.control_limit_manager import ControlLimitManager, ControlLimitConfig
+from nn_laser_stabilizer.envs.fixed_pid_manager import FixedPidManager
 
 class PidTuningExperimentalEnv(EnvBase):
     def __init__(self, 
@@ -41,16 +42,16 @@ class PidTuningExperimentalEnv(EnvBase):
             enforcement_steps=int(enforcement_steps),
         )
         self._control_limits = ControlLimitManager(config)
-
-        if fixed_kp is not None and fixed_ki is not None and fixed_kd is not None:
-            self._fixed_action = (float(fixed_kp), float(fixed_ki), float(fixed_kd))
-        else:
-            self._fixed_action = None
+        
+        self._fixed_pid_manager = FixedPidManager(
+            fixed_kp=fixed_kp,
+            fixed_ki=fixed_ki,
+            fixed_kd=fixed_kd
+        )
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
-        kp, ki, kd = tensordict["action"].tolist()
-        if self._fixed_action is not None:
-            kp, ki, kd = self._fixed_action
+        agent_kp, agent_ki, agent_kd = tensordict["action"].tolist()
+        kp, ki, kd = self._fixed_pid_manager.get_coefficients(agent_kp, agent_ki, agent_kd)
         applied_min, applied_max = self._control_limits.get_limits_for_step()
 
         process_variable, control_output, setpoint = self.experimental_setup.step(kp, ki, kd, applied_min, applied_max)
