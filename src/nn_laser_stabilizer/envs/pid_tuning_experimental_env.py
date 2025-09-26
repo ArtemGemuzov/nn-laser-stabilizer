@@ -95,8 +95,17 @@ class PidTuningExperimentalEnv(EnvBase):
 
     def _reset(self, unused: TensorDict | None = None) -> TensorDict:
         self._control_limits.reset()
+        self._t = 0
 
         process_variable, control_output, setpoint = self.experimental_setup.reset()
+
+        if self.logger is not None:
+            try:
+                now = time.time()
+                log_line = f"reset time={now:.6f} process_variable={process_variable:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
+                self.logger.log(log_line)
+            except Exception:
+                pass
 
         process_variable_norm = normalize_adc(process_variable)
         setpoint_norm = normalize_adc(setpoint)
