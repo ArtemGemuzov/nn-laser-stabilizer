@@ -1,15 +1,12 @@
 import torch
 from torchrl.data import UnboundedContinuous, BoundedContinuous
-from torchrl.envs import TransformedEnv, EnvBase, Compose
+from torchrl.envs import TransformedEnv, EnvBase
 
-from nn_laser_stabilizer.envs.logger import PerStepLoggerAsync
 from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperimentalEnv
 from nn_laser_stabilizer.connection.serial_connection import SerialConnection
 from nn_laser_stabilizer.connection.mock_serial_connection import MockSerialConnection
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 from nn_laser_stabilizer.envs.reward import make_reward
-from nn_laser_stabilizer.envs.transforms import InitialActionRepeatTransform, StepsAggregateTransform
-from nn_laser_stabilizer.envs.logger import LoggingEnvWrapper
 from nn_laser_stabilizer.envs.control_limit_manager import make_control_limit_manager
 from nn_laser_stabilizer.envs.fixed_pid_manager import make_fixed_pid_manager
 
@@ -30,7 +27,7 @@ def make_specs(bounds_config: dict) -> dict:
 
     return specs
 
-def make_real_env(config) -> EnvBase:
+def make_real_env(config, logger=None) -> EnvBase:
     """
     Создает окружение TorchRL для взаимодействия с реальной установкой через SerialConnection.
     
@@ -100,24 +97,10 @@ def make_real_env(config) -> EnvBase:
         reward_func=make_reward(config),
         control_limits=control_limits,
         fixed_pid=fixed_pid,
+        logger=logger,
     )
     env.set_seed(config.seed)
     return env
-
-def transform_env(config, base_env):
-    env_config = config.env
-
-    transformed_env = TransformedEnv(
-        base_env,
-        Compose(
-            InitialActionRepeatTransform(repeat_count=env_config.repeat_count),
-            StepsAggregateTransform(frame_skip=env_config.frame_skip),
-        ),
-    )
-    return transformed_env
-
-def wrap_with_logger(env, log_dir):
-    return LoggingEnvWrapper(env, log_dir=log_dir)
      
 def close_real_env(env: TransformedEnv):
     try:
@@ -126,7 +109,3 @@ def close_real_env(env: TransformedEnv):
             real_setup.serial_connection.close_connection()
     except Exception as e:
         print(f"Warning: Could not close serial connection properly: {e}")
-
-def add_logger_to_env(env: TransformedEnv, logdir) -> TransformedEnv:
-    env.append_transform(PerStepLoggerAsync(log_dir=logdir))
-    return env
