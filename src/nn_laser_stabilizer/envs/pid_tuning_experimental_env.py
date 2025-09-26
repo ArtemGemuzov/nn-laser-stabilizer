@@ -5,10 +5,9 @@ from torchrl.envs import EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 from nn_laser_stabilizer.envs.normalization import normalize_adc, normalize_dac
-from nn_laser_stabilizer.envs.constants import DAC_MAX
 from nn_laser_stabilizer.envs.control_limit_manager import ControlLimitManager
 from nn_laser_stabilizer.envs.fixed_pid_manager import FixedPidManager
-from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
+
 
 class PidTuningExperimentalEnv(EnvBase):
     def __init__(self, 
@@ -47,12 +46,7 @@ class PidTuningExperimentalEnv(EnvBase):
             return
         try:
             now = time.time()
-            log_line = (
-                f"step={self._t} time={now:.6f} "
-                f"kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} "
-                f"process_variable={process_variable:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f} "
-                f"u_min={u_min:.8f} u_max={u_max:.8f}"
-            )
+            log_line = f"step={self._t} time={now:.6f} kp={kp:.8f} ki={ki:.8f} kd={kd:.8f} process_variable={process_variable:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f} u_min={u_min:.8f} u_max={u_max:.8f}"
             self.logger.log(log_line)
         except Exception:
             pass
