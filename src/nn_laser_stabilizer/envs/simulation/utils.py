@@ -50,34 +50,21 @@ def make_simulated_env(config) -> TransformedEnv:
 
     specs = make_specs(env_config.bounds)
 
-    fixed_kp = env_config.get('kp', None)
-    fixed_ki = env_config.get('ki', None)
-    fixed_kd = env_config.get('kd', None)
-
-    control_output_limits_config = getattr(env_config, 'control_output_limits', None)
-    if control_output_limits_config is None:
-        control_output_limits_config = {
-            'default_min': 0.0,
-            'default_max': DAC_MAX,
-            'force_min_value': 2000.0,
-            'force_condition_threshold': 500.0,
-            'enforcement_steps': 1000,
-        }
-
+    
     base_env = PidTuningExperimentalEnv(
         numerical_model,
         action_spec=specs["action"],
-        observation_spec=specs["observation"],
+        observation_spec=specs["observation"],  # [error_mean, error_std]
         reward_spec=specs["reward"],
         reward_func=make_reward(config),
-        fixed_kp=fixed_kp,
-        fixed_ki=fixed_ki,
-        fixed_kd=fixed_kd,
-        default_min=control_output_limits_config.get('default_min', None),
-        default_max=control_output_limits_config.get('default_max', None),
-        force_min_value=control_output_limits_config.get('force_min_value', None),
-        force_condition_threshold=control_output_limits_config.get('force_condition_threshold', None),
-        enforcement_steps=control_output_limits_config.get('enforcement_steps', None),
+        warmup_steps=env_config.get('warmup_steps', 1000),
+        pretrain_blocks=env_config.get('pretrain_blocks', 100),
+        block_size=env_config.get('block_size', 100),
+        burn_in_steps=env_config.get('burn_in_steps', 20),
+        force_min_value=env_config.get('force_min_value', 2000.0),
+        force_max_value=env_config.get('force_max_value', DAC_MAX),
+        default_min=env_config.get('default_min', 0.0),
+        default_max=env_config.get('default_max', DAC_MAX),
     )
 
     env = TransformedEnv(

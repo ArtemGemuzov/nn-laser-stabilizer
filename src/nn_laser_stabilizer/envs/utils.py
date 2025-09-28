@@ -7,8 +7,6 @@ from nn_laser_stabilizer.connection.serial_connection import SerialConnection
 from nn_laser_stabilizer.connection.mock_serial_connection import MockSerialConnection
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 from nn_laser_stabilizer.envs.reward import make_reward
-from nn_laser_stabilizer.envs.control_limit_manager import make_control_limit_manager
-from nn_laser_stabilizer.envs.fixed_pid_manager import make_fixed_pid_manager
 
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
@@ -69,35 +67,21 @@ def make_real_env(config, logger=None) -> EnvBase:
     
     specs = make_specs(env_config.bounds)
     
-    fixed_kp = env_config.get('kp', None)
-    fixed_ki = env_config.get('ki', None)
-    fixed_kd = env_config.get('kd', None)
-
-    fixed_pid = make_fixed_pid_manager(
-        fixed_kp=fixed_kp,
-        fixed_ki=fixed_ki,
-        fixed_kd=fixed_kd,
-    )
-
-    control_output_limits_config = env_config.control_output_limits
-    
-    control_limits = make_control_limit_manager(
-        default_min=control_output_limits_config.get('default_min', 0.0),
-        default_max=control_output_limits_config.get('default_max', 1.0),
-        force_min_value=control_output_limits_config.get('force_min_value', 0.0),
-        force_condition_threshold=control_output_limits_config.get('force_condition_threshold', 0.0),
-        enforcement_steps=control_output_limits_config.get('enforcement_steps', 0),
-    )
-
     env = PidTuningExperimentalEnv(
         real_setup,
         action_spec=specs["action"],
-        observation_spec=BoundedContinuous(low=-1, high=1, shape=(3,)),
+        observation_spec=specs["observation"], 
         reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
         reward_func=make_reward(config),
-        control_limits=control_limits,
-        fixed_pid=fixed_pid,
         logger=logger,
+        warmup_steps=env_config.get('warmup_steps', 1000),
+        pretrain_blocks=env_config.get('pretrain_blocks', 100),
+        block_size=env_config.get('block_size', 100),
+        burn_in_steps=env_config.get('burn_in_steps', 20),
+        force_min_value=env_config.get('force_min_value', 2000.0),
+        force_max_value=env_config.get('force_max_value', 4095.0),
+        default_min=env_config.get('default_min', 0.0),
+        default_max=env_config.get('default_max', 4095.0),
     )
     env.set_seed(config.seed)
     return env

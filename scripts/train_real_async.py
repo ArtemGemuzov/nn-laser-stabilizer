@@ -95,8 +95,10 @@ def main(config: DictConfig) -> None:
         logger.info("Training started")
         collector.start()
         
+        min_data_required = config.data['min_data_for_training']
+        
         while total_train_steps < train_config.total_train_steps:
-            if len(buffer) > train_config.batch_size:
+            if len(buffer) > train_config.batch_size and len(buffer) >= min_data_required:
                 for i in range(train_config.update_to_data):
                     batch = buffer.sample(train_config.batch_size)
                     
@@ -127,6 +129,7 @@ def main(config: DictConfig) -> None:
 
     finally:
         logger.info("Training finished")
+        logger.info(f"Final buffer size: {len(buffer)} samples")
 
         model_save_dir = get_hydra_output_dir("saved_models")
 
@@ -135,6 +138,14 @@ def main(config: DictConfig) -> None:
 
         qvalue_path = os.path.join(model_save_dir, "qvalue.pth")
         torch.save(qvalue.state_dict(), qvalue_path)
+        
+        buffer_save_dir = get_hydra_output_dir("saved_data")
+        buffer_path = os.path.join(buffer_save_dir, "replay_buffer.pkl")
+        os.makedirs(buffer_save_dir, exist_ok=True)
+        
+        logger.info(f"Saving replay buffer with {len(buffer)} samples to {buffer_path}")
+        buffer.dump(buffer_path)
+        logger.info("Replay buffer saved successfully")
         
         collector.async_shutdown()
         train_logger.close()
