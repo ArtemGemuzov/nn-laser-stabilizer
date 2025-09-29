@@ -145,10 +145,6 @@ class PidTuningExperimentalEnv(EnvBase):
                 phase=phase.value,
                 block_step=block_iteration,
             )
-
-            if phase == Phase.WARMUP:
-                error = process_variable - setpoint
-                self._warmup_errors.append(error)
             
             if block_iteration >= self._burn_in_steps:
                 error = process_variable - setpoint
