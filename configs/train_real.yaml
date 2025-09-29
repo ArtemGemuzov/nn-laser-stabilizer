@@ -17,7 +17,7 @@ env:
   reward:
     name: absolute # exponential absolute relative
     args:
-      k: 25.0
+      k: 20.0
 
   bounds:
     action:

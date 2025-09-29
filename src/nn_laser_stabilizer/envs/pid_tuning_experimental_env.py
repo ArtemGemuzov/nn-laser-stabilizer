@@ -118,9 +118,9 @@ class PidTuningExperimentalEnv(EnvBase):
                 ki_range = KI_MAX - KI_MIN
                 kd_range = KD_MAX - KD_MIN
                 
-                kp = KP_MIN + random.uniform(0.2 * kp_range, 0.6 * kp_range)
-                ki = KI_MIN + random.uniform(0.2 * ki_range, 0.6 * ki_range)
-                kd = KD_MIN + random.uniform(0.2 * kd_range, 0.6 * kd_range)
+                kp = KP_MIN + random.uniform(0.25 * kp_range, 0.75 * kp_range)
+                ki = KI_MIN + random.uniform(0.25 * ki_range, 0.75 * ki_range)
+                kd = KD_MIN + random.uniform(0.25 * kd_range, 0.75 * kd_range)
             case Phase.NORMAL:
                 kp, ki, kd = agent_kp, agent_ki, agent_kd
             case _:
