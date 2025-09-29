@@ -92,13 +92,18 @@ def main(config: DictConfig) -> None:
     recent_actor_losses = deque(maxlen=train_config.update_to_data // train_config.update_actor_freq)
 
     try:
-        logger.info("Training started")
+        logger.info("Training process initiated")
         collector.start()
         
         min_data_required = config.data['min_data_for_training']
+        training_started = False 
         
         while total_train_steps < train_config.total_train_steps:
             if len(buffer) > train_config.batch_size and len(buffer) >= min_data_required:
+                if not training_started:
+                    logger.info("Training started") 
+                    training_started = True
+
                 for i in range(train_config.update_to_data):
                     batch = buffer.sample(train_config.batch_size)
                     
