@@ -136,7 +136,7 @@ def make_optimizers(config, loss_module: TD3Loss) -> Tuple[torch.optim.Adam, tor
     
     return optimizer_actor, optimizer_critic
 
-def make_optimizers_sac(config, loss_module: SACLoss) -> Tuple[torch.optim.Adam, torch.optim.Adam, torch.optim.Adam]:
+def make_optimizers_sac(config, loss_module) -> Tuple[torch.optim.Adam, torch.optim.Adam, torch.optim.Adam]:
     agent_cfg = config.agent
 
     critic_params = list(loss_module.qvalue_network_params.flatten_keys().values())
