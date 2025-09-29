@@ -8,7 +8,6 @@ from tensordict import TensorDict
 from torchrl.envs import EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
-from nn_laser_stabilizer.envs.normalization import normalize_adc, normalize_dac, standardize
 from nn_laser_stabilizer.envs.constants import DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MIN, KD_MAX
 
 
@@ -70,11 +69,6 @@ class PidTuningExperimentalEnv(EnvBase):
         self.window_size = self._block_size - self._burn_in_steps
         self.errors = deque(maxlen=self.window_size)  
         self.rewards = deque(maxlen=self.window_size)  
-        
-        self._warmup_errors = []
-        self._error_mean = 0.0
-        self._error_std = 1.0
-        self._normalization_stats_collected = False
 
     def _get_phase(self) -> Phase:
         if self._t < self._warmup_steps:
@@ -86,29 +80,6 @@ class PidTuningExperimentalEnv(EnvBase):
         if blocks_after_warmup < self._pretrain_blocks:
             return Phase.PRETRAIN
         return Phase.NORMAL
-
-    def _collect_normalization_stats(self):
-        """Собирает статистику для стандартизации ошибок во время warmup."""
-        if not self._normalization_stats_collected and len(self._warmup_errors) > 0:
-            error_values = self._warmup_errors
-            
-            self._error_mean = sum(error_values) / len(error_values)
-            variance = sum((x - self._error_mean) ** 2 for x in error_values) / len(error_values)
-            self._error_std = variance ** 0.5
-            
-            self._normalization_stats_collected = True
-        
-            if self.logger is not None:
-                try:
-                    log_line = (
-                        f"standardization_stats_collected "
-                        f"error_mean={self._error_mean:.4f} error_std={self._error_std:.4f} "
-                        f"samples_count={len(self._warmup_errors)}"
-                    )
-                    self.logger.log(log_line)
-                except Exception:
-                    pass
-
 
     def _log_step(
         self,
@@ -192,14 +163,8 @@ class PidTuningExperimentalEnv(EnvBase):
         error_variance = sum((error - error_mean) ** 2 for error in self.errors) / self.window_size
         error_std = error_variance ** 0.5
 
-        if self._normalization_stats_collected:
-            self._collect_normalization_stats()
-        
-        error_mean_std = standardize(error_mean, self._error_mean, self._error_std)
-        error_std_std = standardize(error_std, self._error_mean, self._error_std)
-
         observation = torch.tensor(
-            [error_mean_std, error_std_std],
+            [error_mean, error_std],
             dtype=torch.float32,
             device=self.device
         )
@@ -213,7 +178,7 @@ class PidTuningExperimentalEnv(EnvBase):
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
                     f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
-                    f"error_mean_std={error_mean_std:.4f} error_std_std={error_std_std:.4f} "
+                    f"error_mean={error_mean:.4f} error_std_std={error_std:.4f} "
                     f"reward={reward:.6f}"
                 )
                 self.logger.log(log_line)
