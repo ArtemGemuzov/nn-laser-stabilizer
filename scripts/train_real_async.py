@@ -122,7 +122,7 @@ def main(config: DictConfig) -> None:
                 avg_qvalue_loss = sum(recent_qvalue_losses) / len(recent_qvalue_losses)
                 avg_actor_loss = sum(recent_actor_losses) / len(recent_actor_losses)
                 
-                train_logger.log(f"step={total_train_steps} Loss/Critic={avg_qvalue_loss}; Loss/Actor={avg_actor_loss}")
+                train_logger.log(f"step={total_train_steps} Loss/Critic={avg_qvalue_loss} Loss/Actor={avg_actor_loss}")
                 
                 total_train_steps += 1
 
