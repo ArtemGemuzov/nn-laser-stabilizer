@@ -136,6 +136,21 @@ def make_optimizers(config, loss_module: TD3Loss) -> Tuple[torch.optim.Adam, tor
     
     return optimizer_actor, optimizer_critic
 
+def make_optimizers_sac(config, loss_module: SACLoss) -> Tuple[torch.optim.Adam, torch.optim.Adam, torch.optim.Adam]:
+    agent_cfg = config.agent
+
+    critic_params = list(loss_module.qvalue_network_params.flatten_keys().values())
+    actor_params = list(loss_module.actor_network_params.flatten_keys().values())
+
+    optimizer_actor = torch.optim.Adam(actor_params, lr=agent_cfg.learning_rate_actor)
+    optimizer_critic = torch.optim.Adam(critic_params, lr=agent_cfg.learning_rate_critic)
+    
+    optimizer_alpha = torch.optim.Adam(
+        [loss_module.log_alpha],
+        lr=3.0e-4,
+    )
+    return optimizer_actor, optimizer_critic, optimizer_alpha
+
 
 def make_target_updater(config, loss_module: TD3Loss) -> SoftUpdate:
     return SoftUpdate(loss_module, eps=config.agent.target_update_eps)
@@ -145,6 +160,9 @@ def train_step(batch, loss_module: TD3Loss, optimizer_actor: torch.optim.Adam,
                optimizer_critic: torch.optim.Adam, target_net_updater: SoftUpdate, update_actor : bool) -> Tuple[float, Optional[float]]:
     loss_qvalue, _ = loss_module.value_loss(batch)
     loss_qvalue.backward()
+
+    total_norm = torch.nn.utils.clip_grad_norm_(optimizer_critic.param_groups[0]['params'], 1.0)
+
     optimizer_critic.step()
     optimizer_critic.zero_grad(set_to_none=True)
 
@@ -154,6 +172,9 @@ def train_step(batch, loss_module: TD3Loss, optimizer_actor: torch.optim.Adam,
     if update_actor:
         loss_actor, _ = loss_module.actor_loss(batch)
         loss_actor.backward()
+
+        total_norm_actor = torch.nn.utils.clip_grad_norm_(optimizer_actor.param_groups[0]['params'], 1.0)
+
         optimizer_actor.step()
         optimizer_actor.zero_grad(set_to_none=True)
         
@@ -161,3 +182,27 @@ def train_step(batch, loss_module: TD3Loss, optimizer_actor: torch.optim.Adam,
         loss_actor_val = loss_actor.detach().item()
     
     return loss_qvalue_val, loss_actor_val
+
+def train_step_sac(
+    batch,
+    loss_module,
+    optimizer: torch.optim.Adam,
+    target_net_updater: SoftUpdate,
+) -> dict:
+    loss_td = loss_module(batch)
+
+    actor_loss = loss_td["loss_actor"]
+    q_loss = loss_td["loss_qvalue"]
+    alpha_loss = loss_td["loss_alpha"]
+
+    (actor_loss + q_loss + alpha_loss).sum().backward()
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
+
+    target_net_updater.step()
+
+    return {
+        "loss_actor": actor_loss.detach().item(),
+        "loss_qvalue": q_loss.detach().item(),
+        "loss_alpha": alpha_loss.detach().item(),
+    }
