@@ -43,7 +43,7 @@ env:
 
 hydra:
   run:
-    dir: experiments/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: experiments/${experiment_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
 
 data:
   frames_per_batch: 100
