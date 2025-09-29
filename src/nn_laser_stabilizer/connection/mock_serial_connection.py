@@ -41,8 +41,7 @@ class MockSerialConnection(BaseConnection):
         self._step += 1
         response = f"{process_variable} {control_output}"
 
-        print(f"[MOCK_SERIAL_CONNECTION] Read: '{response}' Step: {self._step} Efficiency: {efficiency:.2f}")
-        time.sleep(max(0.001, self.timeout * 0.1))
+        print(f"[MOCK_SERIAL_CONNECTION] Read: '{response}' Step: {self._step} Efficiency: {efficiency:.3f}")
         return response
 
     def send_data(self, data_to_send: str):
