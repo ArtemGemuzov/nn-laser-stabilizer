@@ -2,7 +2,7 @@ import time
 import random
 from typing import Optional
 
-from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX
+from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX, DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MAX, KD_MIN
 from nn_laser_stabilizer.connection.base_connection import BaseConnection
 
 class MockSerialConnection(BaseConnection):
@@ -13,6 +13,10 @@ class MockSerialConnection(BaseConnection):
         self.is_connected = False
 
         self._step = 0
+        self.setpoint = 1200 
+        self.current_kp = DEFAULT_KP
+        self.current_ki = DEFAULT_KI
+        self.current_kd = DEFAULT_KD
 
     def open_connection(self):
         self.is_connected = True
@@ -25,17 +29,33 @@ class MockSerialConnection(BaseConnection):
     def read_data(self) -> Optional[str]:
         if not self.is_connected:
             raise ConnectionError("[MOCK_SERIAL_CONNECTION] Serial connection is not open.")
-        
-        process_variable = random.randint(0, ADC_MAX)
-        control_output = random.randint(0, DAC_MAX) if self._step < 100 else random.randint(501, DAC_MAX)
-        response = f"{process_variable} {control_output}"
-        self._step += 1
 
-        print(f"[MOCK_SERIAL_CONNECTION] Read: '{response}' Step: '{self._step}'")
+        eff_kp = 1 - abs(self.current_kp - DEFAULT_KP * 2) / (KP_MAX - KP_MIN)
+        eff_ki = 1 - abs(self.current_ki - DEFAULT_KI * 2) / (KI_MAX - KI_MIN)
+        eff_kd = 1 - abs(self.current_kd - DEFAULT_KD * 2) / (KD_MAX - KD_MIN)
+        efficiency = max(0, min(1, (eff_kp + eff_ki + eff_kd) / 3))
+
+        process_variable = int(self.setpoint + (1 - efficiency) * (ADC_MAX//2))
+        control_output = min(max(0, int((self.setpoint - process_variable) * 0.5 + random.randint(-5, 5))), DAC_MAX)
+
+        self._step += 1
+        response = f"{process_variable} {control_output}"
+
+        print(f"[MOCK_SERIAL_CONNECTION] Read: '{response}' Step: {self._step} Efficiency: {efficiency:.2f}")
         time.sleep(max(0.001, self.timeout * 0.1))
         return response
 
     def send_data(self, data_to_send: str):
         if not self.is_connected:
             raise ConnectionError("[MOCK_SERIAL_CONNECTION] Serial connection is not open.")
-        print(f"[MOCK_SERIAL_CONNECTION] Send: '{data_to_send}' Step: '{self._step}'")
+
+        try:
+            kp_str, ki_str, kd_str, _, _ = data_to_send.strip().split()
+            self.current_kp = float(kp_str)
+            self.current_ki = float(ki_str)
+            self.current_kd = float(kd_str)
+        except Exception:
+            pass
+
+        print(f"[MOCK_SERIAL_CONNECTION] Send: '{data_to_send}' Step: {self._step}")
+
