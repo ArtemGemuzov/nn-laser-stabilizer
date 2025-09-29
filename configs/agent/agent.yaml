@@ -1,8 +1,8 @@
 mlp_num_cells: [256, 256]
 q_mlp_num_cells: ${agent.mlp_num_cells}
 
-policy_noise: 0.1
-noise_clip: 0.25
+policy_noise: 0.0
+noise_clip: 0.0
 
 gamma: 0.99
 num_qvalue_nets: 2
