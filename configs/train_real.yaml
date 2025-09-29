@@ -46,16 +46,16 @@ hydra:
     dir: experiments/${experiment_name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
 
 data:
-  frames_per_batch: 100
+  frames_per_batch: 1
   total_frames: 1_000_000_000
 
   buffer_size: 100_000
   min_data_for_training: 1000
 
 train:
-  batch_size: 128
+  batch_size: 64
   
-  update_to_data: 16
+  update_to_data: 10
   update_actor_freq: 2 
 
   total_train_steps: 1_000_000_000 # Обучение идет до прерывания через CTRL + C
