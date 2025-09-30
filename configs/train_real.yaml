@@ -9,7 +9,7 @@ serial: # CHECK
   port: COM3 
   baudrate: 115200
   timeout: 0.1
-  use_mock: true
+  use_mock: false
 
 env:
   setpoint: 1200 # CHECK
@@ -37,7 +37,7 @@ env:
   default_max: 4095.0
   
   warmup_steps: 1000
-  pretrain_blocks: 2500
+  pretrain_blocks: 2655 # TODO: рассчитывать через другие параметры
   block_size: 200
   burn_in_steps: 100  
 
@@ -50,7 +50,7 @@ data:
   total_frames: 1_000_000_000
 
   buffer_size: 100_000
-  min_data_for_training: 2000
+  min_data_for_training: 2505
 
 train:
   batch_size: 64
