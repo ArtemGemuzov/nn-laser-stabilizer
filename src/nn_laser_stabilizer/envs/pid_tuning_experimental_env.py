@@ -169,7 +169,7 @@ class PidTuningExperimentalEnv(EnvBase):
         )
         
         reward = sum(self.rewards) / len(self.rewards)
-        done = True 
+        done = False # False, потому что при True насильно вызывается reset
 
         if self.logger is not None:
             try:
