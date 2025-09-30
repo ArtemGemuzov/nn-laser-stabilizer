@@ -12,6 +12,11 @@ from nn_laser_stabilizer.envs.constants import DEFAULT_KP, DEFAULT_KI, DEFAULT_K
 from nn_laser_stabilizer.envs.normalization import denormalize_kp, denormalize_ki, denormalize_kd, normalize_kp, normalize_ki, normalize_kd
 
 
+# TODO: занести в класс
+ERROR_MEAN_NORMALIZATION_FACTOR = 2.0
+ERROR_STD_NORMALIZATION_FACTOR = 20.0
+
+
 class Phase(Enum):
     WARMUP = "warmup"
     PRETRAIN = "pretrain"
@@ -162,8 +167,11 @@ class PidTuningExperimentalEnv(EnvBase):
         error_variance = sum((error - error_mean) ** 2 for error in self.errors) / self.window_size
         error_std = error_variance ** 0.5
 
+        error_mean_norm = error_mean / ERROR_MEAN_NORMALIZATION_FACTOR
+        error_std_norm = error_std / ERROR_STD_NORMALIZATION_FACTOR
+
         observation = torch.tensor(
-            [error_mean / 100.0, error_std / 5.0],
+            [error_mean_norm, error_std_norm],
             dtype=torch.float32,
             device=self.device
         )
@@ -172,12 +180,13 @@ class PidTuningExperimentalEnv(EnvBase):
         done = False # False, потому что при True насильно вызывается reset
 
         if self.logger is not None:
-            try:
+            try: 
                 log_line = (
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
                     f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
-                    f"error_mean={error_mean:.4f} error_std_std={error_std:.4f} "
+                    f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
+                    f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                     f"reward={reward:.6f}"
                 )
                 self.logger.log(log_line)
