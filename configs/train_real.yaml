@@ -9,7 +9,7 @@ serial: # CHECK
   port: COM3 
   baudrate: 115200
   timeout: 0.1
-  use_mock: false
+  use_mock: true
 
 env:
   setpoint: 1200 # CHECK
@@ -21,8 +21,8 @@ env:
 
   bounds:
     action:
-      low: [0.0, 0.0, 0.0]
-      high: [17.5, 55.0, 0.01]
+      low: [-1.0, -1.0, -1.0]
+      high: [1.0, 1.0, 1.0]
     observation:
       low: [-inf, 0.0] 
       high: [inf, inf]

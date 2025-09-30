@@ -9,6 +9,7 @@ from torchrl.envs import EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
 from nn_laser_stabilizer.envs.constants import DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MIN, KD_MAX
+from nn_laser_stabilizer.envs.normalization import denormalize_kp, denormalize_ki, denormalize_kd, normalize_kp, normalize_ki, normalize_kd
 
 
 class Phase(Enum):
@@ -106,7 +107,7 @@ class PidTuningExperimentalEnv(EnvBase):
             pass
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
-        agent_kp, agent_ki, agent_kd = tensordict["action"].tolist()
+        agent_kp_norm, agent_ki_norm, agent_kd_norm = tensordict["action"].tolist()
 
         phase = self._get_phase()
 
@@ -122,7 +123,9 @@ class PidTuningExperimentalEnv(EnvBase):
                 ki = KI_MIN + random.uniform(0.25 * ki_range, 0.75 * ki_range)
                 kd = KD_MIN + random.uniform(0.25 * kd_range, 0.75 * kd_range)
             case Phase.NORMAL:
-                kp, ki, kd = agent_kp, agent_ki, agent_kd
+                kp = denormalize_kp(agent_kp_norm)
+                ki = denormalize_ki(agent_ki_norm)
+                kd = denormalize_kd(agent_kd_norm)
             case _:
                 raise ValueError(f"Unknown phase: {phase}")
 
@@ -181,7 +184,10 @@ class PidTuningExperimentalEnv(EnvBase):
             except Exception:
                 pass
 
-        tensordict.set("action", torch.tensor([kp, ki, kd], dtype=torch.float32, device=self.device))
+        kp_norm = normalize_kp(kp)
+        ki_norm = normalize_ki(ki) 
+        kd_norm = normalize_kd(kd)
+        tensordict.set("action", torch.tensor([kp_norm, ki_norm, kd_norm], dtype=torch.float32, device=self.device))
 
         return TensorDict(
             {
