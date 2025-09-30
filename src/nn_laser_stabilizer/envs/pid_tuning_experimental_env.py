@@ -169,7 +169,7 @@ class PidTuningExperimentalEnv(EnvBase):
         )
         
         reward = sum(self.rewards) / len(self.rewards)
-        done = False  # TODO задать условие завершения
+        done = True 
 
         if self.logger is not None:
             try:
