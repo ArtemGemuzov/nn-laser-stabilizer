@@ -163,7 +163,7 @@ class PidTuningExperimentalEnv(EnvBase):
         error_std = error_variance ** 0.5
 
         observation = torch.tensor(
-            [error_mean, error_std],
+            [error_mean / 100.0, error_std / 5.0],
             dtype=torch.float32,
             device=self.device
         )
