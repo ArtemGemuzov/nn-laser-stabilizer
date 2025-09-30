@@ -30,9 +30,9 @@ class MockSerialConnection(BaseConnection):
         if not self.is_connected:
             raise ConnectionError("[MOCK_SERIAL_CONNECTION] Serial connection is not open.")
 
-        eff_kp = 1 - abs(self.current_kp - DEFAULT_KP) / (KP_MAX - KP_MIN)
-        eff_ki = 1 - abs(self.current_ki - DEFAULT_KI) / (KI_MAX - KI_MIN)
-        eff_kd = 1 - abs(self.current_kd - DEFAULT_KD) / (KD_MAX - KD_MIN)
+        eff_kp = 1 - abs(self.current_kp - 2 * DEFAULT_KP) / (KP_MAX - KP_MIN)
+        eff_ki = 1 - abs(self.current_ki - 2 * DEFAULT_KI) / (KI_MAX - KI_MIN)
+        eff_kd = 1 - abs(self.current_kd - 2 * DEFAULT_KD) / (KD_MAX - KD_MIN)
         efficiency = max(0, min(1, (eff_kp + eff_ki + eff_kd) / 3))
 
         base_process = self.setpoint + (1 - efficiency) * (ADC_MAX // 2)
