@@ -1,5 +1,5 @@
-import os
 import time
+import random
 from typing import Iterable
 from logging import getLogger
 
@@ -207,6 +207,62 @@ def main(config: DictConfig) -> None:
                                control_limit_manager._force_steps_left)
 
         logger.info("kp scan completed (both ascending and descending)")
+        
+        logger.info("Starting additional warmup with default coefficients...")
+        for _ in range(enforcement_steps):
+            u_min = float(control_limit_config.force_min_value)
+            u_max = float(control_limit_config.force_max_value)
+            process_variable, control_output = do_exchange(
+                step=step,
+                kp=DEFAULT_KP,
+                ki=DEFAULT_KI,
+                kd=DEFAULT_KD,
+                u_min=u_min,
+                u_max=u_max,
+                pid=pid,
+                interaction_logger=interaction_logger,
+            )
+            control_limit_manager.apply_rule(control_output)
+            step += 1
+        
+        logger.info("Starting Wiener process coefficient variation...")
+        
+        wiener_steps = 10_000
+        wiener_noise_scale = KP_MAX / 100
+        
+        current_kp = DEFAULT_KP
+        current_ki = DEFAULT_KI
+        current_kd = DEFAULT_KD
+        
+        kp_wiener_min = KP_MIN
+        kp_wiener_max = KP_MAX
+        
+        for wiener_step in range(wiener_steps):
+            kp_noise = random.gauss(0, wiener_noise_scale)
+            
+            current_kp += kp_noise
+            
+            current_kp = max(kp_wiener_min, min(kp_wiener_max, current_kp))
+            
+            if wiener_step % 1000 == 0:
+                logger.info("Wiener step %d/%d: kp=%.4f ki=%.4f kd=%.4f", 
+                        wiener_step + 1, wiener_steps, current_kp, current_ki, current_kd)
+            
+            u_min, u_max = control_limit_manager.get_limits_for_step()
+            process_variable, control_output = do_exchange(
+                step=step,
+                kp=current_kp,
+                ki=current_ki,
+                kd=current_kd,
+                u_min=u_min,
+                u_max=u_max,
+                pid=pid,
+                interaction_logger=interaction_logger,
+            )
+            control_limit_manager.apply_rule(control_output)
+            step += 1
+        
+        logger.info("Wiener process coefficient variation completed")
 
     except Exception as ex:
         logger.error("Error during scanning", exc_info=True)
