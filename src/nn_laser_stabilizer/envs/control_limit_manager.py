@@ -6,6 +6,7 @@ class ControlLimitConfig:
     default_min: float
     default_max: float
     force_min_value: float
+    force_max_value: float
     force_condition_threshold: float
     enforcement_steps: int
 
@@ -36,7 +37,7 @@ class ControlLimitManager:
 
     def get_limits_for_step(self) -> tuple[float, float]:
         if self._force_steps_left > 0:
-            return self.config.force_min_value, self._current_max
+            return self.config.force_min_value, self.config.force_max_value
         return self._current_min, self._current_max
 
 
@@ -46,6 +47,7 @@ def make_control_limit_manager(
     default_min: float,
     default_max: float,
     force_min_value: float,
+    force_max_value: float,
     force_condition_threshold: float,
     enforcement_steps: int,
 ) -> ControlLimitManager:
@@ -54,6 +56,7 @@ def make_control_limit_manager(
         default_min=default_min,
         default_max=default_max,
         force_min_value=force_min_value,
+        force_max_value=force_max_value,
         force_condition_threshold=force_condition_threshold,
         enforcement_steps=enforcement_steps,
     )
