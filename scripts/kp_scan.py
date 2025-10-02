@@ -227,7 +227,7 @@ def main(config: DictConfig) -> None:
         
         logger.info("Starting Wiener process coefficient variation...")
         
-        wiener_steps = 10_000
+        wiener_steps = 100_000
         wiener_noise_scale = KP_MAX / 100
         
         current_kp = DEFAULT_KP
