@@ -93,7 +93,9 @@ def main(config: DictConfig) -> None:
             default_min=float(config.control_output_limits.default_min),
             default_max=float(config.control_output_limits.default_max),
             force_min_value=float(config.control_output_limits.force_min_value),
-            force_condition_threshold=float(config.control_output_limits.force_condition_threshold),
+            force_max_value=float(config.control_output_limits.force_max_value),
+            lower_force_condition_threshold=float(config.control_output_limits.lower_force_condition_threshold),
+            upper_force_condition_threshold=float(config.control_output_limits.upper_force_condition_threshold),
             enforcement_steps=int(config.control_output_limits.enforcement_steps),
         )
         enforcement_steps = control_limit_config.enforcement_steps

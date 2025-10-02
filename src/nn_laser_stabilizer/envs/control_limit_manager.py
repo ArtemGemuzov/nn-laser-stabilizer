@@ -7,7 +7,8 @@ class ControlLimitConfig:
     default_max: float
     force_min_value: float
     force_max_value: float
-    force_condition_threshold: float
+    lower_force_condition_threshold: float
+    upper_force_condition_threshold: float
     enforcement_steps: int
 
 
@@ -30,7 +31,8 @@ class ControlLimitManager:
         self._force_steps_left = 0
 
     def apply_rule(self, control_output: float) -> None:
-        if control_output < self.config.force_condition_threshold:
+        if (control_output < self.config.lower_force_condition_threshold or 
+            control_output > self.config.upper_force_condition_threshold):
             self._force_steps_left = self.config.enforcement_steps
         elif self._force_steps_left > 0:
             self._force_steps_left -= 1
@@ -48,7 +50,8 @@ def make_control_limit_manager(
     default_max: float,
     force_min_value: float,
     force_max_value: float,
-    force_condition_threshold: float,
+    lower_force_condition_threshold: float,
+    upper_force_condition_threshold: float,
     enforcement_steps: int,
 ) -> ControlLimitManager:
     """Фабрика для создания ControlLimitManager из простых аргументов."""
@@ -57,7 +60,8 @@ def make_control_limit_manager(
         default_max=default_max,
         force_min_value=force_min_value,
         force_max_value=force_max_value,
-        force_condition_threshold=force_condition_threshold,
+        lower_force_condition_threshold=lower_force_condition_threshold,
+        upper_force_condition_threshold=upper_force_condition_threshold,
         enforcement_steps=enforcement_steps,
     )
     return ControlLimitManager(config)

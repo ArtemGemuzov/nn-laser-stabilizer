@@ -36,6 +36,10 @@ env:
   default_min: 0.0
   default_max: 4095.0
   
+  lower_force_condition_threshold: 200.0
+  upper_force_condition_threshold: 4000.0
+  enforcement_steps: 1000
+  
   warmup_steps: 1000
   pretrain_blocks: 2655 # TODO: рассчитывать через другие параметры
   block_size: 200
