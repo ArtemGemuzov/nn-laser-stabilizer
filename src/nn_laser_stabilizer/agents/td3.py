@@ -161,7 +161,7 @@ def train_step(batch, loss_module: TD3Loss, optimizer_actor: torch.optim.Adam,
     loss_qvalue, _ = loss_module.value_loss(batch)
     loss_qvalue.backward()
 
-    total_norm = torch.nn.utils.clip_grad_norm_(optimizer_critic.param_groups[0]['params'], 1.0)
+    # total_norm = torch.nn.utils.clip_grad_norm_(optimizer_critic.param_groups[0]['params'], 1.0)
 
     optimizer_critic.step()
     optimizer_critic.zero_grad(set_to_none=True)
@@ -173,7 +173,7 @@ def train_step(batch, loss_module: TD3Loss, optimizer_actor: torch.optim.Adam,
         loss_actor, _ = loss_module.actor_loss(batch)
         loss_actor.backward()
 
-        total_norm_actor = torch.nn.utils.clip_grad_norm_(optimizer_actor.param_groups[0]['params'], 1.0)
+        # total_norm_actor = torch.nn.utils.clip_grad_norm_(optimizer_actor.param_groups[0]['params'], 1.0)
 
         optimizer_actor.step()
         optimizer_actor.zero_grad(set_to_none=True)
