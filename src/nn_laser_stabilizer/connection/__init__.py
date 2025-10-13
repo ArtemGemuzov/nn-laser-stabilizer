@@ -15,11 +15,8 @@ def create_connection(config: DictConfig) -> BaseConnection:
         config: Полная конфигурация, содержащая секцию 'serial' с параметрами:
             - use_mock: bool - использовать ли mock соединение
             - port: str - COM порт или имя файла для mock
-            - timeout: float - таймаут (по умолчанию 0.1)
-            - baudrate: int - скорость передачи (по умолчанию 115200)
-            - bytesize: int - размер байта (по умолчанию serial.EIGHTBITS)
-            - parity: str - четность (по умолчанию serial.PARITY_NONE)
-            - stopbits: int - стоп-биты (по умолчанию serial.STOPBITS_ONE)
+            - timeout: float - таймаут
+            - baudrate: int - скорость передачи
     
     Returns:
         BaseConnection: Экземпляр SerialConnection или MockSerialConnection
@@ -31,18 +28,18 @@ def create_connection(config: DictConfig) -> BaseConnection:
             port=serial_config.port,
             timeout=serial_config.timeout,
             baudrate=serial_config.baudrate,
-            bytesize=serial_config.bytesize,
-            parity=serial_config.parity,
-            stopbits=serial_config.stopbits,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
         )
     else:
         return SerialConnection(
             port=serial_config.port,
             timeout=serial_config.timeout,
             baudrate=serial_config.baudrate,
-            bytesize=serial_config.bytesize,
-            parity=serial_config.parity,
-            stopbits=serial_config.stopbits,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
         )
 
 
