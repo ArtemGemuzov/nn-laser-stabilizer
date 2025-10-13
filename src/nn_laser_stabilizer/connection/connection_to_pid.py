@@ -48,9 +48,9 @@ class ConnectionToPid(BaseConnectionToPid):
         Возвращает кортеж (process_variable, control_output).
         """
         while True:
-            data = self.read_response_nowait()
-            if data is not None:
-                return data
+            raw = self._connection.read_data()
+            if raw is not None:
+                return self._parse_response(raw)
 
     def exchange(
         self,

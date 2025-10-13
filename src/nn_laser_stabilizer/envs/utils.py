@@ -52,7 +52,7 @@ def make_real_env(config, output_dir: str) -> EnvBase:
     
     pid_connection = ConnectionToPid(serial_connection)
     
-    if config.serial.get.log_connection:
+    if config.serial.log_connection:
         connection_log_dir = os.path.join(output_dir, "connection_logs")
         connection_logger = AsyncFileLogger(log_dir=connection_log_dir, filename="connection.log")
         pid_connection = LoggingConnectionToPid(pid_connection, connection_logger)
