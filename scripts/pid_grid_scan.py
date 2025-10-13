@@ -71,7 +71,7 @@ def do_exchange(
     interaction_logger.log(
         format_send_log(step, time.time(), kp, ki, kd, u_min, u_max)
     )
-    process_variable, control_output = pid.send_and_read(
+    process_variable, control_output = pid.exchange(
         kp=kp,
         ki=ki,
         kd=kd,

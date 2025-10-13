@@ -1,11 +1,13 @@
+import os
 import torch
 from torchrl.data import UnboundedContinuous, BoundedContinuous
 from torchrl.envs import TransformedEnv, EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperimentalEnv
-from nn_laser_stabilizer.connection import create_connection
+from nn_laser_stabilizer.connection import create_connection, ConnectionToPid, LoggingConnectionToPid
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 from nn_laser_stabilizer.envs.reward import make_reward
+from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
 
 def make_specs(bounds_config: dict) -> dict:
     specs = {}
@@ -24,7 +26,7 @@ def make_specs(bounds_config: dict) -> dict:
 
     return specs
 
-def make_real_env(config, logger=None) -> EnvBase:
+def make_real_env(config, output_dir: str) -> EnvBase:
     """
     Создает окружение TorchRL для взаимодействия с реальной установкой через SerialConnection.
     
@@ -36,7 +38,9 @@ def make_real_env(config, logger=None) -> EnvBase:
             - serial.port: COM порт для подключения
             - serial.baudrate: скорость передачи (опционально, по умолчанию 115200)
             - serial.timeout: таймаут (опционально, по умолчанию 0.1)
+            - serial.log_connection: логировать ли команды и ответы (опционально, по умолчанию False)
             - seed: зерно для генератора случайных чисел
+        output_dir: Рабочая директория для логов
     
     Returns:
         TransformedEnv: Окружение TorchRL
@@ -46,12 +50,22 @@ def make_real_env(config, logger=None) -> EnvBase:
     serial_connection = create_connection(config)
     serial_connection.open_connection()
     
+    pid_connection = ConnectionToPid(serial_connection)
+    
+    if config.serial.get.log_connection:
+        connection_log_dir = os.path.join(output_dir, "connection_logs")
+        connection_logger = AsyncFileLogger(log_dir=connection_log_dir, filename="connection.log")
+        pid_connection = LoggingConnectionToPid(pid_connection, connection_logger)
+    
     real_setup = RealExperimentalSetup(
-        serial_connection=serial_connection,
+        pid_connection=pid_connection,
         setpoint=env_config.setpoint
     )
     
     specs = make_specs(env_config.bounds)
+    
+    env_log_dir = os.path.join(output_dir, "env_logs")
+    env_logger = AsyncFileLogger(log_dir=env_log_dir, filename="env.log")
     
     env = PidTuningExperimentalEnv(
         real_setup,
@@ -59,7 +73,7 @@ def make_real_env(config, logger=None) -> EnvBase:
         observation_spec=specs["observation"], 
         reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
         reward_func=make_reward(config),
-        logger=logger,
+        logger=env_logger,
         warmup_steps=env_config.get('warmup_steps', 1000),
         pretrain_blocks=env_config.get('pretrain_blocks', 100),
         block_size=env_config.get('block_size', 100),

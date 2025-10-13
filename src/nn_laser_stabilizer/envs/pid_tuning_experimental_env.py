@@ -87,30 +87,6 @@ class PidTuningExperimentalEnv(EnvBase):
             return Phase.PRETRAIN
         return Phase.NORMAL
 
-    def _log_step(
-        self,
-        *,
-        kp: float, ki: float, kd: float,
-        process_variable: float, control_output,
-        u_min: float, u_max: float,
-        phase: str,
-        block_step: int,
-    ) -> None:
-        if self.logger is None:
-            return
-        try:
-            now = time.time()
-            log_line = (
-                f"step={self._t} time={now:.6f} phase={phase} "
-                f"block_step={block_step} "
-                f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
-                f"process_variable={process_variable:.1f} control_output={control_output:.1f} "
-                f"u_min={u_min:.1f} u_max={u_max:.1f}"
-            )
-            self.logger.log(log_line)
-        except Exception:
-            pass
-
     def _step(self, tensordict: TensorDict) -> TensorDict:
         agent_kp_norm, agent_ki_norm, agent_kd_norm = tensordict["action"].tolist()
 
@@ -144,14 +120,6 @@ class PidTuningExperimentalEnv(EnvBase):
 
             process_variable, control_output, setpoint = self.experimental_setup.step(
                 kp, ki, kd, applied_min, applied_max
-            )
-
-            self._log_step(
-                kp=kp, ki=ki, kd=kd,
-                process_variable=process_variable, control_output=control_output,
-                u_min=applied_min, u_max=applied_max,
-                phase=phase.value,
-                block_step=block_iteration,
             )
             
             if block_iteration >= self._burn_in_steps:

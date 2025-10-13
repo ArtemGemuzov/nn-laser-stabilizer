@@ -1,8 +1,10 @@
 from typing import Optional
 
-from nn_laser_stabilizer.connection.base_connection import BaseConnection
 
-class ConnectionToPid:
+from nn_laser_stabilizer.connection import BaseConnection, BaseConnectionToPid
+
+
+class ConnectionToPid(BaseConnectionToPid):
     """
     Обертка над базовым последовательным соединением для отправки PID-команд
     и чтения ответов. Формирует строку команды в формате:
@@ -13,19 +15,20 @@ class ConnectionToPid:
     def __init__(self, connection: BaseConnection):
         self._connection = connection
 
-    def _format_command(self, kp: float, ki: float, kd: float, control_min: int, control_max: int) -> str:
+    def _format_command(self, *, kp: float, ki: float, kd: float, control_min: int, control_max: int) -> str:
         """Форматирует команду PID в строку."""
         return f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min} {control_max}\n"
 
-    def send_pid_command(
+    def send_command(
         self,
+        *,
         kp: float,
         ki: float,
         kd: float,
         control_min: int,
         control_max: int,
     ) -> None:
-        command = self._format_command(kp, ki, kd, control_min, control_max)
+        command = self._format_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
         self._connection.send_data(command)
 
     def _parse_response(self, raw: str) -> tuple[float, float]:
@@ -38,31 +41,18 @@ class ConnectionToPid:
         except Exception as ex:
             raise ValueError(f"Некорректные числовые значения в ответе PID: '{raw}'") from ex
 
-    def read_data(self) -> Optional[tuple[float, float]]:
-        """
-        Читает и парсит ответ измерений из базового соединения.
-
-        Ожидаемый формат: "process_variable control_output" (два числа, разделенные пробелом).
-        Возвращает кортеж (process_variable, control_output) или None,
-        если данных нет.
-        """
-        raw = self._connection.read_data()
-        if not raw:
-            return None
-        return self._parse_response(raw)
-
-    def read_data_and_wait(self) -> tuple[float, float]:
+    def read_response(self) -> tuple[float, float]:
         """
         Блокирующее чтение до получения корректного ответа PID.
 
         Возвращает кортеж (process_variable, control_output).
         """
         while True:
-            data = self.read_data()
+            data = self.read_response_nowait()
             if data is not None:
                 return data
 
-    def send_and_read(
+    def exchange(
         self,
         *,
         kp: float,
@@ -76,13 +66,13 @@ class ConnectionToPid:
 
         Возвращает (PV, CO).
         """
-        self.send_pid_command(
+        self.send_command(
             kp=kp,
             ki=ki,
             kd=kd,
             control_min=control_min,
             control_max=control_max,
         )
-        return self.read_data_and_wait()
+        return self.read_response()
 
 

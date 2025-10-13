@@ -6,19 +6,15 @@ import torch
 import hydra
 from omegaconf import DictConfig
 
-from nn_laser_stabilizer.envs.simulation.utils import make_simulated_env
 from nn_laser_stabilizer.logging.utils import (
     set_seeds
 )
-from nn_laser_stabilizer.logging.file_logger import SimpleFileLogger
 from nn_laser_stabilizer.agents.td3 import (
     make_td3_agent,
-    add_exploration,
     make_loss_module,
     make_optimizers,
     make_target_updater,
     train_step,
-    warmup,
     warmup_from_specs
 )
 from nn_laser_stabilizer.envs.utils import make_real_env, make_specs
@@ -40,31 +36,27 @@ def main(config: DictConfig) -> None:
         config.env.setpoint = float(input("Введите значение setpoint для среды: "))
     logger.info(f"Setpoint = {config.env.setpoint}")
 
-    env_log_dir = get_hydra_output_dir("env_logs")
-
-    def make_env(config, log_dir):
-        env_logger = AsyncFileLogger(log_dir=log_dir)
-        return make_real_env(config, logger=env_logger)
+    output_dir = get_hydra_output_dir()
 
     # TODO: aSyncDataCollector внутри себя создает фейковое окружение, поэтому при первом вызове нужно вернуть симуляцию окружения
-    def make_env_factory(config, log_dir):
+    def make_env_factory(config, output_dir):
         first_call = True
 
         def env_fn():
             nonlocal first_call
             if not first_call:
-                return make_env(config, log_dir)
+                return make_real_env(config, output_dir=output_dir)
             
             first_call = False
             from copy import deepcopy
             config_for_mocked_env = deepcopy(config)
             if not config_for_mocked_env.serial.get("use_mock"):
                 config_for_mocked_env.serial.use_mock = True
-            return make_real_env(config_for_mocked_env)
+            return make_real_env(config_for_mocked_env, output_dir=output_dir)
 
         return env_fn
 
-    make_env_fn = make_env_factory(config, env_log_dir)
+    make_env_fn = make_env_factory(config, output_dir)
 
     train_log_dir = get_hydra_output_dir("train_logs")
     train_logger = AsyncFileLogger(log_dir=train_log_dir)
