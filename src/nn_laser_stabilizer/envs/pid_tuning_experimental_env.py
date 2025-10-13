@@ -77,13 +77,9 @@ class PidTuningExperimentalEnv(EnvBase):
         self.rewards = deque(maxlen=self.window_size)  
 
     def _get_phase(self) -> Phase:
-        if self._t < self._warmup_steps:
-            return Phase.WARMUP
+        blocks = self._t // self._block_size
         
-        steps_after_warmup = self._t - self._warmup_steps
-        blocks_after_warmup = steps_after_warmup // self._block_size
-        
-        if blocks_after_warmup < self._pretrain_blocks:
+        if blocks < self._pretrain_blocks:
             return Phase.PRETRAIN
         return Phase.NORMAL
 
@@ -93,8 +89,6 @@ class PidTuningExperimentalEnv(EnvBase):
         phase = self._get_phase()
 
         match phase:
-            case Phase.WARMUP:
-                kp, ki, kd = float(DEFAULT_KP), float(DEFAULT_KI), float(DEFAULT_KD)
             case Phase.PRETRAIN:
                 kp_range = KP_MAX - KP_MIN
                 ki_range = KI_MAX - KI_MIN
@@ -111,12 +105,8 @@ class PidTuningExperimentalEnv(EnvBase):
                 raise ValueError(f"Unknown phase: {phase}")
 
         for block_iteration in range(self._block_size):
-            if phase == Phase.WARMUP:
-                applied_min = self._force_min_value
-                applied_max = self._force_max_value
-            else:
-                applied_min = self._default_min
-                applied_max = self._default_max
+            applied_min = self._default_min
+            applied_max = self._default_max
 
             process_variable, control_output, setpoint = self.experimental_setup.step(
                 kp, ki, kd, applied_min, applied_max
@@ -178,22 +168,58 @@ class PidTuningExperimentalEnv(EnvBase):
     def _reset(self, unused: TensorDict | None = None) -> TensorDict:
         self._t = 0
 
-        process_variable, control_output, setpoint = self.experimental_setup.reset()
+        phase = Phase.WARMUP
+
+        kp, ki, kd = float(DEFAULT_KP), float(DEFAULT_KI), float(DEFAULT_KD)
+        applied_min = self._force_min_value
+        applied_max = self._force_max_value
+        
+        self.errors.clear()
+        self.rewards.clear()
+        
+        for warmup_step in range(self._warmup_steps):
+            process_variable, control_output, setpoint = self.experimental_setup.step(
+                kp, ki, kd, applied_min, applied_max
+            )
+            self._t += 1
+            
+            error = process_variable - setpoint
+            self.errors.append(error)
+            
+            if self.logger is not None:
+                try:
+                    log_line = (
+                        f"step={self._t} phase={Phase.WARMUP.value} "
+                        f"warmup_step={warmup_step} "
+                        f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
+                        f"pv={process_variable:.4f} co={control_output:.4f}"
+                    )
+                    self.logger.log(log_line)
+                except Exception:
+                    pass
+
+        error_mean = sum(self.errors) / len(self.errors)
+        error_variance = sum((e - error_mean) ** 2 for e in self.errors) / len(self.errors)
+        error_std = error_variance ** 0.5
+        
+        error_mean_norm = error_mean / ERROR_MEAN_NORMALIZATION_FACTOR
+        error_std_norm = error_std / ERROR_STD_NORMALIZATION_FACTOR
 
         if self.logger is not None:
-            try:
-                now = time.time()
-                log_line = f"reset time={now:.6f} process_variable={process_variable:.8f} control_output={control_output:.8f} setpoint={setpoint:.8f}"
+            try: 
+                log_line = (
+                    f"step={self._t} phase={phase.value} "
+                    f"block_step=final "
+                    f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
+                    f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
+                    f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
+                )
                 self.logger.log(log_line)
             except Exception:
-                pass
-
-        error = process_variable - setpoint
-        error_mean = error  
-        error_std = 0.0     
+                pass    
         
         observation = torch.tensor(
-            [error_mean, error_std],
+            [error_mean_norm, error_std_norm],
             dtype=torch.float32,
             device=self.device
         )
