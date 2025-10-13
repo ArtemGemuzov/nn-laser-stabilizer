@@ -1,9 +1,11 @@
 from typing import Optional
 import random
+import os
 import serial
 
-from nn_laser_stabilizer.connection.base_connection import BaseConnection
+from nn_laser_stabilizer.connection import BaseConnection
 from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX
+from nn_laser_stabilizer.config.paths import get_hydra_runtime_output_dir
 
 class MockSerialConnection(BaseConnection):
     def __init__(self,
@@ -25,10 +27,13 @@ class MockSerialConnection(BaseConnection):
     def open_connection(self):
         self.is_connected = True
         try:
-            self._log_file = open(self.port, 'a', encoding='utf-8')
-            print(f"Mock serial connection established. Logging to: {self.port}")
+            log_filename = f"mock_{self.port}.log"
+            output_dir = get_hydra_runtime_output_dir()
+            log_path = os.path.join(output_dir, log_filename)
+            self._log_file = open(log_path, 'a', encoding='utf-8')
+            print(f"Mock serial connection established. Logging to: {log_path}")
         except Exception as ex:
-            raise ConnectionError(f"Failed to open log file: {self.port}") from ex
+            raise ConnectionError(f"Failed to open log file") from ex
 
     def close_connection(self):
         self.is_connected = False
