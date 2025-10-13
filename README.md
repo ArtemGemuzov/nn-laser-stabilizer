@@ -9,6 +9,7 @@
 nn-laser-stabilizer/
 ├── README.md              # Описание проекта и инструкции
 ├── requirements.txt       # Список зависимостей проекта
+├── requirements-dev.txt   # Расширенный список зависимостей для разработки
 ├── pyproject.toml         # Конфигурация пакета
 ├── src/
 │   └── nn_laser_stabilizer/  # Исходный код проекта
@@ -18,7 +19,7 @@ nn-laser-stabilizer/
 └── experiments/           # Результаты экспериментов
 ```
 
-## Установка
+## Установка для проведения экспериментов
 1. Клонируйте репозиторий или скачайте zip архив (Code/Download ZIP) и разархивируйте его:
    ```bash
    git clone https://github.com/ArtemGemuzov/nn-laser-stabilizer.git
@@ -51,4 +52,5 @@ nn-laser-stabilizer/
 Выходные данные будут собраны в папке experiments.
 
 ## Требования
-См. `requirements.txt` для списка необходимых библиотек.
+* `requirements.txt` - для проведения эксперимента.
+* `requirements-dev.txt` - для разработки и анализа экспериментов.
