@@ -6,7 +6,7 @@ import time
 
 
 class AsyncFileLogger:
-    def __init__(self, log_dir: str, filename: str = "log.txt"):
+    def __init__(self, log_dir: str, filename: str = "log.log"):
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
