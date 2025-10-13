@@ -3,8 +3,7 @@ from torchrl.data import UnboundedContinuous, BoundedContinuous
 from torchrl.envs import TransformedEnv, EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperimentalEnv
-from nn_laser_stabilizer.connection.serial_connection import SerialConnection
-from nn_laser_stabilizer.connection.mock_serial_connection import MockSerialConnection
+from nn_laser_stabilizer.connection import create_connection
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 from nn_laser_stabilizer.envs.reward import make_reward
 
@@ -43,21 +42,8 @@ def make_real_env(config, logger=None) -> EnvBase:
         TransformedEnv: Окружение TorchRL
     """
     env_config = config.env
-    serial_config = config.serial
     
-    if serial_config.use_mock:
-        serial_connection = MockSerialConnection(
-            port=serial_config.port,
-            baudrate=serial_config.baudrate,
-            timeout=serial_config.timeout,
-        )
-    else:
-        serial_connection = SerialConnection(
-            port=serial_config.port,
-            baudrate=serial_config.baudrate,
-            timeout=serial_config.timeout,
-        )
-    
+    serial_connection = create_connection(config)
     serial_connection.open_connection()
     
     real_setup = RealExperimentalSetup(

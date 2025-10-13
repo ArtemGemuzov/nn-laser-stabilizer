@@ -8,7 +8,7 @@ from nn_laser_stabilizer.envs.constants import (
     DEFAULT_MIN_CONTROL,
     DEFAULT_MAX_CONTROL,
 )
-from nn_laser_stabilizer.connection.connection_to_pid import ConnectionToPid
+from nn_laser_stabilizer.connection import ConnectionToPid
 
 class RealExperimentalSetup(PidTuningExperimentalSetup):
     """
@@ -29,7 +29,7 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
             control_min=control_min,
             control_max=control_max,
         )
-        process_variable, control_output = self.pid_connection.read_response()
+        process_variable, control_output = self.pid_connection.read_data_and_wait()
         return process_variable, control_output, self.setpoint
             
     def reset(self) -> Tuple[float, float, float]:
@@ -41,7 +41,7 @@ class RealExperimentalSetup(PidTuningExperimentalSetup):
             control_min=DEFAULT_MIN_CONTROL,
             control_max=DEFAULT_MAX_CONTROL,
         )
-        process_variable, control_output = self.pid_connection.read_response()
+        process_variable, control_output = self.pid_connection.read_data_and_wait()
         return process_variable, control_output, self.setpoint
 
     def set_seed(self, seed: Optional[int]):

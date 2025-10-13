@@ -1,63 +1,57 @@
-import time
-import random
 from typing import Optional
+import random
+import serial
 
-from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX, DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MAX, KD_MIN
 from nn_laser_stabilizer.connection.base_connection import BaseConnection
+from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX
 
 class MockSerialConnection(BaseConnection):
-    def __init__(self, port: str, timeout: float = 0.1, baudrate: int = 115200):
-        self.port = port
+    def __init__(self,
+                 port: str,
+                 timeout: float = 0.1,
+                 baudrate: int = 115200,
+                 bytesize: int = serial.EIGHTBITS,
+                 parity: str = serial.PARITY_NONE,
+                 stopbits: int = serial.STOPBITS_ONE):
+        self.port = port  # используется как имя файла для записи
         self.timeout = timeout
         self.baudrate = baudrate
+        self.bytesize = bytesize
+        self.parity = parity
+        self.stopbits = stopbits
         self.is_connected = False
-
-        self._step = 0
-        self.setpoint = 1200 
-        self.current_kp = DEFAULT_KP
-        self.current_ki = DEFAULT_KI
-        self.current_kd = DEFAULT_KD
+        self._log_file = None
 
     def open_connection(self):
         self.is_connected = True
-        print("[MOCK_SERIAL_CONNECTION] Serial connection established.")
+        try:
+            self._log_file = open(self.port, 'a', encoding='utf-8')
+            print(f"Mock serial connection established. Logging to: {self.port}")
+        except Exception as ex:
+            raise ConnectionError(f"Failed to open log file: {self.port}") from ex
 
     def close_connection(self):
         self.is_connected = False
-        print("[MOCK_SERIAL_CONNECTION] Serial connection closed.")
+        if self._log_file:
+            self._log_file.close()
+            self._log_file = None
+        print("Mock serial connection closed.")
 
     def read_data(self) -> Optional[str]:
         if not self.is_connected:
-            raise ConnectionError("[MOCK_SERIAL_CONNECTION] Serial connection is not open.")
-
-        eff_kp = 1 - abs(self.current_kp - 2 * DEFAULT_KP) / (KP_MAX - KP_MIN)
-        eff_ki = 1 - abs(self.current_ki - 1 * DEFAULT_KI) / (KI_MAX - KI_MIN)
-        eff_kd = 1 - abs(self.current_kd - 1.5 * DEFAULT_KD) / (KD_MAX - KD_MIN)
-        efficiency = max(0, min(1, (eff_kp + eff_ki + eff_kd) / 3))
-
-        base_process = self.setpoint + (1 - efficiency) * (ADC_MAX // 2)
-        noise = random.randint(-20, 20)  
-        process_variable = int(base_process + noise)
-    
-        control_output = min(max(0, int((self.setpoint - process_variable) * 0.5 + random.randint(-5, 5))), DAC_MAX)
-
-        self._step += 1
-        response = f"{process_variable} {control_output}"
-
-        print(f"[MOCK_SERIAL_CONNECTION] Read: '{response}' Step: {self._step} Efficiency: {efficiency:.3f}")
-        return response
+            raise ConnectionError("Mock serial connection is not open.")
+        
+        process_variable = random.randint(0, ADC_MAX)
+        control_output = random.randint(0, DAC_MAX)
+        return f"{process_variable} {control_output}"
 
     def send_data(self, data_to_send: str):
         if not self.is_connected:
-            raise ConnectionError("[MOCK_SERIAL_CONNECTION] Serial connection is not open.")
+            raise ConnectionError("Mock serial connection is not open.")
 
-        try:
-            kp_str, ki_str, kd_str, _, _ = data_to_send.strip().split()
-            self.current_kp = float(kp_str)
-            self.current_ki = float(ki_str)
-            self.current_kd = float(kd_str)
-        except Exception:
-            pass
-
-        print(f"[MOCK_SERIAL_CONNECTION] Send: '{data_to_send}' Step: {self._step}")
+        if self._log_file:
+            self._log_file.write(data_to_send)
+            if not data_to_send.endswith('\n'):
+                self._log_file.write('\n')
+            self._log_file.flush()
 

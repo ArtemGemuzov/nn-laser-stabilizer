@@ -13,9 +13,20 @@ class ConnectionToPid:
     def __init__(self, connection: BaseConnection):
         self._connection = connection
 
-    def _format_command(self, kp: float, ki: float, kd: float, control_min: float, control_max: float) -> str:
+    def _format_command(self, kp: float, ki: float, kd: float, control_min: int, control_max: int) -> str:
         """Форматирует команду PID в строку."""
-        return f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min:.4f} {control_max:.4f}"
+        return f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min} {control_max}\n"
+
+    def send_pid_command(
+        self,
+        kp: float,
+        ki: float,
+        kd: float,
+        control_min: int,
+        control_max: int,
+    ) -> None:
+        command = self._format_command(kp, ki, kd, control_min, control_max)
+        self._connection.send_data(command)
 
     def _parse_response(self, raw: str) -> tuple[float, float]:
         """Парсит ответ PID из строки."""
@@ -26,17 +37,6 @@ class ConnectionToPid:
             return float(parts[0]), float(parts[1])
         except Exception as ex:
             raise ValueError(f"Некорректные числовые значения в ответе PID: '{raw}'") from ex
-
-    def send_pid_command(
-        self,
-        kp: float,
-        ki: float,
-        kd: float,
-        control_min: float,
-        control_max: float,
-    ) -> None:
-        command = self._format_command(kp, ki, kd, control_min, control_max)
-        self._connection.send_data(command)
 
     def read_data(self) -> Optional[tuple[float, float]]:
         """
@@ -51,7 +51,7 @@ class ConnectionToPid:
             return None
         return self._parse_response(raw)
 
-    def read_response(self) -> tuple[float, float]:
+    def read_data_and_wait(self) -> tuple[float, float]:
         """
         Блокирующее чтение до получения корректного ответа PID.
 
@@ -68,8 +68,8 @@ class ConnectionToPid:
         kp: float,
         ki: float,
         kd: float,
-        control_min: float,
-        control_max: float,
+        control_min: int,
+        control_max: int,
     ) -> tuple[float, float]:
         """
         Отправляет коэффициенты, затем блокирующе читает ответ.
@@ -83,6 +83,6 @@ class ConnectionToPid:
             control_min=control_min,
             control_max=control_max,
         )
-        return self.read_response()
+        return self.read_data_and_wait()
 
 
