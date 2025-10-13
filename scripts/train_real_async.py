@@ -25,7 +25,7 @@ from nn_laser_stabilizer.envs.utils import make_real_env, make_specs
 from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
 from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
-from nn_laser_stabilizer.config.hydra_paths import get_hydra_output_dir
+from nn_laser_stabilizer.config.paths import get_hydra_output_dir
 
 from logging import getLogger
 logger = getLogger(__name__)

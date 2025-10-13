@@ -11,7 +11,7 @@ from nn_laser_stabilizer.connection.mock_serial_connection import MockSerialConn
 from nn_laser_stabilizer.connection.connection_to_pid import ConnectionToPid
 from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
 from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
-from nn_laser_stabilizer.config.hydra_paths import get_hydra_output_dir
+from nn_laser_stabilizer.config.paths import get_hydra_output_dir
 from nn_laser_stabilizer.envs.control_limit_manager import ControlLimitManager, ControlLimitConfig
 from nn_laser_stabilizer.envs.constants import (
     KP_MIN,
