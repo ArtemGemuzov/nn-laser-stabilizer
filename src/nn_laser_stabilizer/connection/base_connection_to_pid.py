@@ -8,6 +8,14 @@ class BaseConnectionToPid(Protocol):
     Определяет интерфейс для отправки PID команд и чтения ответов.
     """
     
+    def open_connection(self) -> None:
+        """Открывает соединение с контроллером."""
+        ...
+    
+    def close_connection(self) -> None:
+        """Закрывает соединение с контроллером."""
+        ...
+    
     def send_command(
         self,
         *,

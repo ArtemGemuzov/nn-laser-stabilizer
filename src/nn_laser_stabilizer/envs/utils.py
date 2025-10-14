@@ -4,7 +4,7 @@ from torchrl.data import UnboundedContinuous, BoundedContinuous
 from torchrl.envs import TransformedEnv, EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_env import PidTuningEnv
-from nn_laser_stabilizer.connection import create_connection, ConnectionToPid, LoggingConnectionToPid
+from nn_laser_stabilizer.connection import create_connection_to_pid
 from nn_laser_stabilizer.envs.experimental_setup_controller import ExperimentalSetupController
 from nn_laser_stabilizer.envs.reward import make_reward
 from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
@@ -47,15 +47,7 @@ def make_real_env(config, output_dir: str) -> EnvBase:
     """
     env_config = config.env
     
-    serial_connection = create_connection(config)
-    serial_connection.open_connection()
-    
-    pid_connection = ConnectionToPid(serial_connection)
-    
-    if config.serial.log_connection:
-        connection_log_dir = os.path.join(output_dir, "connection_logs")
-        connection_logger = AsyncFileLogger(log_dir=connection_log_dir, filename="connection.log")
-        pid_connection = LoggingConnectionToPid(pid_connection, connection_logger)
+    pid_connection = create_connection_to_pid(config, output_dir)
     
     warmup_steps = env_config.warmup_steps
     block_size = env_config.block_size
@@ -93,9 +85,6 @@ def make_real_env(config, output_dir: str) -> EnvBase:
      
 def close_real_env(env: TransformedEnv):
     try:
-        controller = env.base_env.setup_controller
-        if hasattr(controller, 'pid_connection'):
-            if hasattr(controller.pid_connection, 'serial_connection'):
-                controller.pid_connection.serial_connection.close_connection()
+        env.base_env.setup_controller.close()
     except Exception as e:
         print(f"Warning: Could not close serial connection properly: {e}")

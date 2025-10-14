@@ -71,6 +71,7 @@ class ExperimentalSetupController:
     def reset(self, kp: float = DEFAULT_KP, ki: float = DEFAULT_KI, kd: float = DEFAULT_KD) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         self._reset_buffer()
         
+        self.pid_connection.open_connection()
         for _ in range(self._warmup_steps):
             process_variable, control_output = self.pid_connection.exchange(
                 kp=kp,
@@ -86,6 +87,10 @@ class ExperimentalSetupController:
             self._current_index += 1
         
         return self._get_buffer()
+    
+    def close(self) -> None:
+        """Закрывает соединение с установкой."""
+        self.pid_connection.close_connection()
     
     def set_seed(self, seed: Optional[int]) -> None:
         """Для реальной установки seed не применяется."""

@@ -14,6 +14,14 @@ class ConnectionToPid(BaseConnectionToPid):
 
     def __init__(self, connection: BaseConnection):
         self._connection = connection
+    
+    def open_connection(self) -> None:
+        """Открывает соединение с контроллером."""
+        self._connection.open_connection()
+    
+    def close_connection(self) -> None:
+        """Закрывает соединение с контроллером."""
+        self._connection.close_connection()
 
     def _format_command(self, *, kp: float, ki: float, kd: float, control_min: int, control_max: int) -> str:
         """Форматирует команду PID в строку."""
