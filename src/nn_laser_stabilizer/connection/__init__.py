@@ -34,27 +34,9 @@ def create_connection(config: DictConfig) -> BaseConnection:
 
 
 def create_connection_to_pid(config: DictConfig, output_dir: str) -> BaseConnectionToPid:
-    """
-    Создает соединение с PID контроллером на основе конфигурации.
-    
-    Соединение НЕ открывается автоматически - это делается в ExperimentalSetupController.reset()
-    
-    Args:
-        config: Конфигурация, содержащая:
-            - serial.use_mock: использовать ли mock соединение
-            - serial.port: COM порт
-            - serial.baudrate: скорость передачи (опционально)
-            - serial.timeout: таймаут (опционально)
-            - serial.log_connection: логировать ли команды и ответы
-        output_dir: Директория для логов соединения
-    
-    Returns:
-        BaseConnectionToPid: Настроенное (но не открытое) соединение с PID контроллером
-    """
     from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
     
     serial_connection = create_connection(config)
-    # НЕ вызываем open_connection() здесь - это делает контроллер
     
     pid_connection = ConnectionToPid(serial_connection)
     
