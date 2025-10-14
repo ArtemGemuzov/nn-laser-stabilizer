@@ -1,0 +1,11 @@
+# Тестовый конфиг - наследует train_real.yaml и переопределяет параметры
+
+defaults:
+  - train_real
+  - _self_
+
+experiment_name: td3_train_real_async_test
+
+serial:
+  use_mock: true 
+
