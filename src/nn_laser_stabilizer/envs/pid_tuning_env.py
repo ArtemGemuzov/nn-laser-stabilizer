@@ -84,8 +84,6 @@ class PidTuningEnv(EnvBase):
         sp_window = setpoints[self._burn_in_steps:]
         
         errors = pv_window - sp_window
-        
-        rewards = np.array([self.reward_func(pv, sp) for pv, sp in zip(pv_window, sp_window)])
          
         error_mean = np.mean(errors)
         error_std = np.std(errors)
@@ -99,7 +97,9 @@ class PidTuningEnv(EnvBase):
             device=self.device
         )
         
+        rewards = self.reward_func(pv_window, sp_window)
         reward = np.mean(rewards)
+        
         done = False # False, потому что при True насильно вызывается reset
 
         if self.logger is not None:
@@ -140,7 +140,11 @@ class PidTuningEnv(EnvBase):
         warmup_steps = len(process_variables)
         self._t += warmup_steps
 
-        errors = process_variables - setpoints
+        pv_window = process_variables[self._burn_in_steps:]
+        sp_window = setpoints[self._burn_in_steps:]
+        
+        errors = pv_window - sp_window
+
         error_mean = np.mean(errors)
         error_std = np.std(errors)
         

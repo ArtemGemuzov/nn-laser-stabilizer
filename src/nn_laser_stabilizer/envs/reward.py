@@ -1,7 +1,7 @@
-import math
 import inspect
+import numpy as np
 
-from nn_laser_stabilizer.envs.normalization import normalize_adc, normalize_dac
+from nn_laser_stabilizer.envs.normalization import normalize_adc
 from omegaconf import DictConfig
 
 class AbsoluteErrorReward:
@@ -11,12 +11,20 @@ class AbsoluteErrorReward:
     def __init__(self):
         pass
 
-    def __call__(self, process_variable: float, setpoint: float) -> float:
+    def __call__(self, process_variable, setpoint):
+        """
+        Args:
+            process_variable: float или np.ndarray
+            setpoint: float или np.ndarray
+            
+        Returns:
+            float или np.ndarray (в зависимости от входа)
+        """
         process_variable_norm = normalize_adc(process_variable)
         setpoint_norm = normalize_adc(setpoint)
 
         error = setpoint_norm - process_variable_norm
-        reward = -abs(error)
+        reward = -np.abs(error)
         reward_norm = 1 + reward
         return reward_norm
     
@@ -34,11 +42,19 @@ class ExponentialErrorReward:
     def __init__(self, k: float = 10.0):
         self.k = k
 
-    def __call__(self, process_variable: float, setpoint: float) -> float:
+    def __call__(self, process_variable, setpoint):
+        """
+        Args:
+            process_variable: float или np.ndarray
+            setpoint: float или np.ndarray
+            
+        Returns:
+            float или np.ndarray (в зависимости от входа)
+        """
         process_variable_norm = normalize_adc(process_variable)
         setpoint_norm = normalize_adc(setpoint)
-        error = abs(setpoint_norm - process_variable_norm)
-        return 2 * math.exp(-self.k * error) - 1
+        error = np.abs(setpoint_norm - process_variable_norm)
+        return 2 * np.exp(-self.k * error) - 1
 
 class RelativeErrorReward:
     """
@@ -54,10 +70,18 @@ class RelativeErrorReward:
     def __init__(self, eps: float = 1e-6):
         self.eps = eps
 
-    def __call__(self, process_variable: float, setpoint: float) -> float:
-        relative_error = abs(setpoint - process_variable) / (abs(setpoint) + self.eps)
+    def __call__(self, process_variable, setpoint):
+        """
+        Args:
+            process_variable: float или np.ndarray
+            setpoint: float или np.ndarray
+            
+        Returns:
+            float или np.ndarray (в зависимости от входа)
+        """
+        relative_error = np.abs(setpoint - process_variable) / (np.abs(setpoint) + self.eps)
         reward = 1 - relative_error
-        return max(-1.0, reward)
+        return np.maximum(-1.0, reward)
     
 
 REWARD_FUNCTIONS = {
