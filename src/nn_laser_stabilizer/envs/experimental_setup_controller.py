@@ -17,10 +17,10 @@ class ExperimentalSetupController:
         warmup_steps: int = 1000,
         block_size: int = 100,
         max_buffer_size: int = 2000,
-        force_min_value: float = 2000.0,
-        force_max_value: float = 4095.0,
-        default_min: float = 0.0,
-        default_max: float = 4095.0,
+        force_min_value: int = 2000,
+        force_max_value: int = 2500,
+        default_min: int = 0,
+        default_max: int = 4095,
     ):
         self.pid_connection = pid_connection
         self.setpoint = setpoint

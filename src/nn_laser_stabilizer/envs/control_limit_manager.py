@@ -3,12 +3,12 @@ from dataclasses import dataclass
 
 @dataclass
 class ControlLimitConfig:
-    default_min: float
-    default_max: float
-    force_min_value: float
-    force_max_value: float
-    lower_force_condition_threshold: float
-    upper_force_condition_threshold: float
+    default_min: int
+    default_max: int
+    force_min_value: int
+    force_max_value: int
+    lower_force_condition_threshold: int
+    upper_force_condition_threshold: int
     enforcement_steps: int
 
 
@@ -37,7 +37,7 @@ class ControlLimitManager:
         elif self._force_steps_left > 0:
             self._force_steps_left -= 1
 
-    def get_limits_for_step(self) -> tuple[float, float]:
+    def get_limits_for_step(self) -> tuple[int, int]:
         if self._force_steps_left > 0:
             return self.config.force_min_value, self.config.force_max_value
         return self._current_min, self._current_max
@@ -46,12 +46,12 @@ class ControlLimitManager:
 
 def make_control_limit_manager(
     *,
-    default_min: float,
-    default_max: float,
-    force_min_value: float,
-    force_max_value: float,
-    lower_force_condition_threshold: float,
-    upper_force_condition_threshold: float,
+    default_min: int,
+    default_max: int,
+    force_min_value: int,
+    force_max_value: int,
+    lower_force_condition_threshold: int,
+    upper_force_condition_threshold: int,
     enforcement_steps: int,
 ) -> ControlLimitManager:
     """Фабрика для создания ControlLimitManager из простых аргументов."""

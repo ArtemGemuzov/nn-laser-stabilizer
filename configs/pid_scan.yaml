@@ -14,12 +14,12 @@ grid:
   steps_per_point: 2000
 
 control_output_limits:
-  default_min: 0.0
-  default_max: 4095.0
-  force_min_value: 2000.0
-  force_max_value: 2500.0
-  lower_force_condition_threshold: 200.0
-  upper_force_condition_threshold: 4000.0
+  default_min: 0
+  default_max: 4095
+  force_min_value: 2000
+  force_max_value: 2500
+  lower_force_condition_threshold: 200
+  upper_force_condition_threshold: 4000
   enforcement_steps: 1000
 
 hydra:
