@@ -59,7 +59,7 @@ def main(config: DictConfig) -> None:
     make_env_fn = make_env_factory(config, output_dir)
 
     train_log_dir = get_hydra_output_dir("train_logs")
-    train_logger = AsyncFileLogger(log_dir=train_log_dir)
+    train_logger = AsyncFileLogger(log_dir=train_log_dir, filename="train.log")
 
     specs = make_specs(config.env.bounds)
     action_spec = specs["action"]
