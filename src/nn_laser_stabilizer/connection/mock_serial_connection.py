@@ -23,6 +23,8 @@ class MockSerialConnection(BaseConnection):
         self.stopbits = stopbits
         self.is_connected = False
         self._log_file = None
+        self._read_count = 0
+        self._send_count = 0
 
     def open_connection(self):
         self.is_connected = True
@@ -48,15 +50,19 @@ class MockSerialConnection(BaseConnection):
         
         process_variable = random.randint(0, ADC_MAX)
         control_output = random.randint(0, DAC_MAX)
-        return f"{process_variable} {control_output}"
+        data = f"{process_variable} {control_output}\n"
+        
+        self._read_count += 1
+        self._log_file.write(f"#{self._read_count} << {repr(data)}\n")
+        self._log_file.flush()
+        
+        return data
 
     def send_data(self, data_to_send: str):
         if not self.is_connected:
             raise ConnectionError("Mock serial connection is not open.")
 
-        if self._log_file:
-            self._log_file.write(data_to_send)
-            if not data_to_send.endswith('\n'):
-                self._log_file.write('\n')
-            self._log_file.flush()
+        self._send_count += 1
+        self._log_file.write(f"#{self._send_count} >> {repr(data_to_send)}\n")
+        self._log_file.flush()
 
