@@ -1,13 +1,12 @@
-import time
 import random
-from collections import deque
 from enum import Enum
 
+import numpy as np
 import torch
 from tensordict import TensorDict
 from torchrl.envs import EnvBase
 
-from nn_laser_stabilizer.envs.pid_tuning_experimental_setup import PidTuningExperimentalSetup
+from nn_laser_stabilizer.envs.experimental_setup_controller import ExperimentalSetupController
 from nn_laser_stabilizer.envs.constants import DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MIN, KD_MAX
 from nn_laser_stabilizer.envs.normalization import denormalize_kp, denormalize_ki, denormalize_kd, normalize_kp, normalize_ki, normalize_kd
 
@@ -25,61 +24,34 @@ class Phase(Enum):
 
 class PidTuningEnv(EnvBase):
     def __init__(self, 
-                 experimental_setup : PidTuningExperimentalSetup, 
+                 setup_controller: ExperimentalSetupController, 
                  action_spec,
                  observation_spec,
                  reward_spec,
                  reward_func,
                  logger=None,
-                 warmup_steps: int = 1000,
                  pretrain_blocks: int = 100,
-                 block_size: int = 100,
                  burn_in_steps: int = 20,
-                 force_min_value: float = 2000.0,
-                 force_max_value: float = 4095.0,
-                 default_min: float = 0.0,
-                 default_max: float = 4095.0,
     ):
         super().__init__()
 
-        self.experimental_setup = experimental_setup
+        self.setup_controller = setup_controller
 
         self.action_spec = action_spec
         self.observation_spec = observation_spec
         self.reward_spec = reward_spec
 
         self.reward_func = reward_func
-        self._force_min_value = force_min_value
-        self._force_max_value = force_max_value
-        self._default_min = default_min
-        self._default_max = default_max
 
         self.logger = logger
         self._t = 0
       
-        self._warmup_steps = int(warmup_steps)
         self._pretrain_blocks = int(pretrain_blocks)
-        self._block_size = int(block_size)
         self._burn_in_steps = int(burn_in_steps)
-        
-        if self._block_size < 3:
-            raise ValueError(
-                f"block_size must be at least 3 (got block_size={self._block_size})"
-            )
-        
-        if self._burn_in_steps >= self._block_size:
-            raise ValueError(
-                f"burn_in_steps must be less than block_size (got burn_in_steps={self._burn_in_steps}, block_size={self._block_size})"
-            )
-    
-        self.window_size = self._block_size - self._burn_in_steps
-        self.errors = deque(maxlen=self.window_size)  
-        self.rewards = deque(maxlen=self.window_size)  
+        self._block_count = 0  
 
     def _get_phase(self) -> Phase:
-        blocks = self._t // self._block_size
-        
-        if blocks < self._pretrain_blocks:
+        if self._block_count < self._pretrain_blocks:
             return Phase.PRETRAIN
         return Phase.NORMAL
 
@@ -104,26 +76,19 @@ class PidTuningEnv(EnvBase):
             case _:
                 raise ValueError(f"Unknown phase: {phase}")
 
-        for block_iteration in range(self._block_size):
-            applied_min = self._default_min
-            applied_max = self._default_max
-
-            process_variable, control_output, setpoint = self.experimental_setup.step(
-                kp, ki, kd, applied_min, applied_max
-            )
-            
-            if block_iteration >= self._burn_in_steps:
-                error = process_variable - setpoint
-                step_reward = self.reward_func(process_variable, setpoint)
-                
-                self.errors.append(error)
-                self.rewards.append(step_reward)
-
-            self._t += 1
-
-        error_mean = sum(self.errors) / self.window_size
-        error_variance = sum((error - error_mean) ** 2 for error in self.errors) / self.window_size
-        error_std = error_variance ** 0.5
+        process_variables, control_outputs, setpoints = self.setup_controller.step(kp, ki, kd)
+        self._t += len(process_variables)
+        self._block_count += 1
+        
+        pv_window = process_variables[self._burn_in_steps:]
+        sp_window = setpoints[self._burn_in_steps:]
+        
+        errors = pv_window - sp_window
+        
+        rewards = np.array([self.reward_func(pv, sp) for pv, sp in zip(pv_window, sp_window)])
+         
+        error_mean = np.mean(errors)
+        error_std = np.std(errors)
 
         error_mean_norm = error_mean / ERROR_MEAN_NORMALIZATION_FACTOR
         error_std_norm = error_std / ERROR_STD_NORMALIZATION_FACTOR
@@ -134,7 +99,7 @@ class PidTuningEnv(EnvBase):
             device=self.device
         )
         
-        reward = sum(self.rewards) / len(self.rewards)
+        reward = np.mean(rewards)
         done = False # False, потому что при True насильно вызывается reset
 
         if self.logger is not None:
@@ -167,40 +132,17 @@ class PidTuningEnv(EnvBase):
 
     def _reset(self, unused: TensorDict | None = None) -> TensorDict:
         self._t = 0
+        self._block_count = 0
 
         phase = Phase.WARMUP
 
-        kp, ki, kd = float(DEFAULT_KP), float(DEFAULT_KI), float(DEFAULT_KD)
-        applied_min = self._force_min_value
-        applied_max = self._force_max_value
-        
-        self.errors.clear()
-        self.rewards.clear()
-        
-        for warmup_step in range(self._warmup_steps):
-            process_variable, control_output, setpoint = self.experimental_setup.step(
-                kp, ki, kd, applied_min, applied_max
-            )
-            self._t += 1
-            
-            error = process_variable - setpoint
-            self.errors.append(error)
-            
-            if self.logger is not None:
-                try:
-                    log_line = (
-                        f"step={self._t} phase={Phase.WARMUP.value} "
-                        f"warmup_step={warmup_step} "
-                        f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
-                        f"pv={process_variable:.4f} co={control_output:.4f}"
-                    )
-                    self.logger.log(log_line)
-                except Exception:
-                    pass
+        process_variables, control_outputs, setpoints = self.setup_controller.reset()
+        warmup_steps = len(process_variables)
+        self._t += warmup_steps
 
-        error_mean = sum(self.errors) / len(self.errors)
-        error_variance = sum((e - error_mean) ** 2 for e in self.errors) / len(self.errors)
-        error_std = error_variance ** 0.5
+        errors = process_variables - setpoints
+        error_mean = np.mean(errors)
+        error_std = np.std(errors)
         
         error_mean_norm = error_mean / ERROR_MEAN_NORMALIZATION_FACTOR
         error_std_norm = error_std / ERROR_STD_NORMALIZATION_FACTOR
@@ -210,7 +152,7 @@ class PidTuningEnv(EnvBase):
                 log_line = (
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
-                    f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
+                    f"kp={DEFAULT_KP:.4f} ki={DEFAULT_KI:.4f} kd={DEFAULT_KD:.4f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                 )
@@ -227,7 +169,7 @@ class PidTuningEnv(EnvBase):
         return TensorDict({"observation": observation}, batch_size=[])
 
     def _set_seed(self, seed: int):
-        self.experimental_setup.set_seed(seed)
+        self.setup_controller.set_seed(seed)
 
     def set_state(self, state):
         pass
@@ -236,4 +178,3 @@ class PidTuningEnv(EnvBase):
         if "observation" not in tensordict:
             tensordict = self.reset()
         return self.step(tensordict)
-    
