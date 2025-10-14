@@ -23,7 +23,7 @@ class Phase(Enum):
     NORMAL = "normal"
     
 
-class PidTuningExperimentalEnv(EnvBase):
+class PidTuningEnv(EnvBase):
     def __init__(self, 
                  experimental_setup : PidTuningExperimentalSetup, 
                  action_spec,

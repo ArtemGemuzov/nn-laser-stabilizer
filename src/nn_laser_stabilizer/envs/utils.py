@@ -3,7 +3,7 @@ import torch
 from torchrl.data import UnboundedContinuous, BoundedContinuous
 from torchrl.envs import TransformedEnv, EnvBase
 
-from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperimentalEnv
+from nn_laser_stabilizer.envs.pid_tuning_env import PidTuningEnv
 from nn_laser_stabilizer.connection import create_connection, ConnectionToPid, LoggingConnectionToPid
 from nn_laser_stabilizer.envs.real_experimental_setup import RealExperimentalSetup
 from nn_laser_stabilizer.envs.reward import make_reward
@@ -67,7 +67,7 @@ def make_real_env(config, output_dir: str) -> EnvBase:
     env_log_dir = os.path.join(output_dir, "env_logs")
     env_logger = AsyncFileLogger(log_dir=env_log_dir, filename="env.log")
     
-    env = PidTuningExperimentalEnv(
+    env = PidTuningEnv(
         real_setup,
         action_spec=specs["action"],
         observation_spec=specs["observation"], 

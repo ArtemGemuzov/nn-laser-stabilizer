@@ -1,5 +1,5 @@
 from nn_laser_stabilizer.envs.constants import DAC_MAX
-from nn_laser_stabilizer.envs.pid_tuning_experimental_env import PidTuningExperimentalEnv
+from nn_laser_stabilizer.envs.pid_tuning_env import PidTuningEnv
 from nn_laser_stabilizer.envs.reward import make_reward
 from nn_laser_stabilizer.envs.simulation.numerical_experimental_setup import NumericalExperimentalSetup
 from nn_laser_stabilizer.envs.simulation.oscillator import DuffingOscillator
@@ -51,7 +51,7 @@ def make_simulated_env(config) -> TransformedEnv:
     specs = make_specs(env_config.bounds)
 
     
-    base_env = PidTuningExperimentalEnv(
+    base_env = PidTuningEnv(
         numerical_model,
         action_spec=specs["action"],
         observation_spec=specs["observation"],  # [error_mean, error_std]
