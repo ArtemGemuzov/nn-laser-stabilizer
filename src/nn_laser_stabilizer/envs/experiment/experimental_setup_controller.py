@@ -2,11 +2,6 @@ from typing import Tuple, Optional
 import numpy as np
 
 from nn_laser_stabilizer.connection import BaseConnectionToPid
-from nn_laser_stabilizer.envs.experiment.constants import (
-    DEFAULT_KP,
-    DEFAULT_KI,
-    DEFAULT_KD,
-)
 from nn_laser_stabilizer.envs.experimental_setup_protocol import ExperimentalSetupProtocol
 
 
@@ -73,7 +68,7 @@ class ExperimentalSetupController(ExperimentalSetupProtocol):
     def _reset_buffer(self) -> None:
         self._current_index = 0
     
-    def reset(self, kp: float = DEFAULT_KP, ki: float = DEFAULT_KI, kd: float = DEFAULT_KD) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def reset(self, kp: float, ki: float, kd: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         self._reset_buffer()
         
         self.pid_connection.open_connection()
