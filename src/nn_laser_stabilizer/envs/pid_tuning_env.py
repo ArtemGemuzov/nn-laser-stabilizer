@@ -6,7 +6,7 @@ import torch
 from tensordict import TensorDict
 from torchrl.envs import EnvBase
 
-from nn_laser_stabilizer.envs.experimental_setup_controller import ExperimentalSetupController
+from nn_laser_stabilizer.envs.experimental_setup_protocol import ExperimentalSetupProtocol
 from nn_laser_stabilizer.envs.constants import DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MIN, KD_MAX
 from nn_laser_stabilizer.envs.normalization import denormalize_kp, denormalize_ki, denormalize_kd, normalize_kp, normalize_ki, normalize_kd
 
@@ -24,7 +24,7 @@ class Phase(Enum):
 
 class PidTuningEnv(EnvBase):
     def __init__(self, 
-                 setup_controller: ExperimentalSetupController, 
+                 setup_controller: ExperimentalSetupProtocol, 
                  action_spec,
                  observation_spec,
                  reward_spec,

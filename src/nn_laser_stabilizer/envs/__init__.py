@@ -7,6 +7,7 @@ from nn_laser_stabilizer.envs.simulation.utils import (
     make_gym_env,
     make_simulated_env,
 )
+from nn_laser_stabilizer.envs.experimental_setup_protocol import ExperimentalSetupProtocol
 from nn_laser_stabilizer.envs.control_limit_manager import (
     ControlLimitConfig,
     ControlLimitManager,
@@ -34,6 +35,7 @@ __all__ = [
     'close_real_env',
     'make_gym_env',
     'make_simulated_env',
+    'ExperimentalSetupProtocol',
     'ControlLimitConfig',
     'ControlLimitManager',
     'make_control_limit_manager',

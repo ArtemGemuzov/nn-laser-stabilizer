@@ -7,9 +7,10 @@ from nn_laser_stabilizer.envs.constants import (
     DEFAULT_KI,
     DEFAULT_KD,
 )
+from nn_laser_stabilizer.envs.experimental_setup_protocol import ExperimentalSetupProtocol
 
 
-class ExperimentalSetupController:
+class ExperimentalSetupController(ExperimentalSetupProtocol):
     def __init__(
         self,
         pid_connection: BaseConnectionToPid,
@@ -23,7 +24,7 @@ class ExperimentalSetupController:
         default_max: int = 4095,
     ):
         self.pid_connection = pid_connection
-        self.setpoint = setpoint
+        self._setpoint = setpoint
         
         self._warmup_steps = warmup_steps
         self._block_size = block_size
@@ -38,6 +39,10 @@ class ExperimentalSetupController:
         self._control_outputs = np.zeros(max_buffer_size, dtype=np.float32)
         self._setpoints = np.zeros(max_buffer_size, dtype=np.float32)
         self._current_index = 0
+    
+    @property
+    def setpoint(self) -> float:
+        return self._setpoint
     
     def step(self, kp: float, ki: float, kd: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         self._reset_buffer()
