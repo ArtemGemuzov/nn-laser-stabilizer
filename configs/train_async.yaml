@@ -13,8 +13,25 @@ serial: # CHECK
   log_connection: true
 
 env:
-  name: real  # "real" или "simulation"
+  name: real 
   setpoint: 1200 # CHECK
+
+  process_variable_max: 10230.0
+  control_output_max: 4095.0
+  
+  default_kp: 3.5
+  default_ki: 11.0
+  default_kd: 0.002
+  
+  default_min_control: 0
+  default_max_control: 4095
+  
+  kp_min: 0.0
+  ki_min: 0.0
+  kd_min: 0.0
+  kp_max: ${env.default_kp} * 5
+  ki_max: ${env.default_ki} * 5
+  kd_max: ${env.default_kd} * 5
 
   reward:
     name: exponential # exponential absolute relative

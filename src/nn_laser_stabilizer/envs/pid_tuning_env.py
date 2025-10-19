@@ -7,8 +7,7 @@ from tensordict import TensorDict
 from torchrl.envs import EnvBase
 
 from nn_laser_stabilizer.envs.experimental_setup_protocol import ExperimentalSetupProtocol
-from nn_laser_stabilizer.envs.experiment.constants import DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MIN, KD_MAX
-from nn_laser_stabilizer.envs.normalization import denormalize_kp, denormalize_ki, denormalize_kd, normalize_kp, normalize_ki, normalize_kd
+from nn_laser_stabilizer.envs.normalizer import Normalizer
 
 
 # TODO: занести в класс
@@ -29,6 +28,7 @@ class PidTuningEnv(EnvBase):
                  observation_spec,
                  reward_spec,
                  reward_func,
+                 normalizer: Normalizer,
                  logger=None,
                  pretrain_blocks: int = 100,
                  burn_in_steps: int = 20,
@@ -42,6 +42,7 @@ class PidTuningEnv(EnvBase):
         self.reward_spec = reward_spec
 
         self.reward_func = reward_func
+        self.normalizer = normalizer
 
         self.logger = logger
         self._t = 0
@@ -62,17 +63,17 @@ class PidTuningEnv(EnvBase):
 
         match phase:
             case Phase.PRETRAIN:
-                kp_range = KP_MAX - KP_MIN
-                ki_range = KI_MAX - KI_MIN
-                kd_range = KD_MAX - KD_MIN
+                kp_range = self.normalizer.kp_max - self.normalizer.kp_min
+                ki_range = self.normalizer.ki_max - self.normalizer.ki_min
+                kd_range = self.normalizer.kd_max - self.normalizer.kd_min
                 
-                kp = KP_MIN + random.uniform(0.25 * kp_range, 0.75 * kp_range)
-                ki = KI_MIN + random.uniform(0.25 * ki_range, 0.75 * ki_range)
-                kd = KD_MIN + random.uniform(0.25 * kd_range, 0.75 * kd_range)
+                kp = self.normalizer.kp_min + random.uniform(0.25 * kp_range, 0.75 * kp_range)
+                ki = self.normalizer.ki_min + random.uniform(0.25 * ki_range, 0.75 * ki_range)
+                kd = self.normalizer.kd_min + random.uniform(0.25 * kd_range, 0.75 * kd_range)
             case Phase.NORMAL:
-                kp = denormalize_kp(agent_kp_norm)
-                ki = denormalize_ki(agent_ki_norm)
-                kd = denormalize_kd(agent_kd_norm)
+                kp = self.normalizer.denormalize_kp(agent_kp_norm)
+                ki = self.normalizer.denormalize_ki(agent_ki_norm)
+                kd = self.normalizer.denormalize_kd(agent_kd_norm)
             case _:
                 raise ValueError(f"Unknown phase: {phase}")
 
@@ -116,9 +117,9 @@ class PidTuningEnv(EnvBase):
             except Exception:
                 pass
 
-        kp_norm = normalize_kp(kp)
-        ki_norm = normalize_ki(ki) 
-        kd_norm = normalize_kd(kd)
+        kp_norm = self.normalizer.normalize_kp(kp)
+        ki_norm = self.normalizer.normalize_ki(ki) 
+        kd_norm = self.normalizer.normalize_kd(kd)
         tensordict.set("action", torch.tensor([kp_norm, ki_norm, kd_norm], dtype=torch.float32, device=self.device))
 
         return TensorDict(
@@ -136,7 +137,11 @@ class PidTuningEnv(EnvBase):
 
         phase = Phase.WARMUP
 
-        process_variables, control_outputs, setpoints = self.setup_controller.reset()
+        process_variables, control_outputs, setpoints = self.setup_controller.reset(
+            kp=self.normalizer.default_kp,
+            ki=self.normalizer.default_ki,
+            kd=self.normalizer.default_kd
+        )
         warmup_steps = len(process_variables)
         self._t += warmup_steps
 
@@ -156,7 +161,7 @@ class PidTuningEnv(EnvBase):
                 log_line = (
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
-                    f"kp={DEFAULT_KP:.4f} ki={DEFAULT_KI:.4f} kd={DEFAULT_KD:.4f} "
+                    f"kp={self.normalizer.default_kp:.4f} ki={self.normalizer.default_ki:.4f} kd={self.normalizer.default_kd:.4f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                 )

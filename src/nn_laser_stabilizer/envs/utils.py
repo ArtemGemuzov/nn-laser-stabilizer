@@ -10,6 +10,7 @@ from nn_laser_stabilizer.envs.simulation.numerical_experimental_setup_controller
 from nn_laser_stabilizer.envs.simulation.oscillator import DuffingOscillator
 from nn_laser_stabilizer.envs.simulation.pid_controller import PIDController
 from nn_laser_stabilizer.envs.reward import make_reward
+from nn_laser_stabilizer.envs.normalizer import Normalizer, make_normalizer
 from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
 
 def make_specs(bounds_config: dict) -> dict:
@@ -31,16 +32,18 @@ def make_specs(bounds_config: dict) -> dict:
 
 def make_env(config, output_dir: str = None) -> EnvBase:
     env_config = config.env
-    env_name = env_config.get('name', 'real')
+    env_name = env_config.name
+    
+    normalizer = make_normalizer(config)
     
     if env_name == "real":
-        return _make_real_env(config, output_dir)
+        return _make_real_env(config, normalizer, output_dir)
     elif env_name == "simulation":
-        return _make_simulation_env(config)
+        return _make_simulation_env(config, normalizer)
     else:
         raise ValueError(f"Unknown environment name: {env_name}")
 
-def _make_real_env(config, output_dir: str) -> EnvBase:
+def _make_real_env(config, normalizer: Normalizer, output_dir: str) -> EnvBase:
     env_config = config.env
     
     pid_connection = create_connection_to_pid(config, output_dir)
@@ -71,7 +74,8 @@ def _make_real_env(config, output_dir: str) -> EnvBase:
         action_spec=specs["action"],
         observation_spec=specs["observation"], 
         reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
-        reward_func=make_reward(config),
+        reward_func=make_reward(config, normalizer),
+        normalizer=normalizer,
         logger=env_logger,
         pretrain_blocks=env_config.pretrain_blocks,
         burn_in_steps=env_config.burn_in_steps,
@@ -80,17 +84,17 @@ def _make_real_env(config, output_dir: str) -> EnvBase:
     return env
 
 
-def _make_simulation_env(config) -> EnvBase:
+def _make_simulation_env(config, normalizer: Normalizer) -> EnvBase:
     env_config = config.env
     
     pid = PIDController(setpoint=env_config.setpoint)
     oscillator = DuffingOscillator(
-        mass=env_config.get('mass', 1.0),
-        k_linear=env_config.get('k_linear', 1.0),
-        k_nonlinear=env_config.get('k_nonlinear', 1.0),
-        k_damping=env_config.get('k_damping', 0.1),
-        process_noise_std=env_config.get('process_noise_std', 0.05),
-        measurement_noise_std=env_config.get('measurement_noise_std', 0.02)
+        mass=env_config.mass,
+        k_linear=env_config.k_linear,
+        k_nonlinear=env_config.k_nonlinear,
+        k_damping=env_config.k_damping,
+        process_noise_std=env_config.process_noise_std,
+        measurement_noise_std=env_config.measurement_noise_std
     )
     
     setup_controller = NumericalExperimentalSetupController()
@@ -102,10 +106,11 @@ def _make_simulation_env(config) -> EnvBase:
         action_spec=specs["action"],
         observation_spec=specs["observation"], 
         reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
-        reward_func=make_reward(config),
+        reward_func=make_reward(config, normalizer),
+        normalizer=normalizer,
         logger=None, 
-        pretrain_blocks=env_config.get('pretrain_blocks', 100),
-        burn_in_steps=env_config.get('burn_in_steps', 20),
+        pretrain_blocks=env_config.pretrain_blocks,
+        burn_in_steps=env_config.burn_in_steps,
     )
     env.set_seed(config.seed)
     return env

@@ -1,15 +1,15 @@
 import inspect
 import numpy as np
 
-from nn_laser_stabilizer.envs.normalization import normalize_adc
 from omegaconf import DictConfig
+from nn_laser_stabilizer.envs.normalizer import Normalizer
 
 class AbsoluteErrorReward:
     """
     Награда: -|error_norm| + 1
     """
-    def __init__(self):
-        pass
+    def __init__(self, normalizer: Normalizer):
+        self.normalizer = normalizer
 
     def __call__(self, process_variable, setpoint):
         """
@@ -20,8 +20,8 @@ class AbsoluteErrorReward:
         Returns:
             float или np.ndarray (в зависимости от входа)
         """
-        process_variable_norm = normalize_adc(process_variable)
-        setpoint_norm = normalize_adc(setpoint)
+        process_variable_norm = self.normalizer.normalize_process_variable(process_variable)
+        setpoint_norm = self.normalizer.normalize_process_variable(setpoint)
 
         error = setpoint_norm - process_variable_norm
         reward = -np.abs(error)
@@ -39,7 +39,8 @@ class ExponentialErrorReward:
       - reward ∈ [-1, 1]
       - k > 0 задаёт жёсткость штрафа
     """
-    def __init__(self, k: float = 10.0):
+    def __init__(self, normalizer: Normalizer, k: float = 10.0):
+        self.normalizer = normalizer
         self.k = k
 
     def __call__(self, process_variable, setpoint):
@@ -51,8 +52,8 @@ class ExponentialErrorReward:
         Returns:
             float или np.ndarray (в зависимости от входа)
         """
-        process_variable_norm = normalize_adc(process_variable)
-        setpoint_norm = normalize_adc(setpoint)
+        process_variable_norm = self.normalizer.normalize_process_variable(process_variable)
+        setpoint_norm = self.normalizer.normalize_process_variable(setpoint)
         error = np.abs(setpoint_norm - process_variable_norm)
         return 2 * np.exp(-self.k * error) - 1
 
@@ -67,7 +68,8 @@ class RelativeErrorReward:
       - reward ∈ [-1, 1]
       - eps нужен для защиты от деления на ноль
     """
-    def __init__(self, eps: float = 1e-6):
+    def __init__(self, normalizer: Normalizer, eps: float = 1e-6):
+        self.normalizer = normalizer
         self.eps = eps
 
     def __call__(self, process_variable, setpoint):
@@ -90,7 +92,7 @@ REWARD_FUNCTIONS = {
     "exponential": ExponentialErrorReward,
 }
 
-def make_reward(config: DictConfig):
+def make_reward(config: DictConfig, normalizer: Normalizer):
     reward_config = config.env.reward
     
     reward_name = reward_config.name
@@ -105,5 +107,8 @@ def make_reward(config: DictConfig):
 
     sig = inspect.signature(RewardClass.__init__)
     valid_args = {k: v for k, v in args.items() if k in sig.parameters and k != "self"}
+    
+    valid_args["normalizer"] = normalizer
+    
     return RewardClass(**valid_args)
  
