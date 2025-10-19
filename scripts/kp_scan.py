@@ -6,14 +6,11 @@ from logging import getLogger
 import hydra
 from omegaconf import DictConfig
 
-from nn_laser_stabilizer.connection.serial_connection import SerialConnection
-from nn_laser_stabilizer.connection.mock_serial_connection import MockSerialConnection
-from nn_laser_stabilizer.connection.connection_to_pid import ConnectionToPid
-from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
-from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
-from nn_laser_stabilizer.config.paths import get_hydra_output_dir
-from nn_laser_stabilizer.envs.control_limit_manager import ControlLimitManager, ControlLimitConfig
-from nn_laser_stabilizer.envs.constants import (
+from nn_laser_stabilizer.connection import SerialConnection, MockSerialConnection, ConnectionToPid
+from nn_laser_stabilizer.logging import AsyncFileLogger
+from nn_laser_stabilizer.config import find_configs_dir, get_hydra_output_dir
+from nn_laser_stabilizer.envs import ControlLimitManager, ControlLimitConfig
+from nn_laser_stabilizer.envs import (
     KP_MIN,
     DEFAULT_KP,
     KP_MAX,

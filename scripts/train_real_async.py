@@ -6,10 +6,8 @@ import torch
 import hydra
 from omegaconf import DictConfig
 
-from nn_laser_stabilizer.logging.utils import (
-    set_seeds
-)
-from nn_laser_stabilizer.agents.td3 import (
+from nn_laser_stabilizer.logging import set_seeds, AsyncFileLogger
+from nn_laser_stabilizer.agents import (
     make_td3_agent,
     make_loss_module,
     make_optimizers,
@@ -17,11 +15,9 @@ from nn_laser_stabilizer.agents.td3 import (
     train_step,
     warmup_from_specs
 )
-from nn_laser_stabilizer.envs.utils import make_real_env, make_specs
-from nn_laser_stabilizer.data.utils import make_buffer, make_async_collector
-from nn_laser_stabilizer.config.find_configs_dir import find_configs_dir
-from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
-from nn_laser_stabilizer.config.paths import get_hydra_output_dir
+from nn_laser_stabilizer.envs import make_real_env, make_specs
+from nn_laser_stabilizer.training import make_buffer, make_async_collector
+from nn_laser_stabilizer.config import find_configs_dir, get_hydra_output_dir
 
 from logging import getLogger
 logger = getLogger(__name__)

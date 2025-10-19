@@ -1,9 +1,9 @@
 from pathlib import Path
 
 
-class SimpleFileLogger:
+class FileLogger:
     """
-    Простой логгер, который записывает все в один файл одной строкой с переносом.
+    Логгер, который записывает все в один файл одной строкой с переносом.
     """
 
     def __init__(self, log_dir: str):
