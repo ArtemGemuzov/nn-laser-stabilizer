@@ -4,7 +4,7 @@ import os
 import serial
 
 from nn_laser_stabilizer.connection import BaseConnection
-from nn_laser_stabilizer.envs.constants import ADC_MAX, DAC_MAX
+from nn_laser_stabilizer.envs.experiment.constants import ADC_MAX, DAC_MAX
 from nn_laser_stabilizer.config.paths import get_hydra_runtime_output_dir
 
 class MockSerialConnection(BaseConnection):

@@ -2,7 +2,7 @@ from typing import Tuple, Optional
 import numpy as np
 
 from nn_laser_stabilizer.connection import BaseConnectionToPid
-from nn_laser_stabilizer.envs.constants import (
+from nn_laser_stabilizer.envs.experiment.constants import (
     DEFAULT_KP,
     DEFAULT_KI,
     DEFAULT_KD,
@@ -100,5 +100,3 @@ class ExperimentalSetupController(ExperimentalSetupProtocol):
     def set_seed(self, seed: Optional[int]) -> None:
         """Для реальной установки seed не применяется."""
         pass
-
-

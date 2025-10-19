@@ -5,7 +5,10 @@ from torchrl.envs import TransformedEnv, EnvBase
 
 from nn_laser_stabilizer.envs.pid_tuning_env import PidTuningEnv
 from nn_laser_stabilizer.connection import create_connection_to_pid
-from nn_laser_stabilizer.envs.experimental_setup_controller import ExperimentalSetupController
+from nn_laser_stabilizer.envs.experiment.experimental_setup_controller import ExperimentalSetupController
+from nn_laser_stabilizer.envs.simulation.numerical_experimental_setup_controller import NumericalExperimentalSetupController
+from nn_laser_stabilizer.envs.simulation.oscillator import DuffingOscillator
+from nn_laser_stabilizer.envs.simulation.pid_controller import PIDController
 from nn_laser_stabilizer.envs.reward import make_reward
 from nn_laser_stabilizer.logging.async_file_logger import AsyncFileLogger
 
@@ -26,25 +29,18 @@ def make_specs(bounds_config: dict) -> dict:
 
     return specs
 
-def make_real_env(config, output_dir: str) -> EnvBase:
-    """
-    Создает окружение TorchRL для взаимодействия с реальной установкой через SerialConnection.
+def make_env(config, output_dir: str = None) -> EnvBase:
+    env_config = config.env
+    env_name = env_config.get('name', 'real')
     
-    Args:
-        config: Конфигурация, содержащая:
-            - env.setpoint: целевое значение (setpoint)
-            - env.bounds: границы для спецификаций
-            - serial.use_mock: использовать ли mock соединение (True/False)
-            - serial.port: COM порт для подключения
-            - serial.baudrate: скорость передачи (опционально, по умолчанию 115200)
-            - serial.timeout: таймаут (опционально, по умолчанию 0.1)
-            - serial.log_connection: логировать ли команды и ответы (опционально, по умолчанию False)
-            - seed: зерно для генератора случайных чисел
-        output_dir: Рабочая директория для логов
-    
-    Returns:
-        TransformedEnv: Окружение TorchRL
-    """
+    if env_name == "real":
+        return _make_real_env(config, output_dir)
+    elif env_name == "simulation":
+        return _make_simulation_env(config)
+    else:
+        raise ValueError(f"Unknown environment name: {env_name}")
+
+def _make_real_env(config, output_dir: str) -> EnvBase:
     env_config = config.env
     
     pid_connection = create_connection_to_pid(config, output_dir)
@@ -82,8 +78,39 @@ def make_real_env(config, output_dir: str) -> EnvBase:
     )
     env.set_seed(config.seed)
     return env
+
+
+def _make_simulation_env(config) -> EnvBase:
+    env_config = config.env
+    
+    pid = PIDController(setpoint=env_config.setpoint)
+    oscillator = DuffingOscillator(
+        mass=env_config.get('mass', 1.0),
+        k_linear=env_config.get('k_linear', 1.0),
+        k_nonlinear=env_config.get('k_nonlinear', 1.0),
+        k_damping=env_config.get('k_damping', 0.1),
+        process_noise_std=env_config.get('process_noise_std', 0.05),
+        measurement_noise_std=env_config.get('measurement_noise_std', 0.02)
+    )
+    
+    setup_controller = NumericalExperimentalSetupController()
+    
+    specs = make_specs(env_config.bounds)
+    
+    env = PidTuningEnv(
+        setup_controller=setup_controller,
+        action_spec=specs["action"],
+        observation_spec=specs["observation"], 
+        reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
+        reward_func=make_reward(config),
+        logger=None, 
+        pretrain_blocks=env_config.get('pretrain_blocks', 100),
+        burn_in_steps=env_config.get('burn_in_steps', 20),
+    )
+    env.set_seed(config.seed)
+    return env
      
-def close_real_env(env: TransformedEnv):
+def close_env(env: TransformedEnv):
     try:
         env.base_env.setup_controller.close()
     except Exception as e:

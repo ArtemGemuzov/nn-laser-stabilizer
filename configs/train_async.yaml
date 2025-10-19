@@ -1,4 +1,4 @@
-experiment_name: td3_train_real_async
+experiment_name: td3_train_async
 seed: 42 
 
 defaults:
@@ -13,6 +13,7 @@ serial: # CHECK
   log_connection: true
 
 env:
+  name: real  # "real" или "simulation"
   setpoint: 1200 # CHECK
 
   reward:

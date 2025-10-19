@@ -1,4 +1,4 @@
-from nn_laser_stabilizer.envs.constants import DAC_MAX, ADC_MAX, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MIN, KD_MAX
+from nn_laser_stabilizer.envs.experiment.constants import DAC_MAX, ADC_MAX, KP_MIN, KP_MAX, KI_MIN, KI_MAX, KD_MIN, KD_MAX
 
 def normalize_adc(value: float) -> float:
     return (value / ADC_MAX) * 2.0 - 1.0
