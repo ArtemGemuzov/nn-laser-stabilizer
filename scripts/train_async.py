@@ -15,7 +15,7 @@ from nn_laser_stabilizer.agents import (
     train_step,
     warmup_from_specs
 )
-from nn_laser_stabilizer.envs import make_real_env, make_specs
+from nn_laser_stabilizer.envs import make_env, make_specs
 from nn_laser_stabilizer.training import make_buffer, make_async_collector
 from nn_laser_stabilizer.config import find_configs_dir, get_hydra_output_dir
 
@@ -33,26 +33,27 @@ def main(config: DictConfig) -> None:
     logger.info(f"Setpoint = {config.env.setpoint}")
 
     output_dir = get_hydra_output_dir()
+    config.output_dir = output_dir
 
-    # TODO: aSyncDataCollector внутри себя создает фейковое окружение, поэтому при первом вызове нужно вернуть симуляцию окружения
-    def make_env_factory(config, output_dir):
+    # aSyncDataCollector внутри себя создает фейковое окружение, поэтому при первом вызове нужно вернуть симуляцию окружения
+    def make_env_factory(config):
         first_call = True
 
         def env_fn():
             nonlocal first_call
             if not first_call:
-                return make_real_env(config, output_dir=output_dir)
+                return make_env(config)
             
             first_call = False
             from copy import deepcopy
             config_for_mocked_env = deepcopy(config)
             if not config_for_mocked_env.serial.get("use_mock"):
                 config_for_mocked_env.serial.use_mock = True
-            return make_real_env(config_for_mocked_env, output_dir=output_dir)
+            return make_env(config_for_mocked_env)
 
         return env_fn
 
-    make_env_fn = make_env_factory(config, output_dir)
+    make_env_fn = make_env_factory(config)
 
     train_log_dir = get_hydra_output_dir("train_logs")
     train_logger = AsyncFileLogger(log_dir=train_log_dir, filename="train.log")

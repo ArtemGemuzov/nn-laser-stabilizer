@@ -30,21 +30,22 @@ def make_specs(bounds_config: dict) -> dict:
 
     return specs
 
-def make_env(config, output_dir: str = None) -> EnvBase:
+def make_env(config) -> EnvBase:
     env_config = config.env
     env_name = env_config.name
     
     normalizer = make_normalizer(config)
     
     if env_name == "real":
-        return _make_real_env(config, normalizer, output_dir)
+        return _make_real_env(config, normalizer)
     elif env_name == "simulation":
         return _make_simulation_env(config, normalizer)
     else:
         raise ValueError(f"Unknown environment name: {env_name}")
 
-def _make_real_env(config, normalizer: Normalizer, output_dir: str) -> EnvBase:
+def _make_real_env(config, normalizer: Normalizer) -> EnvBase:
     env_config = config.env
+    output_dir = config.output_dir
     
     pid_connection = create_connection_to_pid(config, output_dir)
     
