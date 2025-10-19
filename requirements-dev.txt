@@ -4,9 +4,12 @@ gymnasium==1.2.0
 mujoco==3.3.5
 pygame==2.6.1
 
+stable-baselines3==2.7.0
+
 matplotlib==3.10.3
 seaborn==0.13.2
   
 ipykernel==6.30.1 
 ipywidgets==7.7.1
 
+keyboard==0.13.5
