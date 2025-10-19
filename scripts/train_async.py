@@ -22,7 +22,7 @@ from nn_laser_stabilizer.config import find_configs_dir, get_hydra_output_dir
 from logging import getLogger
 logger = getLogger(__name__)
 
-CONFIG_NAME = "train_real"
+CONFIG_NAME = "train_async"
 
 @hydra.main(config_path=find_configs_dir(), config_name=CONFIG_NAME, version_base=None)
 def main(config: DictConfig) -> None:
