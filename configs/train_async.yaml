@@ -1,5 +1,6 @@
 experiment_name: td3_train_async
 seed: 42 
+output_dir: # Должно быть пустым
 
 defaults:
   - agent: agent
@@ -29,9 +30,9 @@ env:
   kp_min: 0.0
   ki_min: 0.0
   kd_min: 0.0
-  kp_max: ${env.default_kp} * 5
-  ki_max: ${env.default_ki} * 5
-  kd_max: ${env.default_kd} * 5
+  kp_max: 17.5
+  ki_max: 55
+  kd_max: 0.01
 
   reward:
     name: exponential # exponential absolute relative

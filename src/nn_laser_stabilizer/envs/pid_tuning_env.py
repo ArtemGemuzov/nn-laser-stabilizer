@@ -11,8 +11,8 @@ from nn_laser_stabilizer.envs.normalizer import Normalizer
 
 
 # TODO: занести в класс
-ERROR_MEAN_NORMALIZATION_FACTOR = 2.0
-ERROR_STD_NORMALIZATION_FACTOR = 20.0
+ERROR_MEAN_NORMALIZATION_FACTOR = 1.0
+ERROR_STD_NORMALIZATION_FACTOR = 1.0
 
 
 class Phase(Enum):

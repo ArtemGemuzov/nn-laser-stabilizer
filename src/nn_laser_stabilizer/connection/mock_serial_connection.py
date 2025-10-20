@@ -4,7 +4,6 @@ import os
 import serial
 
 from nn_laser_stabilizer.connection import BaseConnection
-from nn_laser_stabilizer.envs.experiment.constants import ADC_MAX, DAC_MAX
 from nn_laser_stabilizer.config.paths import get_hydra_runtime_output_dir
 
 class MockSerialConnection(BaseConnection):
@@ -48,8 +47,8 @@ class MockSerialConnection(BaseConnection):
         if not self.is_connected:
             raise ConnectionError("Mock serial connection is not open.")
         
-        process_variable = random.randint(0, ADC_MAX)
-        control_output = random.randint(0, DAC_MAX)
+        process_variable = random.randint(0, 1000)
+        control_output = random.randint(0, 1000)
         data = f"{process_variable} {control_output}\n"
         
         self._read_count += 1

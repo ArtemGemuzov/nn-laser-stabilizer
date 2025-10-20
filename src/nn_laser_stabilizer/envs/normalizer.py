@@ -77,15 +77,15 @@ class Normalizer:
 def make_normalizer(config) -> Normalizer:
     env_config = config.env
     return Normalizer(
-        process_variable_max=env_config.process_variable_max,
-        control_output_max=env_config.control_output_max,
-        kp_min=env_config.kp_min,
-        kp_max=env_config.kp_max,
-        ki_min=env_config.ki_min,
-        ki_max=env_config.ki_max,
-        kd_min=env_config.kd_min,
-        kd_max=env_config.kd_max,
-        default_kp=env_config.default_kp,
-        default_ki=env_config.default_ki,
-        default_kd=env_config.default_kd
+        process_variable_max=float(env_config.process_variable_max),
+        control_output_max=float(env_config.control_output_max),
+        kp_min=float(env_config.kp_min),
+        kp_max=float(env_config.kp_max),
+        ki_min=float(env_config.ki_min),
+        ki_max=float(env_config.ki_max),
+        kd_min=float(env_config.kd_min),
+        kd_max=float(env_config.kd_max),
+        default_kp=float(env_config.default_kp),
+        default_ki=float(env_config.default_ki),
+        default_kd=float(env_config.default_kd)
     )

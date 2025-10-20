@@ -8,6 +8,7 @@ from nn_laser_stabilizer.connection import create_connection_to_pid
 from nn_laser_stabilizer.envs.experiment.experimental_setup_controller import ExperimentalSetupController
 from nn_laser_stabilizer.envs.simulation.numerical_experimental_setup_controller import NumericalExperimentalSetupController
 from nn_laser_stabilizer.envs.simulation.oscillator import DuffingOscillator
+from nn_laser_stabilizer.envs.simulation.first_order_system import FirstOrderSystem
 from nn_laser_stabilizer.envs.simulation.pid_controller import PIDController
 from nn_laser_stabilizer.envs.reward import make_reward
 from nn_laser_stabilizer.envs.normalizer import Normalizer, make_normalizer
@@ -38,8 +39,8 @@ def make_env(config) -> EnvBase:
     
     if env_name == "real":
         return _make_real_env(config, normalizer)
-    elif env_name == "simulation":
-        return _make_simulation_env(config, normalizer)
+    elif env_name == "linear":
+        return _make_linear_env(config, normalizer)
     else:
         raise ValueError(f"Unknown environment name: {env_name}")
 
@@ -85,23 +86,27 @@ def _make_real_env(config, normalizer: Normalizer) -> EnvBase:
     return env
 
 
-def _make_simulation_env(config, normalizer: Normalizer) -> EnvBase:
+def _make_linear_env(config, normalizer: Normalizer) -> EnvBase:
     env_config = config.env
-    
-    pid = PIDController(setpoint=env_config.setpoint)
-    oscillator = DuffingOscillator(
-        mass=env_config.mass,
-        k_linear=env_config.k_linear,
-        k_nonlinear=env_config.k_nonlinear,
-        k_damping=env_config.k_damping,
-        process_noise_std=env_config.process_noise_std,
-        measurement_noise_std=env_config.measurement_noise_std
+    output_dir = config.output_dir
+
+    setup_controller = NumericalExperimentalSetupController(
+        plant=FirstOrderSystem(
+            time_constant=env_config.time_constant,
+            gain=env_config.gain,
+            initial_process_variable=env_config.initial_process_variable,
+        ),
+        setpoint=env_config.setpoint,
+        warmup_steps=env_config.warmup_steps,
+        block_size=env_config.block_size,
+        dt=env_config.dt,
     )
-    
-    setup_controller = NumericalExperimentalSetupController()
-    
+
     specs = make_specs(env_config.bounds)
-    
+
+    env_log_dir = os.path.join(output_dir, "env_logs")
+    env_logger = AsyncFileLogger(log_dir=env_log_dir, filename="env.log")
+
     env = PidTuningEnv(
         setup_controller=setup_controller,
         action_spec=specs["action"],
@@ -109,7 +114,7 @@ def _make_simulation_env(config, normalizer: Normalizer) -> EnvBase:
         reward_spec=BoundedContinuous(low=-1, high=1, shape=(1,)),
         reward_func=make_reward(config, normalizer),
         normalizer=normalizer,
-        logger=None, 
+        logger=env_logger,
         pretrain_blocks=env_config.pretrain_blocks,
         burn_in_steps=env_config.burn_in_steps,
     )
