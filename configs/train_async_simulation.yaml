@@ -13,7 +13,7 @@ env:
   dt: 0.01
 
   warmup_steps: 200
-  pretrain_blocks: 1000 # TODO: рассчитывать через другие параметры
+  pretrain_blocks: 0 # TODO: рассчитывать через другие параметры
   block_size: 200
   burn_in_steps: 100  
   
@@ -30,3 +30,6 @@ env:
   kp_max: 100.0
   ki_max: 50.0
   kd_max: 0.0
+
+data:
+  min_data_for_training: 1000
