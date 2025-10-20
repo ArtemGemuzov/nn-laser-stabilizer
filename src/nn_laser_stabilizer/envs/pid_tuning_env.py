@@ -92,8 +92,12 @@ class PidTuningEnv(EnvBase):
         error_mean_norm = error_mean / ERROR_MEAN_NORMALIZATION_FACTOR
         error_std_norm = error_std / ERROR_STD_NORMALIZATION_FACTOR
 
+        kp_norm = self.normalizer.normalize_kp(kp)
+        ki_norm = self.normalizer.normalize_ki(ki)
+        kd_norm = self.normalizer.normalize_kd(kd)
+        
         observation = torch.tensor(
-            [error_mean_norm, error_std_norm],
+            [error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm],
             dtype=torch.float32,
             device=self.device
         )
@@ -109,6 +113,7 @@ class PidTuningEnv(EnvBase):
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
                     f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
+                    f"kp_norm={kp_norm:.4f} ki_norm={ki_norm:.4f} kd_norm={kd_norm:.4f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                     f"reward={reward:.6f}"
@@ -117,9 +122,6 @@ class PidTuningEnv(EnvBase):
             except Exception:
                 pass
 
-        kp_norm = self.normalizer.normalize_kp(kp)
-        ki_norm = self.normalizer.normalize_ki(ki) 
-        kd_norm = self.normalizer.normalize_kd(kd)
         tensordict.set("action", torch.tensor([kp_norm, ki_norm, kd_norm], dtype=torch.float32, device=self.device))
 
         return TensorDict(
@@ -156,6 +158,10 @@ class PidTuningEnv(EnvBase):
         error_mean_norm = error_mean / ERROR_MEAN_NORMALIZATION_FACTOR
         error_std_norm = error_std / ERROR_STD_NORMALIZATION_FACTOR
 
+        kp_norm = self.normalizer.normalize_kp(self.normalizer.default_kp)
+        ki_norm = self.normalizer.normalize_ki(self.normalizer.default_ki)
+        kd_norm = self.normalizer.normalize_kd(self.normalizer.default_kd)
+
         if self.logger is not None:
             try: 
                 log_line = (
@@ -170,7 +176,7 @@ class PidTuningEnv(EnvBase):
                 pass    
         
         observation = torch.tensor(
-            [error_mean_norm, error_std_norm],
+            [error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm],
             dtype=torch.float32,
             device=self.device
         )

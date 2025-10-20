@@ -13,7 +13,7 @@ env:
   dt: 0.01
 
   warmup_steps: 200
-  pretrain_blocks: 0 # TODO: рассчитывать через другие параметры
+  pretrain_blocks: 1500 # TODO: рассчитывать через другие параметры
   block_size: 200
   burn_in_steps: 100  
   

@@ -44,8 +44,8 @@ env:
       low: [-1.0, -1.0, -1.0]
       high: [1.0, 1.0, 1.0]
     observation:
-      low: [-inf, 0.0] 
-      high: [inf, inf]
+      low: [-inf, 0.0, -1.0, -1.0, -1.0] 
+      high: [inf, inf, 1.0, 1.0, 1.0]
     reward:
       low: [-1.0]
       high: [1.0]
