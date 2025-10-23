@@ -10,11 +10,6 @@ from nn_laser_stabilizer.envs.experimental_setup_protocol import ExperimentalSet
 from nn_laser_stabilizer.envs.normalizer import Normalizer
 
 
-# TODO: занести в класс
-ERROR_MEAN_NORMALIZATION_FACTOR = 1.0
-ERROR_STD_NORMALIZATION_FACTOR = 1.0
-
-
 class Phase(Enum):
     WARMUP = "warmup"
     PRETRAIN = "pretrain"
@@ -22,6 +17,10 @@ class Phase(Enum):
     
 
 class PidTuningEnv(EnvBase):
+
+    ERROR_MEAN_NORMALIZATION_FACTOR = 1.0
+    ERROR_STD_NORMALIZATION_FACTOR = 1.0
+
     def __init__(self, 
                  setup_controller: ExperimentalSetupProtocol, 
                  action_spec,
@@ -89,8 +88,8 @@ class PidTuningEnv(EnvBase):
         error_mean = np.mean(errors)
         error_std = np.std(errors)
 
-        error_mean_norm = error_mean / ERROR_MEAN_NORMALIZATION_FACTOR
-        error_std_norm = error_std / ERROR_STD_NORMALIZATION_FACTOR
+        error_mean_norm = error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR
+        error_std_norm = error_std / self.ERROR_STD_NORMALIZATION_FACTOR
 
         kp_norm = self.normalizer.normalize_kp(kp)
         ki_norm = self.normalizer.normalize_ki(ki)
@@ -155,8 +154,8 @@ class PidTuningEnv(EnvBase):
         error_mean = np.mean(errors)
         error_std = np.std(errors)
         
-        error_mean_norm = error_mean / ERROR_MEAN_NORMALIZATION_FACTOR
-        error_std_norm = error_std / ERROR_STD_NORMALIZATION_FACTOR
+        error_mean_norm = error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR
+        error_std_norm = error_std / self.ERROR_STD_NORMALIZATION_FACTOR
 
         kp_norm = self.normalizer.normalize_kp(self.normalizer.default_kp)
         ki_norm = self.normalizer.normalize_ki(self.normalizer.default_ki)
