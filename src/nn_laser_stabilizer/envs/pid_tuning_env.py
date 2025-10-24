@@ -18,8 +18,8 @@ class Phase(Enum):
 
 class PidTuningEnv(EnvBase):
 
-    ERROR_MEAN_NORMALIZATION_FACTOR = 1.0
-    ERROR_STD_NORMALIZATION_FACTOR = 1.0
+    ERROR_MEAN_NORMALIZATION_FACTOR = 250.0
+    ERROR_STD_NORMALIZATION_FACTOR = 200.0
 
     def __init__(self, 
                  setup_controller: ExperimentalSetupProtocol, 
@@ -56,7 +56,8 @@ class PidTuningEnv(EnvBase):
         return Phase.NORMAL
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
-        agent_kp_norm, agent_ki_norm, agent_kd_norm = tensordict["action"].tolist()
+        action = tensordict["action"].tolist()
+        agent_kp_norm, agent_ki_norm, agent_kd_norm = action
 
         phase = self._get_phase()
 
@@ -101,7 +102,7 @@ class PidTuningEnv(EnvBase):
             device=self.device
         )
         
-        rewards = self.reward_func(pv_window, sp_window)
+        rewards = self.reward_func(pv_window, sp_window, action)
         reward = np.mean(rewards)
         
         done = False # False, потому что при True насильно вызывается reset
@@ -205,6 +206,9 @@ class PidDeltaTuningEnv(EnvBase):
     KI = 11.0
     KD = 0.002
     DEFAULT_KP = 3.5
+    
+    K_ERROR = 25.0  
+    K_ACTION = 0.1  
 
 
     def __init__(self,
@@ -237,12 +241,13 @@ class PidDeltaTuningEnv(EnvBase):
             return Phase.PRETRAIN
         return Phase.NORMAL
 
-    def _compute_reward(self, errors, delta_kp):
-        error_mean = np.mean(errors)
-        error_std = np.std(errors)
-        penalty = self.DELTA_PENALTY * (delta_kp ** 2)
-        reward = -(abs(error_mean) + error_std + penalty)
-        return reward, error_mean, error_std
+    def _compute_reward(self, pv_window, sp_window, action):
+        error = np.abs(sp_window - pv_window)
+        error_reward = (1 - self.K_ACTION) * (2 * np.exp(-self.K_ERROR * error) - 1)
+        
+        action_penalty = self.K_ACTION * (-np.abs(action))
+        
+        return error_reward + action_penalty
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         agent_delta_norm = tensordict["action"].item() 
@@ -271,7 +276,7 @@ class PidDeltaTuningEnv(EnvBase):
         error_mean_norm = error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR
         error_std_norm = error_std / self.ERROR_STD_NORMALIZATION_FACTOR
 
-        reward, error_mean, error_std = self._compute_reward(errors, delta_kp)
+        reward = self._compute_reward(pv_window, sp_window, delta_kp)
 
         observation = torch.tensor(
             [error_mean_norm,
@@ -291,6 +296,7 @@ class PidDeltaTuningEnv(EnvBase):
                     f"kp={self.kp} ki={self.KI} kd={self.KD} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
+                    f"reward={reward:.6f}"
                 )
                 self.logger.log(log_line)
             except Exception:
