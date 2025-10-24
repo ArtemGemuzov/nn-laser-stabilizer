@@ -16,6 +16,8 @@ class SerialConnection(BaseConnection):
         self.bytesize = bytesize
         self.parity = parity
         self.stopbits = stopbits
+        
+        self.serial_connection = None
 
     def open_connection(self):
         try:
@@ -35,7 +37,8 @@ class SerialConnection(BaseConnection):
             raise ConnectionError("Error initializing serial connection") from ex
 
     def close_connection(self):
-        if self.serial_connection.is_open:
+        connection = self.serial_connection
+        if connection is not None and connection.is_open:
             self.serial_connection.close()
             print("Serial connection closed.")
         else:
