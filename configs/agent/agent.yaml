@@ -4,7 +4,7 @@ q_mlp_num_cells: ${agent.mlp_num_cells}
 policy_noise: 0.05
 noise_clip: 0.125
 
-gamma: 0.00
+gamma: 0.95
 num_qvalue_nets: 2
 target_update_eps: 0.95
 
