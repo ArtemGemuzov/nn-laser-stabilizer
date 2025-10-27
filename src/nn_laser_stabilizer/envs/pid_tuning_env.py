@@ -302,6 +302,7 @@ class PidDeltaTuningEnv(EnvBase):
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
                     f"kp={self.kp} ki={self.KI} kd={self.KD} "
+                    f"delta_kp={delta_kp:.4f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                     f"reward={reward:.6f}"
