@@ -200,8 +200,8 @@ class PidDeltaTuningEnv(EnvBase):
     ERROR_STD_NORMALIZATION_FACTOR = 250.0
     DELTA_PENALTY = 0.01  
 
-    KP_MIN = 0.0
-    KP_MAX = 15.0
+    KP_MIN = 2.5
+    KP_MAX = 12.5
     KP_RANGE = KP_MAX - KP_MIN
     KP_DELTA_SCALE = 0.01    
     KP_DELTA_MAX = KP_RANGE * KP_DELTA_SCALE  
@@ -250,6 +250,7 @@ class PidDeltaTuningEnv(EnvBase):
     def _compute_reward(self, pv_window, sp_window, action):
         error = np.abs(sp_window - pv_window)
         error_reward = (1 - self.K_ACTION) * (2 * np.exp(-self.K_ERROR * error) - 1)
+        error_reward = np.mean(error_reward)
         
         action_penalty = self.K_ACTION * (-np.abs(action))
         
@@ -259,9 +260,9 @@ class PidDeltaTuningEnv(EnvBase):
         agent_delta_norm = tensordict["action"].item() 
         phase = self._get_phase()
 
-        delta_kp = agent_delta_norm * self.KP_DELTA_MAX
         if phase == Phase.PRETRAIN:
-            delta_kp = random.uniform(-self.KP_DELTA_MAX, self.KP_DELTA_MAX)
+            agent_delta_norm = np.clip(np.random.normal(0, 1), -1, 1)
+        delta_kp = agent_delta_norm * self.KP_DELTA_MAX
 
         self.kp = np.clip(self.kp + delta_kp, self.KP_MIN, self.KP_MAX)
 
@@ -281,12 +282,14 @@ class PidDeltaTuningEnv(EnvBase):
         error_mean_norm = error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR
         error_std_norm = error_std / self.ERROR_STD_NORMALIZATION_FACTOR
 
+        kp_norm = (self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0
+
         reward = self._compute_reward(pv_window, sp_window, delta_kp)
 
         observation = torch.tensor(
             [error_mean_norm,
              error_std_norm,
-             self.kp],
+             kp_norm],
             dtype=torch.float32,
             device=self.device
         )
@@ -339,10 +342,12 @@ class PidDeltaTuningEnv(EnvBase):
         error_mean_norm = error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR
         error_std_norm = error_std / self.ERROR_STD_NORMALIZATION_FACTOR
 
+        kp_norm = (self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0
+
         observation = torch.tensor(
             [error_mean_norm,
              error_std_norm,
-             self.kp],
+             kp_norm],
             dtype=torch.float32,
             device=self.device
         )
