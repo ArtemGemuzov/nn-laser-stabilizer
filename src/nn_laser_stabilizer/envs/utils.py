@@ -71,7 +71,7 @@ def _make_real_env(config, normalizer: Normalizer) -> EnvBase:
     env_log_dir = os.path.join(output_dir, "env_logs")
     env_logger = AsyncFileLogger(log_dir=env_log_dir, filename="env.log")
     
-    env = PidTuningEnv(
+    env = PidDeltaTuningEnv(
         setup_controller=setup_controller,
         action_spec=specs["action"],
         observation_spec=specs["observation"], 
