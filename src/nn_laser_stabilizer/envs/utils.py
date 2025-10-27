@@ -3,7 +3,7 @@ import torch
 from torchrl.data import UnboundedContinuous, BoundedContinuous
 from torchrl.envs import TransformedEnv, EnvBase
 
-from nn_laser_stabilizer.envs.pid_tuning_env import PidTuningEnv
+from nn_laser_stabilizer.envs.pid_tuning_env import PidTuningEnv, PidDeltaTuningEnv
 from nn_laser_stabilizer.connection import create_connection_to_pid
 from nn_laser_stabilizer.envs.experiment.experimental_setup_controller import ExperimentalSetupController
 from nn_laser_stabilizer.envs.simulation.numerical_experimental_setup_controller import NumericalExperimentalSetupController

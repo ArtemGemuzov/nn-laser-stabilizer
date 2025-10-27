@@ -196,16 +196,22 @@ class PidTuningEnv(EnvBase):
 
 
 class PidDeltaTuningEnv(EnvBase):
-    ERROR_MEAN_NORMALIZATION_FACTOR = 1.0
-    ERROR_STD_NORMALIZATION_FACTOR = 1.0
+    ERROR_MEAN_NORMALIZATION_FACTOR = 20.0
+    ERROR_STD_NORMALIZATION_FACTOR = 250.0
     DELTA_PENALTY = 0.01  
 
     KP_MIN = 0.0
-    KP_MAX = 10.0
+    KP_MAX = 15.0
+    KP_RANGE = KP_MAX - KP_MIN
+    KP_DELTA_SCALE = 0.01    
+    KP_DELTA_MAX = KP_RANGE * KP_DELTA_SCALE  
 
-    KI = 11.0
-    KD = 0.002
+    KI = 0.0
+    KD = 0.0
+
     DEFAULT_KP = 3.5
+    DEFAULT_KI = 11.0
+    DEFAULT_KD = 0.002
     
     K_ERROR = 25.0  
     K_ACTION = 0.1  
@@ -253,10 +259,9 @@ class PidDeltaTuningEnv(EnvBase):
         agent_delta_norm = tensordict["action"].item() 
         phase = self._get_phase()
 
-        delta_kp = agent_delta_norm * 0.01 * (self.KP_MAX - self.KP_MIN)  
+        delta_kp = agent_delta_norm * self.KP_DELTA_MAX
         if phase == Phase.PRETRAIN:
-            delta_kp = random.uniform(-0.01 * (self.KP_MAX - self.KP_MIN),
-                                      0.01 * (self.KP_MAX - self.KP_MIN))
+            delta_kp = random.uniform(-self.KP_DELTA_MAX, self.KP_DELTA_MAX)
 
         self.kp = np.clip(self.kp + delta_kp, self.KP_MIN, self.KP_MAX)
 
@@ -320,7 +325,7 @@ class PidDeltaTuningEnv(EnvBase):
         phase = Phase.WARMUP
 
         process_variables, control_outputs, setpoints = self.setup_controller.reset(
-            kp=self.kp, ki=self.KI, kd=self.KD
+            kp=self.kp, ki=self.DEFAULT_KI, kd=self.DEFAULT_KD
         )
         self._t += len(process_variables)
 
@@ -347,7 +352,7 @@ class PidDeltaTuningEnv(EnvBase):
                 log_line = (
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
-                    f"kp={self.kp} ki={self.KI} kd={self.KD} "
+                    f"kp={self.kp} ki={self.DEFAULT_KI} kd={self.DEFAULT_KD} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                 )
