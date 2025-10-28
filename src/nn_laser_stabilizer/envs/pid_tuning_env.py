@@ -242,6 +242,8 @@ class PidDeltaTuningEnv(EnvBase):
         self._block_count = 0
         self.kp = self.DEFAULT_KP
 
+        self._has_been_called_once = False
+
     def _get_phase(self) -> Phase:
         if self._block_count < self._pretrain_blocks:
             return Phase.PRETRAIN
@@ -323,13 +325,22 @@ class PidDeltaTuningEnv(EnvBase):
         )
 
     def _reset(self, unused: TensorDict | None = None) -> TensorDict:
+        if not self._has_been_called_once:
+            self._has_been_called_once = True
+            observation = torch.tensor(
+                [0.0, 0.0, 1.0],
+                dtype=torch.float32,
+                device=self.device
+            )
+            return TensorDict({"observation": observation}, batch_size=[])  
+        
         self._t = 0
         self._block_count = 0
-        self.kp = self.DEFAULT_KP
+        self.kp = (self.KP_MAX + self.KP_MIN) / 2
         phase = Phase.WARMUP
 
         process_variables, control_outputs, setpoints = self.setup_controller.reset(
-            kp=self.kp, ki=self.DEFAULT_KI, kd=self.DEFAULT_KD
+            kp=self.kp, ki=self.KI, kd=self.KD
         )
         self._t += len(process_variables)
 
