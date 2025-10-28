@@ -328,7 +328,7 @@ class PidDeltaTuningEnv(EnvBase):
         if not self._has_been_called_once:
             self._has_been_called_once = True
             observation = torch.tensor(
-                [0.0, 0.0, 1.0],
+                [0.0, 0.0, 0.0],
                 dtype=torch.float32,
                 device=self.device
             )
