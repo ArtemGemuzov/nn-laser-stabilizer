@@ -209,9 +209,9 @@ class PidDeltaTuningEnv(EnvBase):
     KI = 0.0
     KD = 0.0
     
-    K_ERROR = 25.0  
-    K_ACTION = 0.1  
-
+    PRECISION_WEIGHT = 0.45         
+    STABILITY_WEIGHT = 0.45           
+    ACTION_WEIGHT = 0.1              
 
     def __init__(self,
                  setup_controller,
@@ -246,14 +246,21 @@ class PidDeltaTuningEnv(EnvBase):
             return Phase.PRETRAIN
         return Phase.NORMAL
 
-    def _compute_reward(self, pv_window, sp_window, action):
-        error = np.abs(sp_window - pv_window)
-        error_reward = 2 * np.exp(-self.K_ERROR * error) - 1
-        error_reward = np.mean(error_reward)
+    def _compute_reward(self, observation, action):
+        error_mean_norm, error_std_norm, kp_norm = observation
         
-        action_penalty = -np.abs(action)
+        # 1. Штраф за неточность (чем больше ошибка, тем больше штраф)
+        precision_penalty = -np.abs(error_mean_norm)      # [-1, 0]
+        # 2. Штраф за нестабильность (чем больше разброс, тем больше штраф)
+        stability_penalty = -np.abs(error_std_norm)       # [-1, 0]
+        # 3. Штраф за действие (чем больше изменение, тем больше штраф)
+        action_penalty = -np.abs(action)                  # [-1, 0]
         
-        return (1 - self.K_ACTION) * error_reward + self.K_ACTION * action_penalty
+        total_reward = (self.PRECISION_WEIGHT * precision_penalty + 
+                       self.STABILITY_WEIGHT * stability_penalty + 
+                       self.ACTION_WEIGHT * action_penalty)
+        
+        return 2 * total_reward + 1
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         agent_delta_norm = tensordict["action"].item() 
@@ -278,21 +285,12 @@ class PidDeltaTuningEnv(EnvBase):
         error_mean = np.mean(errors)
         error_std = np.std(errors)
 
-        error_mean_norm = error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR
-        error_std_norm = error_std / self.ERROR_STD_NORMALIZATION_FACTOR
+        error_mean_norm = np.clip(error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR, -1.0, 1.0)
+        error_std_norm = np.clip(error_std / self.ERROR_STD_NORMALIZATION_FACTOR, -1.0, 1.0)
+        kp_norm =  np.clip((self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0, -1.0, 1.0)
 
-        kp_norm = (self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0
-
-        reward = self._compute_reward(pv_window, sp_window, delta_kp)
-
-        observation = torch.tensor(
-            [error_mean_norm,
-             error_std_norm,
-             kp_norm],
-            dtype=torch.float32,
-            device=self.device
-        )
-
+        observation = np.array([error_mean_norm, error_std_norm, kp_norm], dtype=np.float32)
+        reward = self._compute_reward(observation, agent_delta_norm)
         done = False
 
         if self.logger is not None:
@@ -314,7 +312,7 @@ class PidDeltaTuningEnv(EnvBase):
 
         return TensorDict(
             {
-                "observation": observation,
+                "observation": torch.tensor(observation, dtype=torch.float32, device=self.device),
                 "reward": torch.tensor([reward], dtype=torch.float32, device=self.device),
                 "done": torch.tensor([done], dtype=torch.bool, device=self.device),
             },
@@ -348,10 +346,9 @@ class PidDeltaTuningEnv(EnvBase):
         error_mean = np.mean(errors)
         error_std = np.std(errors)
 
-        error_mean_norm = error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR
-        error_std_norm = error_std / self.ERROR_STD_NORMALIZATION_FACTOR
-
-        kp_norm = (self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0
+        error_mean_norm = np.clip(error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR, -1.0, 1.0)
+        error_std_norm = np.clip(error_std / self.ERROR_STD_NORMALIZATION_FACTOR, -1.0, 1.0)
+        kp_norm =  np.clip((self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0, -1.0, 1.0)
 
         observation = torch.tensor(
             [error_mean_norm,
