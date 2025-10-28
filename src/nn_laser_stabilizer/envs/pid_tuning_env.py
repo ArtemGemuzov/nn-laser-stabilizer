@@ -208,10 +208,6 @@ class PidDeltaTuningEnv(EnvBase):
 
     KI = 0.0
     KD = 0.0
-
-    DEFAULT_KP = 3.5
-    DEFAULT_KI = 11.0
-    DEFAULT_KD = 0.002
     
     K_ERROR = 25.0  
     K_ACTION = 0.1  
@@ -240,7 +236,8 @@ class PidDeltaTuningEnv(EnvBase):
         self._burn_in_steps = burn_in_steps
         self._t = 0
         self._block_count = 0
-        self.kp = self.DEFAULT_KP
+        
+        self.kp = None
 
         self._has_been_called_once = False
 
