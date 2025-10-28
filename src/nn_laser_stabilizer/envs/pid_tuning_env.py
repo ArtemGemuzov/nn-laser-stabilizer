@@ -251,12 +251,12 @@ class PidDeltaTuningEnv(EnvBase):
 
     def _compute_reward(self, pv_window, sp_window, action):
         error = np.abs(sp_window - pv_window)
-        error_reward = (1 - self.K_ACTION) * (2 * np.exp(-self.K_ERROR * error) - 1)
+        error_reward = 2 * np.exp(-self.K_ERROR * error) - 1
         error_reward = np.mean(error_reward)
         
-        action_penalty = self.K_ACTION * (-np.abs(action))
+        action_penalty = -np.abs(action)
         
-        return error_reward + action_penalty
+        return (1 - self.K_ACTION) * error_reward + self.K_ACTION * action_penalty
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         agent_delta_norm = tensordict["action"].item() 
@@ -369,7 +369,7 @@ class PidDeltaTuningEnv(EnvBase):
                 log_line = (
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
-                    f"kp={self.kp} ki={self.DEFAULT_KI} kd={self.DEFAULT_KD} "
+                    f"kp={self.kp} ki={self.KI} kd={self.KD} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                 )
