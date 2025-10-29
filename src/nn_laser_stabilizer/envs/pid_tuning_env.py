@@ -215,9 +215,9 @@ class PidDeltaTuningEnv(EnvBase):
 
     KD = 0.0
     
-    PRECISION_WEIGHT = 0.45         
-    STABILITY_WEIGHT = 0.45           
-    ACTION_WEIGHT = 0.1              
+    PRECISION_WEIGHT = 0.4   
+    STABILITY_WEIGHT = 0.4           
+    ACTION_WEIGHT = 0.2              
 
     def __init__(self,
                  setup_controller,
