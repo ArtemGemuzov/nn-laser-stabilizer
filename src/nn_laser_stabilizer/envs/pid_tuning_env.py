@@ -271,15 +271,15 @@ class PidDeltaTuningEnv(EnvBase):
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         action = tensordict["action"].tolist()
-        agent_delta_kp_norm, agent_delta_ki_norm = action
+        delta_kp_norm, delta_ki_norm = action
         phase = self._get_phase()
 
         if phase == Phase.PRETRAIN:
-            agent_delta_kp_norm = np.clip(np.random.normal(0, 1), -1, 1)
-            agent_delta_ki_norm = np.clip(np.random.normal(0, 1), -1, 1)
+            delta_kp_norm = np.clip(np.random.normal(0, 1), -1, 1)
+            delta_ki_norm = np.clip(np.random.normal(0, 1), -1, 1)
         
-        delta_kp = agent_delta_kp_norm * self.KP_DELTA_MAX
-        delta_ki = agent_delta_ki_norm * self.KI_DELTA_MAX
+        delta_kp = delta_kp_norm * self.KP_DELTA_MAX
+        delta_ki = delta_ki_norm * self.KI_DELTA_MAX
 
         self.kp = np.clip(self.kp + delta_kp, self.KP_MIN, self.KP_MAX)
         self.ki = np.clip(self.ki + delta_ki, self.KI_MIN, self.KI_MAX)
@@ -303,7 +303,7 @@ class PidDeltaTuningEnv(EnvBase):
         ki_norm =  np.clip((self.ki - self.KI_MIN) / self.KI_RANGE * 2.0 - 1.0, -1.0, 1.0)
 
         observation = np.array([error_mean_norm, error_std_norm, kp_norm, ki_norm], dtype=np.float32)
-        action = np.array([agent_delta_kp_norm, agent_delta_ki_norm], dtype=np.float32)
+        action = np.array([delta_kp_norm, delta_ki_norm], dtype=np.float32)
         reward = self._compute_reward(observation, action)
         done = False
 
@@ -313,7 +313,7 @@ class PidDeltaTuningEnv(EnvBase):
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
                     f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.KD} "
-                    f"delta_kp={delta_kp:.4f} delta_ki={delta_ki:.4f} "
+                    f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                     f"reward={reward:.6f}"
@@ -322,7 +322,7 @@ class PidDeltaTuningEnv(EnvBase):
             except Exception:
                 pass    
 
-        tensordict.set("action", torch.tensor([agent_delta_kp_norm, agent_delta_ki_norm], dtype=torch.float32, device=self.device))
+        tensordict.set("action", torch.tensor([delta_kp_norm, delta_ki_norm], dtype=torch.float32, device=self.device))
 
         return TensorDict(
             {
