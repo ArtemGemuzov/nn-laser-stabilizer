@@ -61,7 +61,7 @@ env:
   enforcement_steps: 1000
   
   warmup_steps: 1000
-  pretrain_blocks: 2655 # TODO: рассчитывать через другие параметры
+  pretrain_blocks: 2651 # TODO: рассчитывать через другие параметры (2500 + 1 + 150)
   block_size: 200
   burn_in_steps: 100  
 
@@ -74,7 +74,7 @@ data:
   total_frames: 1_000_000_000
 
   buffer_size: 100_000
-  min_data_for_training: 2505
+  min_data_for_training: 2501
 
 train:
   batch_size: 64
