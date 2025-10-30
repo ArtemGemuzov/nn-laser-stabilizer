@@ -298,7 +298,7 @@ class PidDeltaTuningEnv(EnvBase):
         error_std = np.std(errors)
 
         error_mean_norm = np.clip(error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR, -1.0, 1.0)
-        error_std_norm = np.clip(error_std / self.ERROR_STD_NORMALIZATION_FACTOR, -1.0, 1.0)
+        error_std_norm = np.clip(error_std / self.ERROR_STD_NORMALIZATION_FACTOR, 0.0, 1.0)
         kp_norm =  np.clip((self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0, -1.0, 1.0)
         ki_norm =  np.clip((self.ki - self.KI_MIN) / self.KI_RANGE * 2.0 - 1.0, -1.0, 1.0)
 
