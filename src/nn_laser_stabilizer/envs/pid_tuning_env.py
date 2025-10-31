@@ -213,7 +213,12 @@ class PidDeltaTuningEnv(EnvBase):
     KI_DELTA_MAX = KI_RANGE * KI_DELTA_SCALE
     KI_START = 10.0
 
-    KD = 0.0
+    KD_MIN = 0.0
+    KD_MAX = 0.01
+    KD_RANGE = KD_MAX - KD_MIN
+    KD_DELTA_SCALE = 0.01
+    KD_DELTA_MAX = KD_RANGE * KD_DELTA_SCALE
+    KD_START = 0.002
     
     PRECISION_WEIGHT = 0.4   
     STABILITY_WEIGHT = 0.4           
@@ -245,6 +250,7 @@ class PidDeltaTuningEnv(EnvBase):
         
         self.kp = None
         self.ki = None
+        self.kd = None
 
         self._has_been_called_once = False
 
@@ -254,7 +260,7 @@ class PidDeltaTuningEnv(EnvBase):
         return Phase.NORMAL
 
     def _compute_reward(self, observation, action):
-        error_mean_norm, error_std_norm, kp_norm, ki_norm = observation
+        error_mean_norm, error_std_norm = observation[0], observation[1]
         
         # 1. Штраф за неточность (чем больше ошибка, тем больше штраф)
         precision_penalty = -np.abs(error_mean_norm)      # [-1, 0]
@@ -271,21 +277,24 @@ class PidDeltaTuningEnv(EnvBase):
 
     def _step(self, tensordict: TensorDict) -> TensorDict:
         action = tensordict["action"].tolist()
-        delta_kp_norm, delta_ki_norm = action
+        delta_kp_norm, delta_ki_norm, delta_kd_norm = action
         phase = self._get_phase()
 
         if phase == Phase.PRETRAIN:
             delta_kp_norm = np.clip(np.random.normal(0, 1), -1, 1)
             delta_ki_norm = np.clip(np.random.normal(0, 1), -1, 1)
+            delta_kd_norm = np.clip(np.random.normal(0, 1), -1, 1)
         
         delta_kp = delta_kp_norm * self.KP_DELTA_MAX
         delta_ki = delta_ki_norm * self.KI_DELTA_MAX
+        delta_kd = delta_kd_norm * self.KD_DELTA_MAX
 
         self.kp = np.clip(self.kp + delta_kp, self.KP_MIN, self.KP_MAX)
         self.ki = np.clip(self.ki + delta_ki, self.KI_MIN, self.KI_MAX)
+        self.kd = np.clip(self.kd + delta_kd, self.KD_MIN, self.KD_MAX)
 
         process_variables, control_outputs, setpoints = self.setup_controller.step(
-            self.kp, self.ki, self.KD
+            self.kp, self.ki, self.kd
         )
         self._t += len(process_variables)
         self._block_count += 1
@@ -301,9 +310,10 @@ class PidDeltaTuningEnv(EnvBase):
         error_std_norm = np.clip(error_std / self.ERROR_STD_NORMALIZATION_FACTOR, 0.0, 1.0)
         kp_norm =  np.clip((self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0, -1.0, 1.0)
         ki_norm =  np.clip((self.ki - self.KI_MIN) / self.KI_RANGE * 2.0 - 1.0, -1.0, 1.0)
+        kd_norm =  np.clip((self.kd - self.KD_MIN) / self.KD_RANGE * 2.0 - 1.0, -1.0, 1.0)
 
-        observation = np.array([error_mean_norm, error_std_norm, kp_norm, ki_norm], dtype=np.float32)
-        action = np.array([delta_kp_norm, delta_ki_norm], dtype=np.float32)
+        observation = np.array([error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm], dtype=np.float32)
+        action = np.array([delta_kp_norm, delta_ki_norm, delta_kd_norm], dtype=np.float32)
         reward = self._compute_reward(observation, action)
         done = False
 
@@ -312,8 +322,8 @@ class PidDeltaTuningEnv(EnvBase):
                 log_line = (
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
-                    f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.KD} "
-                    f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} "
+                    f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.6f} "
+                    f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} delta_kd_norm={delta_kd_norm:.4f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                     f"reward={reward:.6f}"
@@ -322,7 +332,7 @@ class PidDeltaTuningEnv(EnvBase):
             except Exception:
                 pass    
 
-        tensordict.set("action", torch.tensor([delta_kp_norm, delta_ki_norm], dtype=torch.float32, device=self.device))
+        tensordict.set("action", torch.tensor([delta_kp_norm, delta_ki_norm, delta_kd_norm], dtype=torch.float32, device=self.device))
 
         return TensorDict(
             {
@@ -337,7 +347,7 @@ class PidDeltaTuningEnv(EnvBase):
         if not self._has_been_called_once:
             self._has_been_called_once = True
             observation = torch.tensor(
-                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0],
                 dtype=torch.float32,
                 device=self.device
             )
@@ -347,10 +357,11 @@ class PidDeltaTuningEnv(EnvBase):
         self._block_count = 0
         self.kp = self.KP_START
         self.ki = self.KI_START
+        self.kd = self.KD_START
         phase = Phase.WARMUP
 
         process_variables, control_outputs, setpoints = self.setup_controller.reset(
-            kp=self.kp, ki=self.ki, kd=self.KD
+            kp=self.kp, ki=self.ki, kd=self.kd
         )
         self._t += len(process_variables)
 
@@ -365,12 +376,14 @@ class PidDeltaTuningEnv(EnvBase):
         error_std_norm = np.clip(error_std / self.ERROR_STD_NORMALIZATION_FACTOR, -1.0, 1.0)
         kp_norm =  np.clip((self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0, -1.0, 1.0)
         ki_norm =  np.clip((self.ki - self.KI_MIN) / self.KI_RANGE * 2.0 - 1.0, -1.0, 1.0)
+        kd_norm =  np.clip((self.kd - self.KD_MIN) / self.KD_RANGE * 2.0 - 1.0, -1.0, 1.0)
 
         observation = torch.tensor(
             [error_mean_norm,
              error_std_norm,
              kp_norm,
-             ki_norm],
+             ki_norm,
+             kd_norm],
             dtype=torch.float32,
             device=self.device
         )
@@ -380,7 +393,7 @@ class PidDeltaTuningEnv(EnvBase):
                 log_line = (
                     f"step={self._t} phase={phase.value} "
                     f"block_step=final "
-                    f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.KD} "
+                    f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.6f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
                 )
