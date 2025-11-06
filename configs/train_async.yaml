@@ -24,9 +24,6 @@ env:
   default_ki: 11.0
   default_kd: 0.002
   
-  default_min_control: 0
-  default_max_control: 4095
-  
   kp_min: 0.0
   ki_min: 0.0
   kd_min: 0.0
