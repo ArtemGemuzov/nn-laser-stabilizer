@@ -34,6 +34,7 @@ class ExperimentalSetupController(ExperimentalSetupProtocol):
         self._control_outputs = np.zeros(max_buffer_size, dtype=np.float32)
         self._setpoints = np.zeros(max_buffer_size, dtype=np.float32)
         self._current_index = 0
+        self._connection_opened = False
     
     @property
     def setpoint(self) -> float:
@@ -71,7 +72,10 @@ class ExperimentalSetupController(ExperimentalSetupProtocol):
     def reset(self, kp: float, ki: float, kd: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         self._reset_buffer()
         
-        self.pid_connection.open_connection()
+        if not self._connection_opened:
+            self.pid_connection.open_connection()
+            self._connection_opened = True
+        
         for _ in range(self._warmup_steps):
             process_variable, control_output = self.pid_connection.exchange(
                 kp=kp,
