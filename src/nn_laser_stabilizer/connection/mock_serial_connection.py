@@ -47,8 +47,8 @@ class MockSerialConnection(BaseConnection):
         if not self.is_connected:
             raise ConnectionError("Mock serial connection is not open.")
         
-        process_variable = random.randint(0, 1000)
-        control_output = random.randint(0, 1000)
+        process_variable = random.randint(0, 2000)
+        control_output = random.randint(0, 4000)
         data = f"{process_variable} {control_output}\n"
         
         self._read_count += 1
