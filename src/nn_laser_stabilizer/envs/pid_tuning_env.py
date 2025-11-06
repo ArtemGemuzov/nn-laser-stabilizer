@@ -352,8 +352,7 @@ class PidDeltaTuningEnv(EnvBase):
         if self.logger is not None:
             try: 
                 log_line = (
-                    f"step={self._t} phase={phase.value} "
-                    f"block_step=final "
+                    f"step={self._t} phase={phase.value} block_step={self._block_count} "
                     f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.6f} "
                     f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} delta_kd_norm={delta_kd_norm:.4f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
@@ -420,8 +419,7 @@ class PidDeltaTuningEnv(EnvBase):
         if self.logger is not None:
             try: 
                 log_line = (
-                    f"step={self._t} phase={phase.value} "
-                    f"block_step=final "
+                    f"step={self._t} phase={phase.value} block_step={self._block_count}"
                     f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.6f} "
                     f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                     f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
