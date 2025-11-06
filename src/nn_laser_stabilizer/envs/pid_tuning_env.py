@@ -387,8 +387,6 @@ class PidDeltaTuningEnv(EnvBase):
             )
             return TensorDict({"observation": observation}, batch_size=[])  
         
-        self._t = 0
-        self._block_count = 0
         phase = Phase.WARMUP
 
         process_variables, control_outputs, setpoints = self.setup_controller.reset(
