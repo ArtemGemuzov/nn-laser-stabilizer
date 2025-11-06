@@ -332,8 +332,6 @@ class PidDeltaTuningEnv(EnvBase):
         self._t += len(process_variables)
         self._block_count += 1
 
-        done = self._should_terminate_episode(control_outputs)
-
         pv_window = process_variables[self._burn_in_steps:]
         sp_window = setpoints[self._burn_in_steps:]
         errors = pv_window - sp_window
@@ -365,6 +363,8 @@ class PidDeltaTuningEnv(EnvBase):
                 self.logger.log(log_line)
             except Exception:
                 pass    
+
+        done = self._should_terminate_episode(control_outputs)
 
         tensordict.set("action", torch.tensor([delta_kp_norm, delta_ki_norm, delta_kd_norm], dtype=torch.float32, device=self.device))
 
