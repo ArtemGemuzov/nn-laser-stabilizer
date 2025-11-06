@@ -50,8 +50,8 @@ env:
   force_min_value: 2000
   force_max_value: 2500
   
-  default_min: 500
-  default_max: 3500
+  default_min: 0
+  default_max: 4000
   
   warmup_steps: 1000
   pretrain_blocks: 2651 # TODO: рассчитывать через другие параметры (2500 + 1 + 150)
