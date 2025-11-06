@@ -223,6 +223,9 @@ class PidDeltaTuningEnv(EnvBase):
     PRECISION_WEIGHT = 0.4   
     STABILITY_WEIGHT = 0.4           
     ACTION_WEIGHT = 0.2              
+    
+    CONTROL_OUTPUT_MIN_THRESHOLD = 500.0
+    CONTROL_OUTPUT_MAX_THRESHOLD = 3500.0
 
     def __init__(self,
                  setup_controller,
@@ -248,9 +251,9 @@ class PidDeltaTuningEnv(EnvBase):
         self._t = 0
         self._block_count = 0
         
-        self.kp = None
-        self.ki = None
-        self.kd = None
+        self.kp = self.KP_START
+        self.ki = self.KI_START
+        self.kd = self.KD_START
 
         self._has_been_called_once = False
 
@@ -258,6 +261,36 @@ class PidDeltaTuningEnv(EnvBase):
         if self._block_count < self._pretrain_blocks:
             return Phase.PRETRAIN
         return Phase.NORMAL
+
+    def _should_terminate_episode(self, control_outputs) -> bool:
+        if len(control_outputs) == 0:
+            return False
+        
+        mean_control_output = np.mean(control_outputs)
+        
+        if mean_control_output < self.CONTROL_OUTPUT_MIN_THRESHOLD:
+            if self.logger is not None:
+                try:
+                    self.logger.log(
+                        f"Episode terminated: mean_control_output={mean_control_output:.4f} "
+                        f"< min_threshold={self.CONTROL_OUTPUT_MIN_THRESHOLD:.4f}"
+                    )
+                except Exception:
+                    pass
+            return True
+        
+        if mean_control_output > self.CONTROL_OUTPUT_MAX_THRESHOLD:
+            if self.logger is not None:
+                try:
+                    self.logger.log(
+                        f"Episode terminated: mean_control_output={mean_control_output:.4f} "
+                        f"> max_threshold={self.CONTROL_OUTPUT_MAX_THRESHOLD:.4f}"
+                    )
+                except Exception:
+                    pass
+            return True
+        
+        return False
 
     def _compute_reward(self, observation, action):
         error_mean_norm, error_std_norm = observation[0], observation[1]
@@ -299,6 +332,8 @@ class PidDeltaTuningEnv(EnvBase):
         self._t += len(process_variables)
         self._block_count += 1
 
+        done = self._should_terminate_episode(control_outputs)
+
         pv_window = process_variables[self._burn_in_steps:]
         sp_window = setpoints[self._burn_in_steps:]
         errors = pv_window - sp_window
@@ -315,7 +350,6 @@ class PidDeltaTuningEnv(EnvBase):
         observation = np.array([error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm], dtype=np.float32)
         action = np.array([delta_kp_norm, delta_ki_norm, delta_kd_norm], dtype=np.float32)
         reward = self._compute_reward(observation, action)
-        done = False
 
         if self.logger is not None:
             try: 
@@ -355,9 +389,6 @@ class PidDeltaTuningEnv(EnvBase):
         
         self._t = 0
         self._block_count = 0
-        self.kp = self.KP_START
-        self.ki = self.KI_START
-        self.kd = self.KD_START
         phase = Phase.WARMUP
 
         process_variables, control_outputs, setpoints = self.setup_controller.reset(
