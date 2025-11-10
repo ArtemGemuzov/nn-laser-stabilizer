@@ -224,8 +224,8 @@ class PidDeltaTuningEnv(EnvBase):
     STABILITY_WEIGHT = 0.4           
     ACTION_WEIGHT = 0.2              
     
-    CONTROL_OUTPUT_MIN_THRESHOLD = 500.0
-    CONTROL_OUTPUT_MAX_THRESHOLD = 3500.0
+    CONTROL_OUTPUT_MIN_THRESHOLD = 200.0
+    CONTROL_OUTPUT_MAX_THRESHOLD = 4095.0 + 1.0
 
     def __init__(self,
                  setup_controller,
