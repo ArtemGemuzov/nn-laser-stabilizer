@@ -20,6 +20,7 @@ def make_async_collector(config, make_env_fn, actor, replay_buffer):
         frames_per_batch=config.data.frames_per_batch,
         total_frames=config.data.total_frames,
         replay_buffer=replay_buffer,
+        update_at_each_batch=False
     )
     collector.set_seed(config.seed)
     return collector
