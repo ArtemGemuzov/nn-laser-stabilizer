@@ -1,5 +1,7 @@
-from torchrl.collectors import SyncDataCollector, aSyncDataCollector
+from torchrl.collectors import SyncDataCollector
 from torchrl.data import LazyTensorStorage, TensorDictReplayBuffer
+
+from nn_laser_stabilizer.training.collector import AsyncCollector
 
 def make_sync_collector(config, env, actor):
     collector = SyncDataCollector(
@@ -12,7 +14,7 @@ def make_sync_collector(config, env, actor):
     return collector
 
 def make_async_collector(config, make_env_fn, actor, replay_buffer):
-    collector = aSyncDataCollector(
+    collector = AsyncCollector(
         create_env_fn=make_env_fn,  
         policy=actor,
         frames_per_batch=config.data.frames_per_batch,
