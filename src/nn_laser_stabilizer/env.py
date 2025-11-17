@@ -1,8 +1,9 @@
 import random
 from enum import Enum
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Union
 
 import numpy as np
+import torch
 import gymnasium as gym
 from gymnasium import spaces
 
@@ -259,3 +260,39 @@ class PidDeltaTuningEnv(gym.Env):
     def close(self) -> None:
         self.setup_controller.close()
 
+
+class TorchEnvWrapper(gym.Wrapper): 
+    def __init__(
+        self,
+        env: gym.Env,
+        device: Union[str, torch.device] = "cpu",
+        dtype: torch.dtype = torch.float32,
+    ):
+        super().__init__(env)
+        self.device = torch.device(device) if isinstance(device, str) else device
+        self.dtype = dtype
+        
+    def _to_tensor(self, array: np.ndarray) -> torch.Tensor:
+        return torch.from_numpy(array).to(device=self.device, dtype=self.dtype)
+    
+    def _to_numpy(self, tensor: torch.Tensor) -> np.ndarray:
+        return tensor.numpy()
+    
+    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, bool, bool, dict]:
+        action_np = self._to_numpy(action)
+        
+        observation, reward, terminated, truncated, info = self.env.step(action_np)
+        
+        observation_tensor = self._to_tensor(observation)
+        reward_tensor = self._to_tensor(np.array(reward, dtype=np.float32))
+        
+        return observation_tensor, reward_tensor, terminated, truncated, info
+    
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None
+    ) -> Tuple[torch.Tensor, dict]:
+        observation, info = self.env.reset(seed=seed, options=options)
+        observation_tensor = self._to_tensor(observation)
+        return observation_tensor, info
