@@ -47,7 +47,7 @@ class TD3Loss:
             noise = (torch.randn_like(next_actions) * self.policy_noise).clamp(
                 -self.noise_clip, self.noise_clip
             )
-            next_actions = next_actions + noise
+            next_actions += noise
          
             next_actions = torch.clamp(
                 next_actions,
