@@ -29,11 +29,11 @@ class TD3Loss:
     ):
         self.actor = actor
         self.critic1 = critic
-        self.critic2 = copy.deepcopy(critic)
+        self.critic2 = type(critic)(critic.obs_dim, critic.action_dim)
 
-        self.actor_target = make_target(actor)
-        self.critic1_target = make_target(critic)
-        self.critic2_target = make_target(critic)
+        self.actor_target = make_target(self.actor)
+        self.critic1_target = make_target(self.critic1)
+        self.critic2_target = make_target(self.critic2)
         
         self.action_space = action_space
         self.gamma = gamma
