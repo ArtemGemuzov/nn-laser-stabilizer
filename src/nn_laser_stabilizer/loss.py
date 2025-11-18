@@ -20,6 +20,7 @@ class TD3Loss:
     ):
         self.actor = actor
         self.critic1 = critic
+        # TODO: работает, лишь пока конструктор у критика простой
         self.critic2 = type(critic)(critic.obs_dim, critic.action_dim)
 
         self.actor_target = make_target(self.actor)
