@@ -46,17 +46,9 @@ class TD3Loss:
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             next_actions = self.actor_target(next_observations)
-            noise = (torch.randn_like(next_actions) * self.policy_noise).clamp(
-                -self.noise_clip, self.noise_clip
-            )
-            next_actions += noise
+            noise = (torch.randn_like(next_actions) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
+            next_actions = (next_actions + noise).clamp(self.min_action, self.max_action)
          
-            next_actions = torch.clamp(
-                next_actions,
-                min=self.min_action,
-                max=self.max_action
-            )
-            
             target_q1 = self.critic1_target(next_observations, next_actions)
             target_q2 = self.critic2_target(next_observations, next_actions)
             target_q = torch.min(target_q1, target_q2)
