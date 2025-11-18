@@ -15,5 +15,5 @@ class Critic(nn.Module, ABC):
         pass
 
     @torch.no_grad()
-    def eval(self, observation: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+    def value(self, observation: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         return self(observation, action)

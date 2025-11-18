@@ -39,6 +39,8 @@ def _collector_worker(
         env = env_factory()
         obs, _ = env.reset()
         
+        # TODO: надо получить fake_obs и проверить работу, перед запуском обучения
+
         command_pipe.send((Commands.READY.value, None))
         
         while True:
