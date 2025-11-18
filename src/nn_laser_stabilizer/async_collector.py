@@ -1,7 +1,8 @@
+from dataclasses import dataclass
 from enum import Enum
 from multiprocessing.connection import Connection
 from typing import Callable, Optional, Dict, Any
-import time
+import traceback
 
 import torch
 import torch.multiprocessing as mp
@@ -15,6 +16,13 @@ class Commands(Enum):
     UPDATE_WEIGHTS = "update_weights"
     ERROR = "error"
     READY = "ready"
+
+
+@dataclass
+class CollectorError:
+    type: str
+    message: str
+    traceback: str
 
 
 def _collector_worker(
@@ -58,12 +66,18 @@ def _collector_worker(
     except KeyboardInterrupt:
         pass
 
-    except Exception:
-        command_pipe.send((Commands.ERROR.value, None))
-
+    except Exception as e:
+        error_info = CollectorError(
+            type=type(e).__name__,
+            message=str(e),
+            traceback=traceback.format_exc(),
+        )
+        command_pipe.send((Commands.ERROR.value, error_info))
+    
     finally:
         if env is not None:
             env.close()
+
 
 class AsyncCollector:
     def __init__(
@@ -79,17 +93,27 @@ class AsyncCollector:
         self._parent_pipe, self._child_pipe = mp.Pipe()
         self._process: Optional[mp.Process] = None
         self._running = False
-        self._error: Optional[Dict[str, Any]] = None
+        self._error: Optional[CollectorError] = None
     
     def _send_command(self, command: Commands, data=None) -> None:
         self._parent_pipe.send((command.value, data))
     
     def _worker_has_errors(self) -> bool:
         if self._parent_pipe.poll():
-            command, _ = self._parent_pipe.recv()
+            command, data = self._parent_pipe.recv()
             if command == Commands.ERROR.value:
+                self._error = data
                 return True
         return False
+    
+    def _raise_collector_error(self) -> None:  
+        if self._error is not None:
+            raise RuntimeError(
+                f"Collector process encountered an error: {self._error.type}: {self._error.message}\n"
+                f"Traceback from collector process:\n{self._error.traceback}"
+            )
+        else:
+            raise RuntimeError("Collector process encountered an error")
          
     def start(self) -> None:
         if self._running:
@@ -113,11 +137,12 @@ class AsyncCollector:
         if not self._parent_pipe.poll(timeout=10):
             raise RuntimeError(f"Collector process did not send {Commands.READY} signal within timeout")
         
-        command, _ = self._parent_pipe.recv()
+        command, data = self._parent_pipe.recv()
         if command == Commands.READY.value:
             self._running = True
         elif command == Commands.ERROR.value:
-            raise RuntimeError("Collector process encountered an error during initialization")
+            self._error = data
+            self._raise_collector_error()
         else:
             raise ValueError(f"Unknown command received: {command}") 
     
@@ -127,7 +152,7 @@ class AsyncCollector:
             raise RuntimeError("Collector is not running")
         
         if self._worker_has_errors():
-            raise RuntimeError("Collector process encountered an error")
+            self._raise_collector_error()
         
         state_dict = {k: v.cpu().clone() for k, v in policy.state_dict().items()}
         self._send_command(Commands.UPDATE_WEIGHTS, state_dict)
@@ -139,7 +164,7 @@ class AsyncCollector:
         self._send_command(Commands.CLOSE, None) 
         
         if self._worker_has_errors():
-            raise RuntimeError("Collector process encountered an error")
+            self._raise_collector_error()
         
         if self._process is not None:
             self._process.join(timeout=5.0)
