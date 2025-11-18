@@ -1,6 +1,7 @@
 from enum import Enum
 from multiprocessing.connection import Connection
-from typing import Callable, Optional, Dict, Any, List
+from typing import Callable, Optional, Dict, Any
+import time
 
 import torch
 import torch.multiprocessing as mp
@@ -12,6 +13,8 @@ from nn_laser_stabilizer.env import TorchEnvWrapper
 class Commands(Enum):
     CLOSE = "close"
     UPDATE_WEIGHTS = "update_weights"
+    ERROR = "error"
+    READY = "ready"
 
 
 def _collector_worker(
@@ -20,23 +23,24 @@ def _collector_worker(
     policy_factory: Callable[[], torch.nn.Module],
     command_pipe: Connection,
 ):
-    policy = policy_factory()
-    policy.eval()
-    
-    env = env_factory()
-    obs, _ = env.reset()
-
-    running = True
-    
     try:
-        while running:
+        policy = policy_factory()
+        policy.eval()
+        
+        env = env_factory()
+        obs, _ = env.reset()
+        
+        command_pipe.send((Commands.READY.value, None))
+        
+        while True:
             if command_pipe.poll():
                 command, data = command_pipe.recv()
-                if command == Commands.CLOSE.value:
-                    running = False
-                    break
-                elif command == Commands.UPDATE_WEIGHTS.value:
+                if command == Commands.UPDATE_WEIGHTS.value:
                     policy.load_state_dict(data)
+                elif command == Commands.CLOSE.value:
+                    break
+                else:
+                    raise ValueError(f"Unknown command received: {command}") 
             
             with torch.no_grad():
                 action = policy(obs)
@@ -54,9 +58,12 @@ def _collector_worker(
     except KeyboardInterrupt:
         pass
 
-    finally:
-        env.close()
+    except Exception:
+        command_pipe.send((Commands.ERROR.value, None))
 
+    finally:
+        if env is not None:
+            env.close()
 
 class AsyncCollector:
     def __init__(
@@ -72,13 +79,18 @@ class AsyncCollector:
         self._parent_pipe, self._child_pipe = mp.Pipe()
         self._process: Optional[mp.Process] = None
         self._running = False
+        self._error: Optional[Dict[str, Any]] = None
     
     def _send_command(self, command: Commands, data=None) -> None:
-        try:
-            self._parent_pipe.send((command.value, data))
-        except (BrokenPipeError, OSError):
-            pass
+        self._parent_pipe.send((command.value, data))
     
+    def _worker_has_errors(self) -> bool:
+        if self._parent_pipe.poll():
+            command, _ = self._parent_pipe.recv()
+            if command == Commands.ERROR.value:
+                return True
+        return False
+         
     def start(self) -> None:
         if self._running:
             raise RuntimeError("Collector is already running")
@@ -97,24 +109,40 @@ class AsyncCollector:
 
         if not self._process.is_alive():
             raise RuntimeError("Failed to start collector process")
-        else:
+
+        if not self._parent_pipe.poll(timeout=10):
+            raise RuntimeError(f"Collector process did not send {Commands.READY} signal within timeout")
+        
+        command, _ = self._parent_pipe.recv()
+        if command == Commands.READY.value:
             self._running = True
+        elif command == Commands.ERROR.value:
+            raise RuntimeError("Collector process encountered an error during initialization")
+        else:
+            raise ValueError(f"Unknown command received: {command}") 
+    
     
     def synchronize(self, policy: torch.nn.Module) -> None:
         if not self._running:
             raise RuntimeError("Collector is not running")
         
+        if self._worker_has_errors():
+            raise RuntimeError("Collector process encountered an error")
+        
         state_dict = {k: v.cpu().clone() for k, v in policy.state_dict().items()}
         self._send_command(Commands.UPDATE_WEIGHTS, state_dict)
     
-    def stop(self, timeout: Optional[float] = 5.0) -> None:
+    def stop(self) -> None:
         if not self._running:
             return
         
         self._send_command(Commands.CLOSE, None) 
         
+        if self._worker_has_errors():
+            raise RuntimeError("Collector process encountered an error")
+        
         if self._process is not None:
-            self._process.join(timeout=timeout)
+            self._process.join(timeout=5.0)
             if self._process.is_alive():
                 self._process.terminate()
                 self._process.join()
