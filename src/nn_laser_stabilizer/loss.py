@@ -19,6 +19,7 @@ class TD3Loss:
         noise_clip: float = 0.5,
     ):
         self.actor = actor
+        # TODO: можно перейти к списку критиков
         self.critic1 = critic
         # TODO: работает, лишь пока конструктор у критика простой
         self.critic2 = type(critic)(critic.obs_dim, critic.action_dim)
