@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Callable, Optional
+from multiprocessing.connection import Connection
+from typing import Callable, Optional, Dict, Any, List
 
 import torch
 import torch.multiprocessing as mp
@@ -8,7 +9,7 @@ from nn_laser_stabilizer.replay_buffer import SharedReplayBuffer
 from nn_laser_stabilizer.env import TorchEnvWrapper
 
 
-class Commands(str, Enum):
+class Commands(Enum):
     CLOSE = "close"
     UPDATE_WEIGHTS = "update_weights"
 
@@ -17,13 +18,14 @@ def _collector_worker(
     buffer: SharedReplayBuffer,
     env_factory: Callable[[], TorchEnvWrapper],
     policy_factory: Callable[[], torch.nn.Module],
-    command_pipe: mp.connection.PipeConnection,
+    command_pipe: Connection,
 ):
-    env = env_factory()
     policy = policy_factory()
     policy.eval()
     
+    env = env_factory()
     obs, _ = env.reset()
+
     running = True
     
     try:
@@ -51,6 +53,7 @@ def _collector_worker(
                 
     except KeyboardInterrupt:
         pass
+
     finally:
         env.close()
 
@@ -88,10 +91,14 @@ class AsyncCollector:
                 self.policy_factory,
                 self._child_pipe,
             ),
-            daemon=True,
+            name="DataCollectorWorker",
         )
         self._process.start()
-        self._running = True
+
+        if not self._process.is_alive():
+            raise RuntimeError("Failed to start collector process")
+        else:
+            self._running = True
     
     def synchronize(self, policy: torch.nn.Module) -> None:
         if not self._running:
