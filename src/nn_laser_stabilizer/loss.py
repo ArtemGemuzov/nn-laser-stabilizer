@@ -1,20 +1,11 @@
 from typing import Tuple
-import copy
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.critic import Critic
-
-
-def make_target(network: nn.Module) -> nn.Module:
-    target = copy.deepcopy(network)
-    target.load_state_dict(network.state_dict())
-    for param in target.parameters():
-        param.requires_grad = False
-    return target
+from nn_laser_stabilizer.utils import make_target
 
 
 class TD3Loss:
