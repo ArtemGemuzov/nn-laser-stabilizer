@@ -51,3 +51,20 @@ class SoftUpdater:
                 target_param.data.copy_(
                     self.tau * source_param.data + (1.0 - self.tau) * target_param.data
                 )
+
+
+class Scaler(nn.Module):
+    def __init__(self, low, high):
+        super(Scaler, self).__init__()
+        # TODO: нужно преобразовывать это где-то в другом месте
+        if isinstance(low, (list, tuple, np.ndarray)):
+            self.low = torch.tensor(low, dtype=torch.float32)
+            self.high = torch.tensor(high, dtype=torch.float32)
+        else:
+            self.low = torch.tensor([low], dtype=torch.float32)
+            self.high = torch.tensor([high], dtype=torch.float32)
+        self.tanh = nn.Tanh()
+
+    def forward(self, tensor: torch.Tensor) -> torch.Tensor:
+        tanh = self.tanh(tensor)
+        return self.low + (tanh + 1) * (self.high - self.low) / 2
