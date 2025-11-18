@@ -210,3 +210,6 @@ __marimo__/
 outputs/
 
 experiments/*
+
+**/Draft.ipynb
+**/draft.py
