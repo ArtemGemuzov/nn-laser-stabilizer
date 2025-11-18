@@ -9,6 +9,7 @@ import torch.multiprocessing as mp
 
 from nn_laser_stabilizer.replay_buffer import SharedReplayBuffer
 from nn_laser_stabilizer.env import TorchEnvWrapper
+from nn_laser_stabilizer.policy import Policy
 
 
 class Commands(Enum):
@@ -28,7 +29,7 @@ class CollectorError:
 def _collector_worker(
     buffer: SharedReplayBuffer,
     env_factory: Callable[[], TorchEnvWrapper],
-    policy_factory: Callable[[], torch.nn.Module],
+    policy_factory: Callable[[], Policy],
     command_pipe: Connection,
 ):
     try:
@@ -50,8 +51,7 @@ def _collector_worker(
                 else:
                     raise ValueError(f"Unknown command received: {command}") 
             
-            with torch.no_grad():
-                action = policy(obs)
+            action = policy.act(obs)
             
             next_obs, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
@@ -84,7 +84,7 @@ class AsyncCollector:
         self,
         buffer: SharedReplayBuffer,
         env_factory: Callable[[], TorchEnvWrapper],
-        policy_factory: Callable[[], torch.nn.Module],
+        policy_factory: Callable[[], Policy],
     ):
         self.buffer = buffer
         self.env_factory = env_factory
@@ -147,7 +147,7 @@ class AsyncCollector:
             raise ValueError(f"Unknown command received: {command}") 
     
     
-    def synchronize(self, policy: torch.nn.Module) -> None:
+    def synchronize(self, policy: Policy) -> None:
         if not self._running:
             raise RuntimeError("Collector is not running")
         
