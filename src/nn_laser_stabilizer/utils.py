@@ -33,11 +33,16 @@ def make_target(network: nn.Module) -> nn.Module:
 
 
 class SoftUpdater:  
-    def __init__(self, tau: float = 0.005):
+    def __init__(self, loss_module, tau: float = 0.005):
+        # TODO: можно будет обобщить
         self.tau = tau
         self._pairs: List[Tuple[nn.Module, nn.Module]] = []
+        
+        self._register((loss_module.actor_target, loss_module.actor))
+        self._register((loss_module.critic1_target, loss_module.critic1))
+        self._register((loss_module.critic2_target, loss_module.critic2))
     
-    def register(self, target_network: nn.Module, source_network: nn.Module) -> None:
+    def _register(self, target_network: nn.Module, source_network: nn.Module) -> None:
         self._pairs.append((target_network, source_network))
     
     def update(self) -> None:
