@@ -147,7 +147,7 @@ class AsyncCollector:
             raise ValueError(f"Unknown command received: {command}") 
     
     
-    def synchronize(self, policy: Policy) -> None:
+    def sync(self, policy: Policy) -> None:
         if not self._running:
             raise RuntimeError("Collector is not running")
         
