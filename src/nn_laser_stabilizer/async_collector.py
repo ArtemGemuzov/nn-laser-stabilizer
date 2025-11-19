@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from enum import Enum
-from multiprocessing.connection import Connection
 from typing import Callable, Optional
 import traceback
 
-import torch
+from multiprocessing.connection import Connection
 import torch.multiprocessing as mp
 
 from nn_laser_stabilizer.replay_buffer import SharedReplayBuffer
@@ -147,7 +146,6 @@ class AsyncCollector:
             self._raise_collector_error()
         else:
             raise ValueError(f"Unknown command received: {command}") 
-    
     
     def sync(self, policy: Policy) -> None:
         if not self._running:

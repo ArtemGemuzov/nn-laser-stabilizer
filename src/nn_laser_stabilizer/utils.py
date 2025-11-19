@@ -45,11 +45,12 @@ class SoftUpdater:
     def _register(self, target_network: nn.Module, source_network: nn.Module) -> None:
         self._pairs.append((target_network, source_network))
     
+    @torch.no_grad()
     def update(self) -> None:
         for target_net, source_net in self._pairs:
             for target_param, source_param in zip(target_net.parameters(), source_net.parameters()):
-                target_param.data.copy_(
-                    self.tau * source_param.data + (1.0 - self.tau) * target_param.data
+                target_param.copy_(
+                    self.tau * source_param + (1.0 - self.tau) * target_param
                 )
 
 

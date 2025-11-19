@@ -25,9 +25,9 @@ class SharedReplayBuffer:
         
         self.observations = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device='cpu').share_memory_()
         self.actions = torch.zeros((capacity, *action_shape), dtype=torch.float32, device='cpu').share_memory_()
-        self.rewards = torch.zeros(capacity, dtype=torch.float32, device='cpu').share_memory_()
+        self.rewards = torch.zeros((capacity, 1), dtype=torch.float32, device='cpu').share_memory_()
         self.next_observations = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device='cpu').share_memory_()
-        self.dones = torch.zeros(capacity, dtype=torch.bool, device='cpu').share_memory_()
+        self.dones = torch.zeros((capacity, 1), dtype=torch.bool, device='cpu').share_memory_()
     
     @property
     def size(self) -> int:
