@@ -2,7 +2,7 @@ import os
 import random
 import copy
 
-from typing import Tuple, List
+from typing import Tuple, List, Sequence
 
 import numpy as np
 
@@ -49,6 +49,23 @@ class SoftUpdater:
         for target_net, source_net in self._pairs:
             for target_param, source_param in zip(target_net.parameters(), source_net.parameters()):
                 target_param.data.lerp_(source_param.data, self.tau)
+
+
+def build_mlp(
+    input_dim: int,
+    output_dim: int,
+    hidden_sizes: Sequence[int],
+) -> nn.Sequential:
+    layers = []
+    prev_size = input_dim
+    
+    for hidden_size in hidden_sizes:
+        layers.append(nn.Linear(prev_size, hidden_size))
+        layers.append(nn.ReLU())
+        prev_size = hidden_size
+    
+    layers.append(nn.Linear(prev_size, output_dim))
+    return nn.Sequential(*layers)
 
 
 class Scaler(nn.Module):
