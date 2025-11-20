@@ -85,7 +85,7 @@ def main(context: ExperimentContext):
     
     print("Создание компонентов...")
 
-    logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
+    train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
     env = make_env()
     observation_space = env.unwrapped.observation_space
@@ -165,31 +165,31 @@ def main(context: ExperimentContext):
             if step % log_frequency == 0:
                 if actor_loss is not None:
                     log_line = f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}"
-                    logger.log(log_line)
+                    train_logger.log(log_line)
                     print(f"Шаг {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
                             f"actor_loss={actor_loss:.4f}, размер буфера={len(buffer)}")
                 else:
                     log_line = f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}"
-                    logger.log(log_line)
+                    train_logger.log(log_line)
                     print(f"Шаг {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
                             f"размер буфера={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
                 rewards = validate(actor, make_gym_env, num_steps=config.validation.validation_steps)
                 log_line = f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}"
-                logger.log(log_line)
+                train_logger.log(log_line)
                 print(f"Валидация (шаг {step}): награда = {rewards.sum():.4f} за {rewards.size} эпизодов")
         
         print("\nФинальная валидация...")
         final_rewards = validate(actor, make_gym_env, num_steps=config.validation.final_validation_steps)
         log_line = f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}"
-        logger.log(log_line)
+        train_logger.log(log_line)
         print(f"Финальная средняя награда: {final_rewards.mean()}")
         
         print("Обучение завершено.")
         print(f"Финальный размер буфера: {len(buffer)}")
     
-    logger.close()
+    train_logger.close()
     print("Коллектор остановлен.")
 
 
