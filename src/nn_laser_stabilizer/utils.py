@@ -45,13 +45,10 @@ class SoftUpdater:
     def _register(self, target_network: nn.Module, source_network: nn.Module) -> None:
         self._pairs.append((target_network, source_network))
     
-    @torch.no_grad()
     def update(self) -> None:
         for target_net, source_net in self._pairs:
             for target_param, source_param in zip(target_net.parameters(), source_net.parameters()):
-                target_param.copy_(
-                    self.tau * source_param + (1.0 - self.tau) * target_param
-                )
+                target_param.data.lerp_(source_param.data, self.tau)
 
 
 class Scaler(nn.Module):
