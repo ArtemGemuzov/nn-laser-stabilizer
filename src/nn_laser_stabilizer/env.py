@@ -1,6 +1,5 @@
-import random
 from enum import Enum
-from typing import Optional, Tuple, Any, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -8,7 +7,58 @@ import gymnasium as gym
 from gymnasium import spaces
 
 from nn_laser_stabilizer.exp_setup import ExperimentalSetupController
+from nn_laser_stabilizer.connection import MockSerialConnection, SerialConnection
+from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
+from nn_laser_stabilizer.logger import AsyncFileLogger
 
+
+class TorchEnvWrapper(gym.Wrapper): 
+    def __init__(
+        self,
+        env: gym.Env,
+        device: Union[str, torch.device] = "cpu",
+        dtype: torch.dtype = torch.float32,
+    ):
+        super().__init__(env)
+        self.device = torch.device(device) if isinstance(device, str) else device
+        self.dtype = dtype
+        
+    def _to_tensor(self, x) -> torch.Tensor:
+        if isinstance(x, np.ndarray):
+            return torch.from_numpy(x).to(device=self.device, dtype=self.dtype)
+
+        if isinstance(x, bool):
+            return torch.tensor(x, device=self.device, dtype=torch.bool)
+
+        if isinstance(x, (int, float, np.number)):
+            return torch.tensor(x, device=self.device, dtype=self.dtype)
+
+        raise TypeError(f"Unsupported type for _to_tensor: {type(x)}")
+    
+    def _to_numpy(self, tensor: torch.Tensor) -> np.ndarray:
+        return tensor.numpy()
+    
+    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict]:
+        action_np = self._to_numpy(action)
+        
+        observation, reward, terminated, truncated, info = self.env.step(action_np)
+
+        observation = self._to_tensor(observation)
+        reward = self._to_tensor(reward)
+        terminated = self._to_tensor(terminated)
+        truncated = self._to_tensor(truncated)
+        
+        return observation, reward, terminated, truncated, info
+    
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None
+    ) -> Tuple[torch.Tensor, dict]:
+        observation, info = self.env.reset(seed=seed, options=options)
+        observation = self._to_tensor(observation)
+        return observation, info
+    
 
 class Phase(Enum):
     WARMUP = "warmup"
@@ -259,54 +309,49 @@ class PidDeltaTuningEnv(gym.Env):
 
     def close(self) -> None:
         self.setup_controller.close()
-
-
-class TorchEnvWrapper(gym.Wrapper): 
-    def __init__(
-        self,
-        env: gym.Env,
-        device: Union[str, torch.device] = "cpu",
-        dtype: torch.dtype = torch.float32,
-    ):
-        super().__init__(env)
-        self.device = torch.device(device) if isinstance(device, str) else device
-        self.dtype = dtype
-        
-    def _to_tensor(self, x) -> torch.Tensor:
-        if isinstance(x, np.ndarray):
-            return torch.from_numpy(x).to(device=self.device, dtype=self.dtype)
-
-        if isinstance(x, bool):
-            return torch.tensor(x, device=self.device, dtype=torch.bool)
-
-        if isinstance(x, (int, float, np.number)):
-            return torch.tensor(x, device=self.device, dtype=self.dtype)
-
-        raise TypeError(f"Unsupported type for _to_tensor: {type(x)}")
     
-    def _to_numpy(self, tensor: torch.Tensor) -> np.ndarray:
-        return tensor.numpy()
-    
-    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict]:
-        action_np = self._to_numpy(action)
+    @classmethod
+    def create(
+        cls,
+        setpoint: float = 1200.0,
+        warmup_steps: int = 100,
+        block_size: int = 50,
+        pretrain_blocks: int = 10,
+        burn_in_steps: int = 10,
+        use_mock: bool = True,
+        port: str = "mock",
+        use_logging: bool = True,
+        log_dir: str = ".",
+        wrap_torch: bool = True,
+        **connection_kwargs,
+    ) -> Union["PidDeltaTuningEnv", TorchEnvWrapper]:
+        if use_mock:
+            serial_conn = MockSerialConnection(port=port, **connection_kwargs)
+        else:
+            serial_conn = SerialConnection(port=port, **connection_kwargs)
         
-        observation, reward, terminated, truncated, info = self.env.step(action_np)
-
-        observation = self._to_tensor(observation)
-        reward = self._to_tensor(reward)
-        terminated = self._to_tensor(terminated)
-        truncated = self._to_tensor(truncated)
+        pid_connection = ConnectionToPid(serial_conn)
         
-        return observation, reward, terminated, truncated, info
-    
-    def reset(
-        self,
-        seed: Optional[int] = None,
-        options: Optional[dict] = None
-    ) -> Tuple[torch.Tensor, dict]:
-        observation, info = self.env.reset(seed=seed, options=options)
-        observation = self._to_tensor(observation)
-        return observation, info
+        if use_logging:
+            logger = AsyncFileLogger(log_dir=log_dir)
+            pid_connection = LoggingConnectionToPid(pid_connection, logger=logger)
+        
+        setup_controller = ExperimentalSetupController(
+            pid_connection=pid_connection,
+            setpoint=setpoint,
+            warmup_steps=warmup_steps,
+            block_size=block_size,
+        )
+        
+        env = cls(
+            setup_controller=setup_controller,
+            pretrain_blocks=pretrain_blocks,
+            burn_in_steps=burn_in_steps,
+        )
+        
+        if wrap_torch:
+            return TorchEnvWrapper(env)
+        return env
     
 
 class PendulumNoVelEnv(gym.Env):
