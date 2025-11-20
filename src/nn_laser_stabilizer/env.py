@@ -333,7 +333,7 @@ class PidDeltaTuningEnv(gym.Env):
         pid_connection = ConnectionToPid(serial_conn)
         
         if use_logging:
-            logger = AsyncFileLogger(log_dir=log_dir)
+            logger = AsyncFileLogger(log_dir=log_dir, log_file="env.log")
             pid_connection = LoggingConnectionToPid(pid_connection, logger=logger)
         
         setup_controller = ExperimentalSetupController(
