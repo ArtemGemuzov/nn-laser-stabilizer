@@ -15,6 +15,7 @@ from nn_laser_stabilizer.critic import MLPCritic
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.utils import SoftUpdater
+from nn_laser_stabilizer.experiment import experiment, ExperimentContext
 
 
 def make_gym_env():
@@ -74,7 +75,13 @@ def validate(
     return np.array(rewards)
 
 
-def main():
+@experiment("_train_sync_async.yaml")
+def main(context: ExperimentContext):
+    config = context.config
+    
+    print(f"Эксперимент: {context.experiment_name}")
+    print(f"Директория: {context.experiment_dir}")
+    
     print("Создание компонентов...")
     
     env = make_env()
@@ -85,7 +92,7 @@ def main():
     action_dim = action_space.shape[0]
     
     buffer = SharedReplayBuffer(
-        capacity=100000,
+        capacity=config.data.buffer_size,
         obs_shape=observation_space.shape,
         action_shape=action_space.shape,
     )
@@ -93,24 +100,28 @@ def main():
     policy_factory = partial(make_policy, action_space=action_space, observation_space=observation_space)
    
     actor = policy_factory().train()
-    critic = MLPCritic(obs_dim=observation_dim, action_dim=action_dim, hidden_sizes=(256, 256)).train()
+    critic = MLPCritic(
+        obs_dim=observation_dim, 
+        action_dim=action_dim, 
+        hidden_sizes=tuple(config.agent.q_mlp_num_cells)
+    ).train()
     
     loss_module = TD3Loss(
         actor=actor,
         critic=critic,
         action_space=action_space,
-        gamma=0.99,
-        policy_noise=0.2,
-        noise_clip=0.5,
+        gamma=config.agent.gamma,
+        policy_noise=config.agent.policy_noise,
+        noise_clip=config.agent.noise_clip,
     )
     
-    actor_optimizer = optim.Adam(loss_module.actor.parameters(), lr=1e-3)
+    actor_optimizer = optim.Adam(loss_module.actor.parameters(), lr=config.agent.learning_rate_actor)
     critic_optimizer = optim.Adam(
         list(loss_module.critic1.parameters()) + list(loss_module.critic2.parameters()),
-        lr=1e-3
+        lr=config.agent.learning_rate_critic
     )
     
-    soft_updater = SoftUpdater(loss_module, tau=0.005)
+    soft_updater = SoftUpdater(loss_module, tau=config.agent.target_update_eps)
     
     print("Запуск коллектора...")
     
@@ -121,18 +132,18 @@ def main():
     ) as collector:
         print("Коллектор запущен. Ожидание накопления данных...")
         
-        initial_collect_steps = 10000
+        initial_collect_steps = config.data.min_data_for_training
         collector.collect(initial_collect_steps)
         print(f"Начало обучения. Размер буфера: {len(buffer)}")
         
-        num_training_steps = 20000
+        num_training_steps = config.train.total_train_steps
         sync_frequency = 100 
-        log_frequency = 100
-        validation_frequency = 500 
-        policy_freq = 2  
+        log_frequency = config.validation.log_frequency
+        validation_frequency = config.validation.validation_frequency
+        policy_freq = config.train.update_actor_freq
         
         for step in range(num_training_steps):
-            batch = buffer.sample(batch_size=64)
+            batch = buffer.sample(batch_size=config.train.batch_size)
             
             update_actor_and_target = (step % policy_freq == 0)
             
@@ -157,11 +168,11 @@ def main():
                             f"размер буфера={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
-                rewards = validate(actor, make_gym_env, num_steps=200)
+                rewards = validate(actor, make_gym_env, num_steps=config.validation.validation_steps)
                 print(f"Валидация (шаг {step}): награда = {rewards.sum():.4f} за {rewards.size} эпизодов")
         
         print("\nФинальная валидация...")
-        final_rewards = validate(actor, make_gym_env, num_steps=1000)
+        final_rewards = validate(actor, make_gym_env, num_steps=config.validation.final_validation_steps)
         print(f"Финальная средняя награда: {final_rewards.mean()}")
         
         print("Обучение завершено.")

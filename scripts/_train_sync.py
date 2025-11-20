@@ -13,6 +13,7 @@ from nn_laser_stabilizer.critic import MLPCritic
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.utils import SoftUpdater
+from nn_laser_stabilizer.experiment import ExperimentContext, experiment
 
 
 def make_gym_env():
@@ -46,8 +47,13 @@ def validate(
     
     return np.array(rewards)
 
-
-def main():
+@experiment("_train_sync_async.yaml")
+def main(context: ExperimentContext):
+    config = context.config
+    
+    print(f"Эксперимент: {context.experiment_name}")
+    print(f"Директория: {context.experiment_dir}")
+    
     print("Создание компонентов...")
     
     env = make_gym_env()
