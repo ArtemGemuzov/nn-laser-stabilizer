@@ -43,7 +43,7 @@ def make_policy(action_space, observation_space) -> MLPPolicy:
         obs_dim=observation_space.shape[0],
         action_dim=action_space.shape[0],
         action_space=action_space,
-        hidden_sizes=(256, 256),
+        hidden_sizes=(400, 300),
     )
 
 
