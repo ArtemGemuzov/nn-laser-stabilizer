@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Optional
+import time
 import traceback
 
 from multiprocessing.connection import Connection
@@ -215,6 +216,15 @@ class AsyncCollector:
             self._raise_collector_error()
         else:
             raise ValueError(f"Unknown command received: {command}") 
+    
+    def collect(self, num_steps: int, check_interval: float = 0.1) -> None:
+        if not self._running:
+            raise RuntimeError("Collector is not running")
+        
+        while len(self.buffer) < num_steps:
+            if self._worker_has_errors():
+                self._raise_collector_error()
+            time.sleep(check_interval)
     
     def sync(self, policy: Policy) -> None:
         if not self._running:
