@@ -3,12 +3,12 @@ from typing import Tuple
 import torch
 
 
-class SharedReplayBuffer:
+class ReplayBuffer:
     """
-    Буфер повторений с shared memory для multiprocessing.
+    Буфер повторений для хранения опыта.
     
     Ожидается, что будет лишь один поток-читатель и один поток-писатель.
-    Буфер всегда использует shared memory и тензоры всегда на CPU.
+    Тензоры всегда на CPU.
     """
     def __init__(
         self,
@@ -20,14 +20,23 @@ class SharedReplayBuffer:
         self.obs_shape = obs_shape
         self.action_shape = action_shape
         
-        self._size = torch.zeros(1, dtype=torch.int32, device='cpu').share_memory_()
-        self._index = torch.zeros(1, dtype=torch.int32, device='cpu').share_memory_()
+        self._size = torch.zeros(1, dtype=torch.int32, device='cpu')
+        self._index = torch.zeros(1, dtype=torch.int32, device='cpu')
         
-        self.observations = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device='cpu').share_memory_()
-        self.actions = torch.zeros((capacity, *action_shape), dtype=torch.float32, device='cpu').share_memory_()
-        self.rewards = torch.zeros((capacity, 1), dtype=torch.float32, device='cpu').share_memory_()
-        self.next_observations = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device='cpu').share_memory_()
-        self.dones = torch.zeros((capacity, 1), dtype=torch.bool, device='cpu').share_memory_()
+        self.observations = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device='cpu')
+        self.actions = torch.zeros((capacity, *action_shape), dtype=torch.float32, device='cpu')
+        self.rewards = torch.zeros((capacity, 1), dtype=torch.float32, device='cpu')
+        self.next_observations = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device='cpu')
+        self.dones = torch.zeros((capacity, 1), dtype=torch.bool, device='cpu')
+    
+    def share_memory(self) -> None:
+        self._size.share_memory_()
+        self._index.share_memory_()
+        self.observations.share_memory_()
+        self.actions.share_memory_()
+        self.rewards.share_memory_()
+        self.next_observations.share_memory_()
+        self.dones.share_memory_()
     
     @property
     def size(self) -> int:
@@ -96,7 +105,6 @@ class SharedReplayBuffer:
                 'size': self.size,
                 'obs_shape': self.obs_shape,
                 'action_shape': self.action_shape,
-                'dtype': str(self.dtype),
             },
             path
         )

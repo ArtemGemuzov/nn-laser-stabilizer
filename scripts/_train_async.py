@@ -7,7 +7,7 @@ import gymnasium as gym
 import torch
 import torch.optim as optim
 
-from nn_laser_stabilizer.replay_buffer import SharedReplayBuffer
+from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import AsyncCollector
 from nn_laser_stabilizer.env import TorchEnvWrapper, PendulumNoVelEnv, PidDeltaTuningEnv
 from nn_laser_stabilizer.policy import Policy, MLPPolicy
@@ -91,7 +91,7 @@ def main(context: ExperimentContext):
     action_space = env.unwrapped.action_space
     action_dim = action_space.shape[0]
     
-    buffer = SharedReplayBuffer(
+    buffer = ReplayBuffer(
         capacity=config.data.buffer_size,
         obs_shape=observation_space.shape,
         action_shape=action_space.shape,

@@ -9,7 +9,7 @@ from multiprocessing.connection import Connection
 import torch
 import torch.multiprocessing as mp
 
-from nn_laser_stabilizer.replay_buffer import SharedReplayBuffer
+from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.env import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
 
@@ -18,7 +18,7 @@ def _collect_step(
     policy: Policy,
     env: TorchEnvWrapper,
     obs: torch.Tensor,
-    buffer: SharedReplayBuffer,
+    buffer: ReplayBuffer,
 ) -> torch.Tensor:
     action = policy.act(obs)
     
@@ -36,7 +36,7 @@ def _collect_step(
 class SyncCollector:
     def __init__(
         self,
-        buffer: SharedReplayBuffer,
+        buffer: ReplayBuffer,
         env: TorchEnvWrapper,
         policy: Policy,
     ):
@@ -106,7 +106,7 @@ class CollectorError:
 
 
 def _collector_worker(
-    buffer: SharedReplayBuffer,
+    buffer: ReplayBuffer,
     env_factory: Callable[[], TorchEnvWrapper],
     policy_factory: Callable[[], Policy],
     command_pipe: Connection,
@@ -153,7 +153,7 @@ def _collector_worker(
 class AsyncCollector:
     def __init__(
         self,
-        buffer: SharedReplayBuffer,
+        buffer: ReplayBuffer,
         env_factory: Callable[[], TorchEnvWrapper],
         policy_factory: Callable[[], Policy],
     ):

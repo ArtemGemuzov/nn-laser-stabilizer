@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import wraps
 
 from nn_laser_stabilizer.config import Config, load_config
+from nn_laser_stabilizer.utils import set_seeds
 
 
 CONFIGS_DIR = Path("configs")
@@ -19,11 +20,16 @@ class ExperimentContext:
         self.config: Config = config
         self.output_base_dir = EXPERIMENTS_DIR
         
-        self.experiment_name = config.experiment_name
+        self.experiment_name = config.get("experiment_name", "unnamed_experiment")
         
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.experiment_dir : Path = self.output_base_dir / self.experiment_name / timestamp
         self.experiment_dir.mkdir(parents=True, exist_ok=True)
+        
+        seed = config.get("seed")
+        self.seed = seed
+        if seed is not None:
+            set_seeds(seed)
         
         self.save_config()
     

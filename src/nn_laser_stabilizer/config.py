@@ -19,7 +19,7 @@ class Config:
     def __delattr__(self, name: str) -> None:
         raise AttributeError(f"Config is immutable. Cannot delete attribute '{name}'")
     
-    def _get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: Any = None) -> Any:
         keys = key.split('.')
         cur_value = self._data
         
@@ -31,7 +31,7 @@ class Config:
         return cur_value
     
     def __getattr__(self, key: str) -> Any:
-        value = self._get(key)
+        value = self.get(key)
         if value is None:
             raise AttributeError(f"Config has no attribute '{key}'")
         if isinstance(value, dict):
