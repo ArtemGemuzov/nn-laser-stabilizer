@@ -50,12 +50,7 @@ def validate(
 
 @experiment("_train_sync_async.yaml")
 def main(context: ExperimentContext):
-    config = context.config
-    
-    print(f"Эксперимент: {context.experiment_name}")
-    print(f"Директория: {context.experiment_dir}")
-    
-    print("Создание компонентов...")
+    print("Creating components...")
 
     train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
@@ -104,18 +99,18 @@ def main(context: ExperimentContext):
     
     collector_env = make_gym_env()
     
-    print("Создание синхронного коллектора...")
+    print("Creating synchronous collector...")
     
     with SyncCollector(
         buffer=buffer,
         env=collector_env,
         policy=actor,  
     ) as collector:
-        print("Коллектор запущен. Начальный сбор данных...")
+        print("Collector started. Initial data collection...")
         
         initial_collect_steps = 10000
         collector.collect(initial_collect_steps)
-        print(f"Начальный сбор данных завершен. Размер буфера: {len(buffer)}")
+        print(f"Initial data collection completed. Buffer size: {len(buffer)}")
         
         num_training_steps = 20000
         collect_steps_per_iteration = 10  
@@ -123,7 +118,7 @@ def main(context: ExperimentContext):
         validation_frequency = 500  
         policy_freq = 2
         
-        print(f"Начало обучения. Размер буфера: {len(buffer)}")
+        print(f"Training started. Buffer size: {len(buffer)}")
         
         for step in range(num_training_steps):
             collector.collect(collect_steps_per_iteration)
@@ -145,31 +140,31 @@ def main(context: ExperimentContext):
                 if actor_loss is not None:
                     log_line = f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}"
                     train_logger.log(log_line)
-                    print(f"Шаг {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
-                            f"actor_loss={actor_loss:.4f}, размер буфера={len(buffer)}")
+                    print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
+                            f"actor_loss={actor_loss:.4f}, buffer size={len(buffer)}")
                 else:
                     log_line = f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}"
                     train_logger.log(log_line)
-                    print(f"Шаг {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
-                            f"размер буфера={len(buffer)}")
+                    print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
+                            f"buffer size={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
                 rewards = validate(actor, make_gym_env, num_steps=200)
                 log_line = f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}"
                 train_logger.log(log_line)
-                print(f"Валидация (шаг {step}): награда = {rewards.sum():.4f} за {rewards.size} эпизодов")
+                print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
-        print("\nФинальная валидация...")
+        print("\nFinal validation...")
         final_rewards = validate(actor, make_gym_env, num_steps=1000)
         log_line = f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}"
         train_logger.log(log_line)
-        print(f"Финальная средняя награда: {final_rewards.mean()}")
+        print(f"Final average reward: {final_rewards.mean()}")
         
-        print("Обучение завершено.")
-        print(f"Финальный размер буфера: {len(buffer)}")
+        print("Training completed.")
+        print(f"Final buffer size: {len(buffer)}")
     
     train_logger.close()
-    print("Коллектор остановлен.")
+    print("Collector stopped.")
 
 
 if __name__ == "__main__":

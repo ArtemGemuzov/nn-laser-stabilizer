@@ -1,11 +1,8 @@
 import math
 import random
-import os
 from typing import Protocol, Optional
 
 import serial
-
-from nn_laser_stabilizer.utils import get_hydra_runtime_output_dir
 
 
 class BaseConnection(Protocol):
@@ -110,10 +107,8 @@ class MockSerialConnection(BaseConnection):
         self.is_connected = True
         try:
             log_filename = f"mock_{self.port}.log"
-            output_dir = get_hydra_runtime_output_dir()
-            log_path = os.path.join(output_dir, log_filename)
-            self._log_file = open(log_path, 'a', encoding='utf-8')
-            print(f"Mock serial connection established. Logging to: {log_path}")
+            self._log_file = open(log_filename, 'a', encoding='utf-8')
+            print(f"Mock serial connection established. Logging to: {log_filename}")
         except Exception as ex:
             raise ConnectionError(f"Failed to open log file") from ex
 

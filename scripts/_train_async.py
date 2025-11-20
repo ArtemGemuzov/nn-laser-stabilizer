@@ -24,18 +24,6 @@ def make_gym_env():
     return TorchEnvWrapper(env)
 
 
-def make_pid_env() -> TorchEnvWrapper:
-    return PidDeltaTuningEnv.create(
-        setpoint=1200.0,
-        warmup_steps=100,
-        block_size=50,
-        pretrain_blocks=10,
-        burn_in_steps=10,
-        use_logging=True,
-        log_dir=".",
-    )
-
-
 def make_env():
     return make_gym_env()
 
@@ -78,12 +66,7 @@ def validate(
 
 @experiment("_train_sync_async.yaml")
 def main(context: ExperimentContext):
-    config = context.config
-    
-    print(f"Эксперимент: {context.experiment_name}")
-    print(f"Директория: {context.experiment_dir}")
-    
-    print("Создание компонентов...")
+    print("Creating components...")
 
     train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
@@ -95,7 +78,7 @@ def main(context: ExperimentContext):
     action_dim = action_space.shape[0]
     
     buffer = ReplayBuffer(
-        capacity=config.data.buffer_size,
+        capacity=100000,
         obs_shape=observation_space.shape,
         action_shape=action_space.shape,
     )
@@ -106,47 +89,47 @@ def main(context: ExperimentContext):
     critic = MLPCritic(
         obs_dim=observation_dim, 
         action_dim=action_dim, 
-        hidden_sizes=tuple(config.agent.q_mlp_num_cells)
+        hidden_sizes=(400, 300)
     ).train()
     
     loss_module = TD3Loss(
         actor=actor,
         critic=critic,
         action_space=action_space,
-        gamma=config.agent.gamma,
-        policy_noise=config.agent.policy_noise,
-        noise_clip=config.agent.noise_clip,
+        gamma=0.98,
+        policy_noise=0.1,
+        noise_clip=0.25,
     )
     
-    actor_optimizer = optim.Adam(loss_module.actor.parameters(), lr=config.agent.learning_rate_actor)
+    actor_optimizer = optim.Adam(loss_module.actor.parameters(), lr=1e-3)
     critic_optimizer = optim.Adam(
         list(loss_module.critic1.parameters()) + list(loss_module.critic2.parameters()),
-        lr=config.agent.learning_rate_critic
+        lr=1e-3
     )
     
-    soft_updater = SoftUpdater(loss_module, tau=config.agent.target_update_eps)
+    soft_updater = SoftUpdater(loss_module, tau=0.005)
     
-    print("Запуск коллектора...")
+    print("Starting collector...")
     
     with AsyncCollector(
         buffer=buffer,
         env_factory=make_env,
         policy_factory=policy_factory,
     ) as collector:
-        print("Коллектор запущен. Ожидание накопления данных...")
+        print("Collector started. Waiting for data accumulation...")
         
-        initial_collect_steps = config.data.min_data_for_training
+        initial_collect_steps = 10000
         collector.collect(initial_collect_steps)
-        print(f"Начало обучения. Размер буфера: {len(buffer)}")
+        print(f"Training started. Buffer size: {len(buffer)}")
         
-        num_training_steps = config.train.total_train_steps
+        num_training_steps = 20000
         sync_frequency = 100 
-        log_frequency = config.validation.log_frequency
-        validation_frequency = config.validation.validation_frequency
-        policy_freq = config.train.update_actor_freq
+        log_frequency = 100
+        validation_frequency = 500
+        policy_freq = 2
         
         for step in range(num_training_steps):
-            batch = buffer.sample(batch_size=config.train.batch_size)
+            batch = buffer.sample(batch_size=64)
             
             update_actor_and_target = (step % policy_freq == 0)
             
@@ -166,31 +149,31 @@ def main(context: ExperimentContext):
                 if actor_loss is not None:
                     log_line = f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}"
                     train_logger.log(log_line)
-                    print(f"Шаг {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
-                            f"actor_loss={actor_loss:.4f}, размер буфера={len(buffer)}")
+                    print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
+                            f"actor_loss={actor_loss:.4f}, buffer size={len(buffer)}")
                 else:
                     log_line = f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}"
                     train_logger.log(log_line)
-                    print(f"Шаг {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
-                            f"размер буфера={len(buffer)}")
+                    print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
+                            f"buffer size={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
-                rewards = validate(actor, make_gym_env, num_steps=config.validation.validation_steps)
+                rewards = validate(actor, make_gym_env, num_steps=200)
                 log_line = f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}"
                 train_logger.log(log_line)
-                print(f"Валидация (шаг {step}): награда = {rewards.sum():.4f} за {rewards.size} эпизодов")
+                print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
-        print("\nФинальная валидация...")
-        final_rewards = validate(actor, make_gym_env, num_steps=config.validation.final_validation_steps)
+        print("\nFinal validation...")
+        final_rewards = validate(actor, make_gym_env, num_steps=1000)
         log_line = f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}"
         train_logger.log(log_line)
-        print(f"Финальная средняя награда: {final_rewards.mean()}")
+        print(f"Final average reward: {final_rewards.mean()}")
         
-        print("Обучение завершено.")
-        print(f"Финальный размер буфера: {len(buffer)}")
+        print("Training completed.")
+        print(f"Final buffer size: {len(buffer)}")
     
     train_logger.close()
-    print("Коллектор остановлен.")
+    print("Collector stopped.")
 
 
 if __name__ == "__main__":
