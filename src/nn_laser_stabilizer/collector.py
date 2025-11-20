@@ -4,11 +4,90 @@ from typing import Callable, Optional
 import traceback
 
 from multiprocessing.connection import Connection
+
+import torch
 import torch.multiprocessing as mp
 
 from nn_laser_stabilizer.replay_buffer import SharedReplayBuffer
 from nn_laser_stabilizer.env import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
+
+
+def _collect_step(
+    policy: Policy,
+    env: TorchEnvWrapper,
+    obs: torch.Tensor,
+    buffer: SharedReplayBuffer,
+) -> torch.Tensor:
+    action = policy.act(obs)
+    
+    next_obs, reward, terminated, truncated, _ = env.step(action)
+    done = terminated or truncated
+    
+    buffer.add(obs, action, reward, next_obs, done)
+    
+    if done:
+        next_obs, _ = env.reset()
+    
+    return next_obs
+
+
+class SyncCollector:
+    def __init__(
+        self,
+        buffer: SharedReplayBuffer,
+        env: TorchEnvWrapper,
+        policy: Policy,
+    ):
+        self.buffer = buffer
+        self._env = env
+        self._policy = policy
+        
+        self._cur_obs: Optional[torch.Tensor] = None
+        self._running = False
+    
+    def start(self) -> None:
+        if self._running:
+            raise RuntimeError("Collector is already running")
+        
+        self._policy.eval()
+        self._cur_obs, _ = self._env.reset()
+        self._running = True
+    
+    def collect(self, num_steps: int) -> None:
+        if not self._running:
+            raise RuntimeError("Collector is not running")
+        
+        for _ in range(num_steps):
+            self._cur_obs = _collect_step(
+                self._policy,
+                self._env,
+                self._cur_obs,
+                self.buffer,
+            )
+    
+    def stop(self) -> None:
+        if not self._running:
+            return
+        
+        if self._env is not None:
+            self._env.close()
+            self._env = None
+        
+        self._policy = None
+        self._cur_obs = None
+        self._running = False
+    
+    def __enter__(self):
+        self.start()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+    
+    def __del__(self):
+        if self._env is not None:
+            self.stop()
 
 
 class Commands(Enum):
@@ -52,17 +131,7 @@ def _collector_worker(
                 else:
                     raise ValueError(f"Unknown command received: {command}") 
             
-            action = policy.act(obs)
-            
-            next_obs, reward, terminated, truncated, _ = env.step(action)
-            done = terminated or truncated
-            
-            buffer.add(obs, action, reward, next_obs, done)
-            
-            if done:
-                obs, _ = env.reset()
-            else:
-                obs = next_obs
+            obs = _collect_step(policy, env, obs, buffer)
                 
     except KeyboardInterrupt:
         pass
