@@ -4,6 +4,10 @@ from collections import deque
 from threading import Thread
 import time
 
+
+POLL_INTERVAL_SEC = 0.1
+
+
 class Logger(Protocol):
     def log(self, message: str) -> None: ...
     def close(self) -> None: ...
@@ -46,7 +50,6 @@ class AsyncFileLogger:
 
         self._queue: Deque[str] = deque()
         self._stop: bool = False
-        self._poll_interval_sec: float = 0.01
 
         self._thread = Thread(target=self._worker, daemon=True)
         self._thread.start()
@@ -68,6 +71,6 @@ class AsyncFileLogger:
             except IndexError:
                 if self._stop:
                     break
-                time.sleep(self._poll_interval_sec)
+                time.sleep(POLL_INTERVAL_SEC)
                 continue
             self._write_line(line)
