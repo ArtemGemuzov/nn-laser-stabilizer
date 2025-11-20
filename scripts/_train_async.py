@@ -1,6 +1,6 @@
 from functools import partial
 
-import torch.optim as optim
+import numpy as np
 
 import gymnasium as gym
 
@@ -51,11 +51,11 @@ def validate(
     policy: Policy,
     env_factory,
     num_steps: int = 100,
-) -> float:
+) -> np.ndarray:
     policy.eval()
     env = env_factory()
     
-    total_reward = 0.0
+    rewards = []
     obs, _ = env.reset()
     
     with torch.no_grad():
@@ -63,7 +63,7 @@ def validate(
             action = policy.act(obs)
             obs, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
-            total_reward += reward.item()
+            rewards.append(reward)
             
             if done:
                 obs, _ = env.reset()
@@ -71,8 +71,7 @@ def validate(
     env.close()
     policy.train()
     
-    mean_reward = total_reward / num_steps
-    return mean_reward
+    return np.array(rewards)
 
 
 def main():
@@ -126,7 +125,7 @@ def main():
         collector.collect(initial_collect_steps)
         print(f"Начало обучения. Размер буфера: {len(buffer)}")
         
-        num_training_steps = 10000
+        num_training_steps = 20000
         sync_frequency = 100 
         log_frequency = 100
         validation_frequency = 500 
@@ -158,12 +157,12 @@ def main():
                             f"размер буфера={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
-                mean_reward = validate(actor, make_env)
-                print(f"Валидация (шаг {step}): средняя награда = {mean_reward:.4f}")
+                rewards = validate(actor, make_gym_env, num_steps=200)
+                print(f"Валидация (шаг {step}): награда = {rewards.sum():.4f} за {rewards.size} эпизодов")
         
         print("\nФинальная валидация...")
-        final_mean_reward = validate(actor, make_env)
-        print(f"Финальная средняя награда: {final_mean_reward:.4f}")
+        final_rewards = validate(actor, make_gym_env, num_steps=1000)
+        print(f"Финальная средняя награда: {final_rewards.mean()}")
         
         print("Обучение завершено.")
         print(f"Финальный размер буфера: {len(buffer)}")
