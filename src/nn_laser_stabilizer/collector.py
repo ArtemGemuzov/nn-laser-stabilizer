@@ -157,7 +157,8 @@ class AsyncCollector:
         env_factory: Callable[[], TorchEnvWrapper],
         policy_factory: Callable[[], Policy],
     ):
-        self.buffer = buffer
+        self.buffer = buffer.share_memory()
+        
         self.env_factory = env_factory
         self.policy_factory = policy_factory
         
