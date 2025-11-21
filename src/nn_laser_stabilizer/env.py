@@ -88,24 +88,18 @@ class PidDeltaTuningEnv(gym.Env):
         
         if mean_control_output < self.CONTROL_OUTPUT_MIN_THRESHOLD:
             if self.logger is not None:
-                try:
-                    self.logger.log(
-                        f"Episode terminated: mean_control_output={mean_control_output:.4f} "
-                        f"< min_threshold={self.CONTROL_OUTPUT_MIN_THRESHOLD:.4f}"
-                    )
-                except Exception:
-                    pass
+                self.logger.log(
+                    f"Episode terminated: mean_control_output={mean_control_output:.4f} "
+                    f"< min_threshold={self.CONTROL_OUTPUT_MIN_THRESHOLD:.4f}"
+                )
             return True
         
         if mean_control_output > self.CONTROL_OUTPUT_MAX_THRESHOLD:
             if self.logger is not None:
-                try:
-                    self.logger.log(
-                        f"Episode terminated: mean_control_output={mean_control_output:.4f} "
-                        f"> max_threshold={self.CONTROL_OUTPUT_MAX_THRESHOLD:.4f}"
-                    )
-                except Exception:
-                    pass
+                self.logger.log(
+                    f"Episode terminated: mean_control_output={mean_control_output:.4f} "
+                    f"> max_threshold={self.CONTROL_OUTPUT_MAX_THRESHOLD:.4f}"
+                )
             return True
         
         return False
@@ -181,19 +175,16 @@ class PidDeltaTuningEnv(gym.Env):
         action_array = np.array([delta_kp_norm, delta_ki_norm], dtype=np.float32)
         reward = self._compute_reward(observation, action_array)
 
-        if self.logger is not None:
-            try: 
-                log_line = (
-                    f"step={self._t} phase={phase.value} block_step={self._block_count} "
-                    f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.4f} "
-                    f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} "
-                    f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
-                    f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
-                    f"reward={reward:.6f}"
-                )
-                self.logger.log(log_line)
-            except Exception:
-                pass    
+        if self.logger is not None: 
+            log_line = (
+                f"step={self._t} phase={phase.value} block_step={self._block_count} "
+                f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.4f} "
+                f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} "
+                f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
+                f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
+                f"reward={reward:.6f}"
+            )
+            self.logger.log(log_line)   
 
         terminated = self._should_terminate_episode(control_outputs)
         truncated = False
@@ -243,16 +234,13 @@ class PidDeltaTuningEnv(gym.Env):
         )
 
         if self.logger is not None:
-            try: 
-                log_line = (
-                    f"step={self._t} phase={phase.value} block_step={self._block_count} "
-                    f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.4f} "
-                    f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
-                    f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
-                )
-                self.logger.log(log_line)
-            except Exception:
-                pass    
+            log_line = (
+                f"step={self._t} phase={phase.value} block_step={self._block_count} "
+                f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.4f} "
+                f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
+                f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
+            )
+            self.logger.log(log_line) 
 
         info = {}
         return observation, info
