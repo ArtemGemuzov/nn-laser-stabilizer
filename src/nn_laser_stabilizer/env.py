@@ -78,11 +78,6 @@ class PidDeltaTuningEnv(gym.Env):
             dtype=np.float32
         )
 
-    def _get_phase(self) -> Phase:
-        if self._block_count < self._pretrain_blocks:
-            return Phase.PRETRAIN
-        return Phase.NORMAL
-
     def _should_terminate_episode(self, control_outputs: np.ndarray) -> bool:
         mean_control_output = np.mean(control_outputs)
         
@@ -132,7 +127,6 @@ class PidDeltaTuningEnv(gym.Env):
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
         delta_kp_norm, delta_ki_norm = action[0], action[1]
-        phase = self._get_phase()
 
         delta_kp = delta_kp_norm * self.KP_DELTA_MAX
         delta_ki = delta_ki_norm * self.KI_DELTA_MAX
@@ -177,7 +171,7 @@ class PidDeltaTuningEnv(gym.Env):
 
         if self.logger is not None: 
             log_line = (
-                f"step={self._t} phase={phase.value} block_step={self._block_count} "
+                f"step={self._t} phase=step block_step={self._block_count} "
                 f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.4f} "
                 f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} "
                 f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
@@ -199,8 +193,6 @@ class PidDeltaTuningEnv(gym.Env):
     ) -> Tuple[np.ndarray, dict]:
         if seed is not None:
             self.set_seed(seed)
-        
-        phase = Phase.WARMUP
 
         process_variables, control_outputs, setpoints = self.setup_controller.reset(
             kp=self.kp, ki=self.ki, kd=self.kd
@@ -235,7 +227,7 @@ class PidDeltaTuningEnv(gym.Env):
 
         if self.logger is not None:
             log_line = (
-                f"step={self._t} phase={phase.value} block_step={self._block_count} "
+                f"step={self._t} phase=reset block_step={self._block_count} "
                 f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.4f} "
                 f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
                 f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
