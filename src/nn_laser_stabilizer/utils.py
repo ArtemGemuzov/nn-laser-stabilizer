@@ -8,6 +8,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from nn_laser_stabilizer.space import Box
+
 
 def set_seeds(seed: int) -> None:
     torch.manual_seed(seed)
@@ -63,15 +65,10 @@ def build_mlp(
 
 
 class Scaler(nn.Module):
-    def __init__(self, low, high):
+    def __init__(self, action_space: Box):
         super(Scaler, self).__init__()
-        # TODO: нужно преобразовывать это где-то в другом месте
-        if isinstance(low, (list, tuple, np.ndarray)):
-            self.low = torch.tensor(low, dtype=torch.float32)
-            self.high = torch.tensor(high, dtype=torch.float32)
-        else:
-            self.low = torch.tensor([low], dtype=torch.float32)
-            self.high = torch.tensor([high], dtype=torch.float32)
+        self.low = action_space.low
+        self.high = action_space.high
         self.tanh = nn.Tanh()
 
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:

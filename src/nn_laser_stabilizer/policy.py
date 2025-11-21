@@ -5,6 +5,7 @@ from typing import Sequence
 import torch
 import torch.nn as nn
 
+from nn_laser_stabilizer.space import Box
 from nn_laser_stabilizer.utils import build_mlp, Scaler
 
 
@@ -28,12 +29,13 @@ class MLPPolicy(Policy):
         self,
         obs_dim: int,
         action_dim: int,
-        action_space,
+        action_space: Box,
         hidden_sizes: Sequence[int] = (256, 256),
     ):
         super().__init__(obs_dim, action_dim)
+        self.action_space = action_space
         self.net_body = build_mlp(obs_dim, action_dim, hidden_sizes)
-        self.scaler = Scaler(low=action_space.low, high=action_space.high)
+        self.scaler = Scaler(action_space)
     
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         return self.scaler(self.net_body(obs))
@@ -44,26 +46,19 @@ class RandomExplorationPolicy(Policy):
         self,
         policy: Policy,
         exploration_steps: int,
-        action_space,
+        action_space: Box,
     ):
         super().__init__(policy.obs_dim, policy.action_dim)
         self.policy = policy
         self.exploration_steps = exploration_steps
-        
-        self.action_low = torch.tensor(action_space.low, dtype=torch.float32)
-        self.action_high = torch.tensor(action_space.high, dtype=torch.float32)
+        self.action_space = action_space
         
         self._exploration_step_count = 0
     
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
         if self._exploration_step_count < self.exploration_steps:
-            action = torch.clamp(
-                torch.randn(self.action_dim, dtype=torch.float32),
-                self.action_low,
-                self.action_high
-            )
             self._exploration_step_count += 1
-            return action
+            return self.action_space.sample()
         else:
             return self.policy(observation)
     

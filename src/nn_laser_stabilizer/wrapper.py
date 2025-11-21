@@ -1,8 +1,10 @@
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import torch
 import numpy as np
 import gymnasium as gym
+
+from nn_laser_stabilizer.space import Box
 
 
 class TorchEnvWrapper(gym.Wrapper): 
@@ -11,6 +13,16 @@ class TorchEnvWrapper(gym.Wrapper):
         env: gym.Env
     ):
         super().__init__(env)
+
+        if not isinstance(env.observation_space, gym.spaces.Box):
+            raise ValueError(f"Unsupported observation space type: {type(env.observation_space)}")
+        
+        self.observation_space = Box.from_gymnasium(env.observation_space)
+        
+        if not isinstance(env.action_space, gym.spaces.Box):
+             raise ValueError(f"Unsupported action space type: {type(env.action_space)}")
+        
+        self.action_space = Box.from_gymnasium(env.action_space)
         
     def _to_tensor(self, x) -> torch.Tensor:
         if isinstance(x, np.ndarray):

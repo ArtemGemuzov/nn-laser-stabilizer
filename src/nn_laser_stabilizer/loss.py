@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.critic import Critic
+from nn_laser_stabilizer.space import Box
 from nn_laser_stabilizer.utils import make_target
 
 
@@ -13,7 +14,7 @@ class TD3Loss:
         self,
         actor: Policy,
         critic: Critic,
-        action_space,
+        action_space: Box,
         gamma: float = 0.99,
         policy_noise: float = 0.2,
         noise_clip: float = 0.5,
@@ -33,8 +34,8 @@ class TD3Loss:
         self.policy_noise = policy_noise
         self.noise_clip = noise_clip
         
-        self.min_action = torch.tensor(action_space.low, dtype=torch.float32)
-        self.max_action = torch.tensor(action_space.high, dtype=torch.float32)
+        self.min_action = action_space.low
+        self.max_action = action_space.high
     
     def critic_loss(
         self,
