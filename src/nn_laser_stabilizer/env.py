@@ -1,115 +1,91 @@
-from enum import Enum
 from typing import Optional, Tuple, Union
 
 import numpy as np
 import gymnasium as gym
-from gymnasium import spaces
 
-from nn_laser_stabilizer.exp_setup import ExperimentalSetupController
+from nn_laser_stabilizer.plant import Plant
 from nn_laser_stabilizer.connection import MockSerialConnection, SerialConnection
 from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
-from nn_laser_stabilizer.logger import AsyncFileLogger
+from nn_laser_stabilizer.logger import Logger, AsyncFileLogger
 from nn_laser_stabilizer.wrapper import TorchEnvWrapper
-
-
-class Phase(Enum):
-    WARMUP = "warmup"
-    PRETRAIN = "pretrain"
-    NORMAL = "normal"
 
 
 class PidDeltaTuningEnv(gym.Env):  
     ERROR_MEAN_NORMALIZATION_FACTOR = 400
     ERROR_STD_NORMALIZATION_FACTOR = 300
 
-    KP_MIN = 2.5
-    KP_MAX = 12.5
-    KP_RANGE = KP_MAX - KP_MIN
+    KP_RANGE = Plant.KP_MAX - Plant.KP_MIN
     KP_DELTA_SCALE = 0.01    
     KP_DELTA_MAX = KP_RANGE * KP_DELTA_SCALE  
-    KP_START = 7.5
 
-    KI_MIN = 0.0
-    KI_MAX = 20.0
-    KI_RANGE = KI_MAX - KI_MIN
+    KI_RANGE = Plant.KI_MAX - Plant.KI_MIN
     KI_DELTA_SCALE = 0.01    
     KI_DELTA_MAX = KI_RANGE * KI_DELTA_SCALE
-    KI_START = 10.0
     
     PRECISION_WEIGHT = 0.4   
     STABILITY_WEIGHT = 0.4           
     ACTION_WEIGHT = 0.2              
-    
-    CONTROL_OUTPUT_MIN_THRESHOLD = 200.0
-    CONTROL_OUTPUT_MAX_THRESHOLD = 4095.0 + 1.0
 
     metadata = {"render_modes": []}
 
     def __init__(
         self,
-        setup_controller: ExperimentalSetupController,
-        logger=None,
-        pretrain_blocks: int = 100,
-        burn_in_steps: int = 20,
+        plant: Plant,
+        logger: Logger,
     ):
         super().__init__()
         
-        self.setup_controller = setup_controller
-        self.logger = logger
-        self._pretrain_blocks = pretrain_blocks
-        self._burn_in_steps = burn_in_steps
-        self._t = 0
-        self._block_count = 0
+        self.plant: Plant = plant
+        self.logger: Logger = logger
+      
+        self._step = 0
         
-        self.kp = self.KP_START
-        self.ki = self.KI_START
-        self.kd = 0.0
-        
-        self.action_space = spaces.Box(
+        self.action_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
             shape=(2,),
             dtype=np.float32
         )
         
-        self.observation_space = spaces.Box(
+        self.observation_space = gym.spaces.Box(
             low=np.array([-1.0, 0.0, -1.0, -1.0], dtype=np.float32),
             high=np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float32),
             dtype=np.float32
         )
 
-    def _should_terminate_episode(self, control_outputs: np.ndarray) -> bool:
-        mean_control_output = np.mean(control_outputs)
+    def _build_observation(
+        self,
+        process_variables: np.ndarray,
+        control_outputs: np.ndarray,
+        setpoint: float,
+    ) -> np.ndarray:
+        errors = process_variables - setpoint
         
-        if mean_control_output < self.CONTROL_OUTPUT_MIN_THRESHOLD:
-            if self.logger is not None:
-                self.logger.log(
-                    f"Episode terminated: mean_control_output={mean_control_output:.4f} "
-                    f"< min_threshold={self.CONTROL_OUTPUT_MIN_THRESHOLD:.4f}"
-                )
-            return True
+        error_mean = np.mean(errors)
+        error_std = np.std(errors)
         
-        if mean_control_output > self.CONTROL_OUTPUT_MAX_THRESHOLD:
-            if self.logger is not None:
-                self.logger.log(
-                    f"Episode terminated: mean_control_output={mean_control_output:.4f} "
-                    f"> max_threshold={self.CONTROL_OUTPUT_MAX_THRESHOLD:.4f}"
-                )
-            return True
+        error_mean_norm = np.clip(
+            error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR, -1.0, 1.0
+        )
+        error_std_norm = np.clip(
+            error_std / self.ERROR_STD_NORMALIZATION_FACTOR, 0.0, 1.0
+        )
         
-        return False
+        kp_norm = np.clip(
+            (self.plant.kp - Plant.KP_MIN) / self.KP_RANGE * 2.0 - 1.0, -1.0, 1.0
+        )
+        ki_norm = np.clip(
+            (self.plant.ki - Plant.KI_MIN) / self.KI_RANGE * 2.0 - 1.0, -1.0, 1.0
+        )
+        
+        observation = np.array(
+            [error_mean_norm, error_std_norm, kp_norm, ki_norm],
+            dtype=np.float32
+        )
+        
+        return observation
 
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
-        """
-        Вычисляет награду на основе наблюдения и действия.
-        
-        Args:
-            observation: Текущее наблюдение [error_mean_norm, error_std_norm, kp_norm, ki_norm]
-            action: Выполненное действие [delta_kp_norm, delta_ki_norm]
-            
-        Returns:
-            Значение награды
-        """
         error_mean_norm, error_std_norm = observation[0], observation[1]
         
         # 1. Штраф за неточность (чем больше ошибка, тем больше штраф)
@@ -131,59 +107,29 @@ class PidDeltaTuningEnv(gym.Env):
         delta_kp = delta_kp_norm * self.KP_DELTA_MAX
         delta_ki = delta_ki_norm * self.KI_DELTA_MAX
 
-        self.kp = np.clip(self.kp + delta_kp, self.KP_MIN, self.KP_MAX)
-        self.ki = np.clip(self.ki + delta_ki, self.KI_MIN, self.KI_MAX)
+        self.plant.update_pid(delta_kp, delta_ki, 0.0)
+        process_variables, control_outputs, setpoint, should_reset = self.plant.step()
+        self._step += 1
 
-        process_variables, control_outputs, setpoints = self.setup_controller.step(
-            self.kp, self.ki, self.kd
-        )
-        self._t += len(process_variables)
-        self._block_count += 1
-
-        pv_window = process_variables[self._burn_in_steps:]
-        sp_window = setpoints[self._burn_in_steps:]
-        errors = pv_window - sp_window
-
-        error_mean = np.mean(errors)
-        error_std = np.std(errors)
-
-        error_mean_norm = np.clip(
-            error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR, -1.0, 1.0
-        )
-        error_std_norm = np.clip(
-            error_std / self.ERROR_STD_NORMALIZATION_FACTOR, 0.0, 1.0
-        )
-        
-        kp_norm = np.clip(
-            (self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0, -1.0, 1.0
-        )
-        ki_norm = np.clip(
-            (self.ki - self.KI_MIN) / self.KI_RANGE * 2.0 - 1.0, -1.0, 1.0
-        )
-
-        observation = np.array(
-            [error_mean_norm, error_std_norm, kp_norm, ki_norm],
-            dtype=np.float32
+        observation = self._build_observation(
+            process_variables, control_outputs, setpoint
         )
         
         action_array = np.array([delta_kp_norm, delta_ki_norm], dtype=np.float32)
         reward = self._compute_reward(observation, action_array)
+        
+        log_line = (
+            f"step={self._step} "
+            f"kp={self.plant.kp:.4f} ki={self.plant.ki:.4f} kd={self.plant.kd:.4f} "
+            f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} "
+            f"error_mean_norm={observation[0]:.4f} error_std_norm={observation[1]:.4f} "
+            f"reward={reward:.6f} should_reset={should_reset}"
+        )
+        self.logger.log(log_line)   
 
-        if self.logger is not None: 
-            log_line = (
-                f"step={self._t} phase=step block_step={self._block_count} "
-                f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.4f} "
-                f"delta_kp_norm={delta_kp_norm:.4f} delta_ki_norm={delta_ki_norm:.4f} "
-                f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
-                f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
-                f"reward={reward:.6f}"
-            )
-            self.logger.log(log_line)   
-
-        terminated = self._should_terminate_episode(control_outputs)
+        terminated = should_reset
         truncated = False
         info = {}
-
         return observation, reward, terminated, truncated, info
 
     def reset(
@@ -194,45 +140,18 @@ class PidDeltaTuningEnv(gym.Env):
         if seed is not None:
             self.set_seed(seed)
 
-        process_variables, control_outputs, setpoints = self.setup_controller.reset(
-            kp=self.kp, ki=self.ki, kd=self.kd
-        )
-        self._t += len(process_variables)
+        process_variables, control_outputs, setpoint = self.plant.reset()
 
-        pv_window = process_variables[self._burn_in_steps:]
-        sp_window = setpoints[self._burn_in_steps:]
-        errors = pv_window - sp_window
-
-        error_mean = np.mean(errors)
-        error_std = np.std(errors)
-
-        error_mean_norm = np.clip(
-            error_mean / self.ERROR_MEAN_NORMALIZATION_FACTOR, -1.0, 1.0
-        )
-        error_std_norm = np.clip(
-            error_std / self.ERROR_STD_NORMALIZATION_FACTOR, -1.0, 1.0
+        observation = self._build_observation(
+            process_variables, control_outputs, setpoint
         )
         
-        kp_norm = np.clip(
-            (self.kp - self.KP_MIN) / self.KP_RANGE * 2.0 - 1.0, -1.0, 1.0
+        log_line = (
+            f"reset "
+            f"kp={self.plant.kp:.4f} ki={self.plant.ki:.4f} kd={self.plant.kd:.4f} "
+            f"error_mean_norm={observation[0]:.4f} error_std_norm={observation[1]:.4f} "
         )
-        ki_norm = np.clip(
-            (self.ki - self.KI_MIN) / self.KI_RANGE * 2.0 - 1.0, -1.0, 1.0
-        )
-
-        observation = np.array(
-            [error_mean_norm, error_std_norm, kp_norm, ki_norm],
-            dtype=np.float32
-        )
-
-        if self.logger is not None:
-            log_line = (
-                f"step={self._t} phase=reset block_step={self._block_count} "
-                f"kp={self.kp:.4f} ki={self.ki:.4f} kd={self.kd:.4f} "
-                f"error_mean={error_mean:.4f} error_std={error_std:.4f} "
-                f"error_mean_norm={error_mean_norm:.4f} error_std_norm={error_std_norm:.4f} "
-            )
-            self.logger.log(log_line) 
+        self.logger.log(log_line) 
 
         info = {}
         return observation, info
@@ -240,7 +159,7 @@ class PidDeltaTuningEnv(gym.Env):
     def set_seed(self, seed: Optional[int]) -> None: pass
 
     def close(self) -> None:
-        self.setup_controller.close()
+        self.plant.close()
     
     @classmethod
     def create(
@@ -248,8 +167,9 @@ class PidDeltaTuningEnv(gym.Env):
         setpoint: float = 1200.0,
         warmup_steps: int = 100,
         block_size: int = 50,
-        pretrain_blocks: int = 10,
         burn_in_steps: int = 10,
+        control_output_min_threshold: float = 200.0,
+        control_output_max_threshold: float = 4096.0,
         use_mock: bool = True,
         port: str = "mock",
         use_logging: bool = True,
@@ -268,50 +188,22 @@ class PidDeltaTuningEnv(gym.Env):
             logger = AsyncFileLogger(log_dir=log_dir, log_file="env.log")
             pid_connection = LoggingConnectionToPid(pid_connection, logger=logger)
         
-        setup_controller = ExperimentalSetupController(
+        plant = Plant(
             pid_connection=pid_connection,
             setpoint=setpoint,
             warmup_steps=warmup_steps,
             block_size=block_size,
+            burn_in_steps=burn_in_steps,
+            control_output_min_threshold=control_output_min_threshold,
+            control_output_max_threshold=control_output_max_threshold,
         )
         
+        env_logger = AsyncFileLogger(log_dir=log_dir, log_file="env.log")
         env = cls(
-            setup_controller=setup_controller,
-            pretrain_blocks=pretrain_blocks,
-            burn_in_steps=burn_in_steps,
+            plant=plant,
+            logger=env_logger,
         )
         
         if wrap_torch:
             return TorchEnvWrapper(env)
         return env
-    
-
-class PendulumNoVelEnv(gym.Env):
-    metadata = {"render_modes": []}
-
-    def __init__(self):
-        super().__init__()
-        
-        self.env = gym.make("Pendulum-v1")
-    
-        self.action_space = self.env.action_space
-        
-        low = np.delete(self.env.observation_space.low, 2)
-        high = np.delete(self.env.observation_space.high, 2)
-        self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
-
-    def step(self, action):
-        observation, reward, terminated, truncated, info = self.env.step(action)
-        filtered_obs = observation[:2]
-        return filtered_obs, reward, terminated, truncated, info
-
-    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-        observation, info = self.env.reset(seed=seed, options=options)
-        filtered_obs = observation[:2]
-        return filtered_obs, info
-
-    def render(self):
-        return self.env.render()
-
-    def close(self):
-        self.env.close()

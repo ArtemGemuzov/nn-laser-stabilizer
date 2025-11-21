@@ -59,3 +59,34 @@ class TorchEnvWrapper(gym.Wrapper):
         observation, info = self.env.reset(seed=seed, options=options)
         observation = self._to_tensor(observation)
         return observation, info
+    
+
+class PendulumNoVelEnv(gym.Env):
+    metadata = {"render_modes": []}
+
+    def __init__(self):
+        super().__init__()
+        
+        self.env = gym.make("Pendulum-v1")
+    
+        self.action_space = self.env.action_space
+        
+        low = np.delete(self.env.observation_space.low, 2)
+        high = np.delete(self.env.observation_space.high, 2)
+        self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
+
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        filtered_obs = observation[:2]
+        return filtered_obs, reward, terminated, truncated, info
+
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        observation, info = self.env.reset(seed=seed, options=options)
+        filtered_obs = observation[:2]
+        return filtered_obs, info
+
+    def render(self):
+        return self.env.render()
+
+    def close(self):
+        self.env.close()
