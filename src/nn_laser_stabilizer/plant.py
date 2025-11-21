@@ -1,16 +1,11 @@
-from typing import Tuple, Optional
+from typing import Tuple
+
 import numpy as np
 
 from nn_laser_stabilizer.pid import BaseConnectionToPid
 
 
 class Plant:
-    """
-    Управляет экспериментальной системой (plant) через PID соединение.
-    Собирает данные процесса и управляющих воздействий.
-    """
-    
-    # Константы для PID параметров
     KP_MIN = 2.5
     KP_MAX = 12.5
     KP_START = 7.5
@@ -20,7 +15,7 @@ class Plant:
     KI_START = 10.0
     
     KD_MIN = 0.0
-    KD_MAX = 0.0  # Фиксирован на 0
+    KD_MAX = 0.0 
     KD_START = 0.0
     
     def __init__(
