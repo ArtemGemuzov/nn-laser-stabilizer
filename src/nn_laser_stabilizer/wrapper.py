@@ -8,23 +8,19 @@ import gymnasium as gym
 class TorchEnvWrapper(gym.Wrapper): 
     def __init__(
         self,
-        env: gym.Env,
-        device: Union[str, torch.device] = "cpu",
-        dtype: torch.dtype = torch.float32,
+        env: gym.Env
     ):
         super().__init__(env)
-        self.device = torch.device(device) if isinstance(device, str) else device
-        self.dtype = dtype
         
     def _to_tensor(self, x) -> torch.Tensor:
         if isinstance(x, np.ndarray):
-            return torch.from_numpy(x).to(device=self.device, dtype=self.dtype)
+            return torch.from_numpy(x).to(dtype=torch.float32)
 
         if isinstance(x, bool):
-            return torch.tensor(x, device=self.device, dtype=torch.bool)
+            return torch.tensor(x, dtype=torch.bool)
 
         if isinstance(x, (int, float, np.number)):
-            return torch.tensor(x, device=self.device, dtype=self.dtype)
+            return torch.tensor(x, dtype=torch.float32)
 
         raise TypeError(f"Unsupported type for _to_tensor: {type(x)}")
     
