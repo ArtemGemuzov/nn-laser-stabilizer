@@ -8,6 +8,7 @@ import torch.optim as optim
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import AsyncCollector
 from nn_laser_stabilizer.wrapper import make_env
+from nn_laser_stabilizer.sampler import BatchSampler
 from nn_laser_stabilizer.policy import Policy, MLPPolicy
 from nn_laser_stabilizer.critic import MLPCritic
 from nn_laser_stabilizer.loss import TD3Loss
@@ -72,6 +73,8 @@ def main(context: ExperimentContext):
         action_shape=action_space.shape,
     )
     
+    sampler = BatchSampler(buffer=buffer, batch_size=64)
+    
     policy_factory = partial(make_policy, action_space=action_space, observation_space=observation_space)
    
     actor = policy_factory().train()
@@ -118,7 +121,7 @@ def main(context: ExperimentContext):
         policy_freq = 2
         
         for step in range(num_training_steps):
-            batch = buffer.sample(batch_size=64)
+            batch = sampler.sample()
             
             update_actor_and_target = (step % policy_freq == 0)
             
