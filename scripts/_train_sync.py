@@ -1,13 +1,11 @@
 import numpy as np
 
-import gymnasium as gym
-
 import torch
 import torch.optim as optim
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import SyncCollector
-from nn_laser_stabilizer.env import TorchEnvWrapper
+from nn_laser_stabilizer.wrapper import make_env
 from nn_laser_stabilizer.policy import Policy, MLPPolicy
 from nn_laser_stabilizer.critic import MLPCritic
 from nn_laser_stabilizer.loss import TD3Loss
@@ -15,11 +13,6 @@ from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.utils import SoftUpdater
 from nn_laser_stabilizer.experiment import ExperimentContext, experiment
 from nn_laser_stabilizer.logger import SyncFileLogger
-
-
-def make_gym_env():
-    env = gym.make("Pendulum-v1")
-    return TorchEnvWrapper(env)
 
 
 def validate(
@@ -54,7 +47,7 @@ def main(context: ExperimentContext):
 
     train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
-    env = make_gym_env()
+    env = make_env("Pendulum-v1")
     observation_space = env.unwrapped.observation_space
     observation_dim = observation_space.shape[0]
 
@@ -97,7 +90,7 @@ def main(context: ExperimentContext):
     
     soft_updater = SoftUpdater(loss_module, tau=0.005)
     
-    collector_env = make_gym_env()
+    collector_env = make_env("Pendulum-v1")
     
     print("Creating synchronous collector...")
     
@@ -149,13 +142,13 @@ def main(context: ExperimentContext):
                             f"buffer size={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
-                rewards = validate(actor, make_gym_env, num_steps=200)
+                rewards = validate(actor, lambda: make_env("Pendulum-v1"), num_steps=200)
                 log_line = f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}"
                 train_logger.log(log_line)
                 print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
         print("\nFinal validation...")
-        final_rewards = validate(actor, make_gym_env, num_steps=1000)
+        final_rewards = validate(actor, lambda: make_env("Pendulum-v1"), num_steps=1000)
         log_line = f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}"
         train_logger.log(log_line)
         print(f"Final average reward: {final_rewards.mean()}")

@@ -5,6 +5,7 @@ import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.space import Box
+from nn_laser_stabilizer.env import _CUSTOM_ENV_MAP
 
 
 class TorchEnvWrapper(gym.Wrapper): 
@@ -23,6 +24,8 @@ class TorchEnvWrapper(gym.Wrapper):
              raise ValueError(f"Unsupported action space type: {type(env.action_space)}")
         
         self.action_space = Box.from_gymnasium(env.action_space)
+        
+        self._seed: Optional[int] = None
         
     def _to_tensor(self, x) -> torch.Tensor:
         if isinstance(x, np.ndarray):
@@ -56,37 +59,39 @@ class TorchEnvWrapper(gym.Wrapper):
         seed: Optional[int] = None,
         options: Optional[dict] = None
     ) -> Tuple[torch.Tensor, dict]:
+        if seed is None:
+            seed = self._seed
+        
         observation, info = self.env.reset(seed=seed, options=options)
         observation = self._to_tensor(observation)
         return observation, info
     
-
-class PendulumNoVelEnv(gym.Env):
-    metadata = {"render_modes": []}
-
-    def __init__(self):
-        super().__init__()
-        
-        self.env = gym.make("Pendulum-v1")
+    def set_seed(self, seed: int) -> None:
+        self._seed = seed
     
-        self.action_space = self.env.action_space
-        
-        low = np.delete(self.env.observation_space.low, 2)
-        high = np.delete(self.env.observation_space.high, 2)
-        self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
+    @classmethod
+    def wrap(cls, env: gym.Env, seed: Optional[int] = None) -> "TorchEnvWrapper":
+        wrapped_env = cls(env)
+        if seed is not None:
+            wrapped_env.set_seed(seed)
+        return wrapped_env
 
-    def step(self, action):
-        observation, reward, terminated, truncated, info = self.env.step(action)
-        filtered_obs = observation[:2]
-        return filtered_obs, reward, terminated, truncated, info
 
-    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-        observation, info = self.env.reset(seed=seed, options=options)
-        filtered_obs = observation[:2]
-        return filtered_obs, info
-
-    def render(self):
-        return self.env.render()
-
-    def close(self):
-        self.env.close()
+def make_env(
+    env_name: str,
+    seed: Optional[int] = None,
+    **env_kwargs,
+) -> TorchEnvWrapper: 
+    if env_name in _CUSTOM_ENV_MAP:
+        env_class = _CUSTOM_ENV_MAP[env_name]
+        env = env_class(**env_kwargs)
+        return TorchEnvWrapper.wrap(env, seed=seed)
+   
+    try:
+        env = gym.make(env_name, **env_kwargs)
+        return TorchEnvWrapper.wrap(env, seed=seed)
+    except gym.error.UnregisteredEnv:
+        raise ValueError(
+            f"Unknown environment: '{env_name}'. "
+            f"Custom environments: {list(_CUSTOM_ENV_MAP.keys())}"
+        )

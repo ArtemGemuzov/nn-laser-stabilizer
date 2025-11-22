@@ -1,13 +1,10 @@
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.plant import Plant
-from nn_laser_stabilizer.connection import MockSerialConnection, SerialConnection
-from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
-from nn_laser_stabilizer.logger import Logger, AsyncFileLogger
-from nn_laser_stabilizer.wrapper import TorchEnvWrapper
+from nn_laser_stabilizer.logger import Logger
 
 
 class PidDeltaTuningEnv(gym.Env):  
@@ -156,54 +153,42 @@ class PidDeltaTuningEnv(gym.Env):
         info = {}
         return observation, info
 
-    def set_seed(self, seed: Optional[int]) -> None: pass
-
     def close(self) -> None:
         self.plant.close()
+
+
+class PendulumNoVelEnv(gym.Env):
+    metadata = {"render_modes": []}
+
+    def __init__(self):
+        super().__init__()
+        
+        self.env = gym.make("Pendulum-v1")
     
-    @classmethod
-    def create(
-        cls,
-        setpoint: float = 1200.0,
-        warmup_steps: int = 100,
-        block_size: int = 50,
-        burn_in_steps: int = 10,
-        control_output_min_threshold: float = 200.0,
-        control_output_max_threshold: float = 4096.0,
-        use_mock: bool = True,
-        port: str = "mock",
-        use_logging: bool = True,
-        log_dir: str = ".",
-        wrap_torch: bool = True,
-        **connection_kwargs,
-    ) -> Union["PidDeltaTuningEnv", TorchEnvWrapper]:
-        if use_mock:
-            serial_conn = MockSerialConnection(port=port, **connection_kwargs)
-        else:
-            serial_conn = SerialConnection(port=port, **connection_kwargs)
+        self.action_space = self.env.action_space
         
-        pid_connection = ConnectionToPid(serial_conn)
-        
-        if use_logging:
-            logger = AsyncFileLogger(log_dir=log_dir, log_file="env.log")
-            pid_connection = LoggingConnectionToPid(pid_connection, logger=logger)
-        
-        plant = Plant(
-            pid_connection=pid_connection,
-            setpoint=setpoint,
-            warmup_steps=warmup_steps,
-            block_size=block_size,
-            burn_in_steps=burn_in_steps,
-            control_output_min_threshold=control_output_min_threshold,
-            control_output_max_threshold=control_output_max_threshold,
-        )
-        
-        env_logger = AsyncFileLogger(log_dir=log_dir, log_file="env.log")
-        env = cls(
-            plant=plant,
-            logger=env_logger,
-        )
-        
-        if wrap_torch:
-            return TorchEnvWrapper(env)
-        return env
+        low = np.delete(self.env.observation_space.low, 2)
+        high = np.delete(self.env.observation_space.high, 2)
+        self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
+
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        filtered_obs = observation[:2]
+        return filtered_obs, reward, terminated, truncated, info
+
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        observation, info = self.env.reset(seed=seed, options=options)
+        filtered_obs = observation[:2]
+        return filtered_obs, info
+
+    def render(self):
+        return self.env.render()
+
+    def close(self):
+        self.env.close()
+
+
+_CUSTOM_ENV_MAP: dict[str, type] = {
+    "PendulumNoVelEnv": PendulumNoVelEnv,
+    "PidDeltaTuningEnv": PidDeltaTuningEnv
+}
