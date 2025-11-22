@@ -5,9 +5,10 @@ import torch.optim as optim
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import SyncCollector
-from nn_laser_stabilizer.wrapper import make_env
+from nn_laser_stabilizer.env_wrapper import make_env
 from nn_laser_stabilizer.sampler import BatchSampler
-from nn_laser_stabilizer.policy import Policy, MLPPolicy
+from nn_laser_stabilizer.policy import Policy
+from nn_laser_stabilizer.actor import MLPActor
 from nn_laser_stabilizer.critic import MLPCritic
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
@@ -63,7 +64,7 @@ def main(context: ExperimentContext):
     
     sampler = BatchSampler(buffer=buffer, batch_size=64)
     
-    actor = MLPPolicy(
+    actor = MLPActor(
         obs_dim=observation_dim,
         action_dim=action_dim,
         action_space=action_space,

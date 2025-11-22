@@ -3,7 +3,7 @@ from typing import Tuple
 import torch
 import torch.nn.functional as F
 
-from nn_laser_stabilizer.policy import Policy
+from nn_laser_stabilizer.actor import Actor
 from nn_laser_stabilizer.critic import Critic
 from nn_laser_stabilizer.space import Box
 
@@ -11,7 +11,7 @@ from nn_laser_stabilizer.space import Box
 class TD3Loss:
     def __init__(
         self,
-        actor: Policy,
+        actor: Actor,
         critic: Critic,
         action_space: Box,
         gamma: float = 0.99,
