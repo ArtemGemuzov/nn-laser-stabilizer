@@ -4,26 +4,24 @@ import torch
 import numpy as np
 import gymnasium as gym
 
-from nn_laser_stabilizer.space import Box
+from nn_laser_stabilizer.box import Box
 from nn_laser_stabilizer.env import _CUSTOM_ENV_MAP
 
 
-class TorchEnvWrapper(gym.Wrapper): 
+class TorchEnvWrapper: 
     def __init__(
         self,
         env: gym.Env
     ):
-        super().__init__(env)
+        self.env : gym.Env = env
 
         if not isinstance(env.observation_space, gym.spaces.Box):
             raise ValueError(f"Unsupported observation space type: {type(env.observation_space)}")
-        
-        self.observation_space = Box.from_gymnasium(env.observation_space)
+        self.observation_space : Box = Box.from_gymnasium(env.observation_space)
         
         if not isinstance(env.action_space, gym.spaces.Box):
              raise ValueError(f"Unsupported action space type: {type(env.action_space)}")
-        
-        self.action_space = Box.from_gymnasium(env.action_space)
+        self.action_space : Box = Box.from_gymnasium(env.action_space)
         
         self._seed: Optional[int] = None
         
@@ -56,13 +54,9 @@ class TorchEnvWrapper(gym.Wrapper):
     
     def reset(
         self,
-        seed: Optional[int] = None,
         options: Optional[dict] = None
     ) -> Tuple[torch.Tensor, dict]:
-        if seed is None:
-            seed = self._seed
-        
-        observation, info = self.env.reset(seed=seed, options=options)
+        observation, info = self.env.reset(seed=self._seed, options=options)
         observation = self._to_tensor(observation)
         return observation, info
     

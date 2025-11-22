@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import torch
 
 
@@ -13,18 +11,18 @@ class ReplayBuffer:
     def __init__(
         self,
         capacity: int,
-        obs_shape: Tuple[int, ...],
-        action_shape: Tuple[int, ...]
+        obs_dim: int,
+        action_dim: int
     ):
         self.capacity = capacity
         
         self._size = torch.zeros(1, dtype=torch.int32, device='cpu')
         self._index = torch.zeros(1, dtype=torch.int32, device='cpu')
         
-        self._observations = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device='cpu')
-        self._actions = torch.zeros((capacity, *action_shape), dtype=torch.float32, device='cpu')
+        self._observations = torch.zeros((capacity, obs_dim), dtype=torch.float32, device='cpu')
+        self._actions = torch.zeros((capacity, action_dim), dtype=torch.float32, device='cpu')
         self._rewards = torch.zeros((capacity, 1), dtype=torch.float32, device='cpu')
-        self._next_observations = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device='cpu')
+        self._next_observations = torch.zeros((capacity, obs_dim), dtype=torch.float32, device='cpu')
         self._dones = torch.zeros((capacity, 1), dtype=torch.bool, device='cpu')
     
     @property

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from nn_laser_stabilizer.space import Box
+from nn_laser_stabilizer.box import Box
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.actor import Actor
 

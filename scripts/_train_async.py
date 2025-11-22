@@ -21,8 +21,8 @@ from nn_laser_stabilizer.logger import SyncFileLogger
 
 def make_policy(action_space, observation_space) -> MLPActor:
     return MLPActor(
-        obs_dim=observation_space.shape[0],
-        action_dim=action_space.shape[0],
+        obs_dim=observation_space.dim,
+        action_dim=action_space.dim,
         action_space=action_space,
         hidden_sizes=(400, 300),
     )
@@ -62,16 +62,17 @@ def main(context: ExperimentContext):
     train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
     env = make_env("Pendulum-v1")
-    observation_space = env.unwrapped.observation_space
-    observation_dim = observation_space.shape[0]
+    
+    observation_space = env.observation_space
+    observation_dim = observation_space.dim
 
-    action_space = env.unwrapped.action_space
-    action_dim = action_space.shape[0]
+    action_space = env.action_space
+    action_dim = action_space.dim
     
     buffer = ReplayBuffer(
         capacity=100000,
-        obs_shape=observation_space.shape,
-        action_shape=action_space.shape,
+        obs_dim=observation_dim,
+        action_dim=action_dim,
     )
     
     sampler = BatchSampler(buffer=buffer, batch_size=64)

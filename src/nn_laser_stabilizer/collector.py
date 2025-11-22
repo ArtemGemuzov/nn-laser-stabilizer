@@ -10,7 +10,7 @@ import torch
 import torch.multiprocessing as mp
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
-from nn_laser_stabilizer.env import TorchEnvWrapper
+from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
 
 

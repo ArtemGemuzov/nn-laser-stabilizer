@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from nn_laser_stabilizer.actor import Actor
 from nn_laser_stabilizer.critic import Critic
-from nn_laser_stabilizer.space import Box
+from nn_laser_stabilizer.box import Box
 
 
 class TD3Loss:

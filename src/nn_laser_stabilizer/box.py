@@ -9,12 +9,12 @@ class Box:
         self,
         low: np.ndarray,
         high: np.ndarray,
-        shape: tuple[int, ...]
+        dim: int
     ):
         self.low : torch.Tensor = torch.from_numpy(low)
         self.high : torch.Tensor =  torch.from_numpy(high)
         
-        self.shape : tuple = shape
+        self.dim : int = dim
         
         if self.low.shape != self.high.shape:
             raise ValueError(f"Low and high must have the same shape, got {self.low.shape} and {self.high.shape}")
@@ -24,19 +24,24 @@ class Box:
     
     @classmethod
     def from_gymnasium(cls, gym_box: gym.spaces.Box) -> "Box":
+        if len(gym_box.shape) == 1:
+            dim = gym_box.shape[0]
+        else:
+            dim = int(np.prod(gym_box.shape))
+        
         return cls(
             low=gym_box.low,
             high=gym_box.high,
-            shape=gym_box.shape
+            dim=dim
         )
     
     def sample(self) -> torch.Tensor:
-        uniform = torch.rand(self.shape)
+        uniform = torch.rand(self.dim)
         sample = self.low + uniform * (self.high - self.low)
         return sample
     
     def contains(self, x: torch.Tensor) -> bool: 
-        if x.shape != self.shape:
+        if x.shape[-1] != self.dim:
             return False
         
         return (x >= self.low).all() and (x <= self.high).all()
