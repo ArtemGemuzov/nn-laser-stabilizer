@@ -1,5 +1,4 @@
 import random
-import copy
 
 from typing import Tuple, List, Sequence
 
@@ -18,14 +17,6 @@ def set_seeds(seed: int) -> None:
     
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
-
-def make_target(network: nn.Module) -> nn.Module:
-    target = copy.deepcopy(network)
-    target.load_state_dict(network.state_dict())
-    for param in target.parameters():
-        param.requires_grad = False
-    return target
 
 
 class SoftUpdater:  

@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.critic import Critic
 from nn_laser_stabilizer.space import Box
-from nn_laser_stabilizer.utils import make_target
 
 
 class TD3Loss:
@@ -22,12 +21,11 @@ class TD3Loss:
         self.actor = actor
         # TODO: можно перейти к списку критиков
         self.critic1 = critic
-        # TODO: работает, лишь пока конструктор у критика простой
-        self.critic2 = type(critic)(critic.obs_dim, critic.action_dim)
+        self.critic2 = critic.clone(reinitialize_weights=True)
 
-        self.actor_target = make_target(self.actor)
-        self.critic1_target = make_target(self.critic1)
-        self.critic2_target = make_target(self.critic2)
+        self.actor_target = self.actor.clone().requires_grad_(False)
+        self.critic1_target = self.critic1.clone().requires_grad_(False)
+        self.critic2_target = self.critic2.clone().requires_grad_(False)
         
         self.action_space = action_space
         self.gamma = gamma
