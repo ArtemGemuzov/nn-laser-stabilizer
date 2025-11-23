@@ -126,8 +126,8 @@ def main(context: ExperimentContext):
     
     with AsyncCollector(
         buffer=buffer,
+        policy=policy,
         env_factory=env_factory,
-        policy_factory=policy_factory,
     ) as collector:
         print("Collector started. Waiting for data accumulation...")
         
@@ -158,7 +158,7 @@ def main(context: ExperimentContext):
             )
             
             if step % sync_frequency == 0:
-                collector.sync(policy)
+                collector.sync()
                 
             if step % log_frequency == 0:
                 if actor_loss is not None:

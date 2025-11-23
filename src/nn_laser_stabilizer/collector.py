@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Optional
+from functools import partial
 import time
 import traceback
 
@@ -20,6 +21,10 @@ def _warmup_policy(policy: Policy, env: TorchEnvWrapper, num_steps: int = 100) -
     for _ in range(num_steps):
         fake_obs = env.observation_space.sample()
         policy.act(fake_obs)
+
+
+def _policy_factory(policy : Policy):
+    return policy.clone()
 
 
 def _collect_step(
@@ -104,6 +109,7 @@ class SyncCollector:
 class Commands(Enum):
     CLOSE = "close"
     UPDATE_WEIGHTS = "update_weights"
+    UPDATE_WEIGHTS_DONE = "update_weights_done"
     ERROR = "error"
     READY = "ready"
 
@@ -120,6 +126,7 @@ def _collector_worker(
     env_factory: Callable[[], TorchEnvWrapper],
     policy_factory: Callable[[], Policy],
     command_pipe: Connection,
+    shared_state_dict: dict,
 ):
     try:
         policy = policy_factory()
@@ -134,9 +141,10 @@ def _collector_worker(
         
         while True:
             if command_pipe.poll():
-                command, data = command_pipe.recv()
+                command, _ = command_pipe.recv()
                 if command == Commands.UPDATE_WEIGHTS.value:
-                    policy.load_state_dict(data)
+                    policy.load_state_dict(shared_state_dict)
+                    command_pipe.send((Commands.UPDATE_WEIGHTS_DONE.value, None))
                 elif command == Commands.CLOSE.value:
                     break
                 else:
@@ -164,13 +172,13 @@ class AsyncCollector:
     def __init__(
         self,
         buffer: ReplayBuffer,
+        policy: Policy,
         env_factory: Callable[[], TorchEnvWrapper],
-        policy_factory: Callable[[], Policy],
     ):
-        self.buffer = buffer.share_memory()
+        self.buffer = buffer
         
         self.env_factory = env_factory
-        self.policy_factory = policy_factory
+        self.policy = policy
         
         self._parent_pipe, self._child_pipe = mp.Pipe()
         self._process: Optional[mp.Process] = None
@@ -201,13 +209,20 @@ class AsyncCollector:
         if self._running:
             raise RuntimeError("Collector is already running")
         
+        self.buffer.share_memory()
+        self.policy.share_memory()
+        
+        shared_state_dict = self.policy.state_dict()
+        policy_factory = partial(_policy_factory, policy=self.policy)
+        
         self._process = mp.Process(
             target=_collector_worker,
             args=(
                 self.buffer,
                 self.env_factory,
-                self.policy_factory,
+                policy_factory,
                 self._child_pipe,
+                shared_state_dict,
             ),
             name="DataCollectorWorker",
         )
@@ -237,15 +252,25 @@ class AsyncCollector:
                 self._raise_collector_error()
             time.sleep(check_interval)
     
-    def sync(self, policy: Policy) -> None:
+    def sync(self) -> None:
         if not self._running:
             raise RuntimeError("Collector is not running")
         
         if self._worker_has_errors():
             self._raise_collector_error()
         
-        state_dict = {k: v.cpu().clone() for k, v in policy.state_dict().items()}
-        self._send_command(Commands.UPDATE_WEIGHTS, state_dict)
+        self._send_command(Commands.UPDATE_WEIGHTS, None)
+        if not self._parent_pipe.poll(timeout=10):
+            raise RuntimeError("Collector process did not send UPDATE_WEIGHTS_DONE signal within timeout")
+        
+        command, data = self._parent_pipe.recv()
+        if command == Commands.UPDATE_WEIGHTS_DONE.value:
+            pass
+        elif command == Commands.ERROR.value:
+            self._error = data
+            self._raise_collector_error()
+        else:
+            raise ValueError(f"Unknown command received: {command}")
     
     def stop(self) -> None:
         if not self._running:
