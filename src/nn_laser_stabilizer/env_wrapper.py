@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 
 import torch
 import numpy as np
@@ -6,6 +6,7 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.box import Box
 from nn_laser_stabilizer.env import _CUSTOM_ENV_MAP
+from nn_laser_stabilizer.config import Config
 
 
 class TorchEnvWrapper: 
@@ -92,3 +93,10 @@ def make_env(
             f"Unknown environment: '{env_name}'. "
             f"Custom environments: {list(_CUSTOM_ENV_MAP.keys())}"
         )
+    
+    
+def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> TorchEnvWrapper:
+    env_name = env_config.name
+    env_args_dict = env_config.get('args')
+    env_args = env_args_dict.to_dict() if env_args_dict is not None else {}
+    return make_env(env_name, seed=seed, **env_args)

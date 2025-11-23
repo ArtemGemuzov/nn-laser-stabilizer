@@ -4,7 +4,7 @@ import numpy as np
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import AsyncCollector
-from nn_laser_stabilizer.env_wrapper import make_env
+from nn_laser_stabilizer.env_wrapper import make_env, make_env_from_config
 from nn_laser_stabilizer.sampler import BatchSampler
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.actor import MLPActor
@@ -57,7 +57,7 @@ def main(context: ExperimentContext):
 
     train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
-    env_factory = partial(make_env, env_name=context.config.env.name, seed=context.seed)
+    env_factory = partial(make_env_from_config, env_config=context.config.env, seed=context.seed)
     env = env_factory()
     
     observation_space = env.observation_space
@@ -121,7 +121,7 @@ def main(context: ExperimentContext):
         policy_freq = context.config.training.policy_freq
         log_frequency = context.config.training.log_frequency
         validation_frequency = context.config.training.validation_frequency
-        env_name = context.config.env.name
+        env_config = context.config.env
         validation_num_steps = context.config.validation.num_steps
         final_validation_num_steps = context.config.validation.final_num_steps
         
@@ -155,13 +155,13 @@ def main(context: ExperimentContext):
                             f"buffer size={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
-                rewards = validate(actor, lambda: make_env(env_name), num_steps=validation_num_steps)
+                rewards = validate(actor, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
                 log_line = f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}"
                 train_logger.log(log_line)
                 print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
         print("\nFinal validation...")
-        final_rewards = validate(actor, lambda: make_env(env_name), num_steps=final_validation_num_steps)
+        final_rewards = validate(actor, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
         log_line = f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}"
         train_logger.log(log_line)
         print(f"Final average reward: {final_rewards.mean()}")
