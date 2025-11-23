@@ -32,7 +32,7 @@ class MockSerialConnection(BaseConnection):
         self._control_max: Optional[float] = None
         self._setpoint = 1200
 
-    def open_connection(self):
+    def open(self):
         self.is_connected = True
         try:
             log_filename = f"mock_{self.port}.log"
@@ -43,14 +43,14 @@ class MockSerialConnection(BaseConnection):
         except Exception as ex:
             raise ConnectionError(f"Failed to open log file") from ex
 
-    def close_connection(self):
+    def close(self):
         self.is_connected = False
         if self._log_file:
             self._log_file.close()
             self._log_file = None
         print("Mock serial connection closed.")
 
-    def read_data(self) -> Optional[str]:
+    def read(self) -> Optional[str]:
         if not self.is_connected:
             raise ConnectionError("Mock serial connection is not open.")
         
@@ -78,7 +78,7 @@ class MockSerialConnection(BaseConnection):
         
         return data
 
-    def send_data(self, data_to_send: str):
+    def send(self, data_to_send: str):
         if not self.is_connected:
             raise ConnectionError("Mock serial connection is not open.")
 

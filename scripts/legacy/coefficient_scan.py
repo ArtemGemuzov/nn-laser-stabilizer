@@ -86,14 +86,14 @@ def main(config: DictConfig) -> None:
                 timeout=config.serial.timeout,
                 baudrate=config.serial.baudrate,
             )
-            connection.open_connection()
+            connection.open()
         else:
             connection = SerialConnection(
                 port=config.serial.port,
                 timeout=config.serial.timeout,
                 baudrate=config.serial.baudrate,
             )
-            connection.open_connection()
+            connection.open()
 
         pid = ConnectionToPid(connection)
 
@@ -186,7 +186,7 @@ def main(config: DictConfig) -> None:
 
     finally:
         interaction_logger.close()
-        connection.close_connection()
+        connection.close()
 
 
 if __name__ == "__main__":

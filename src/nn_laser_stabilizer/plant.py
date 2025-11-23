@@ -127,7 +127,7 @@ class Plant:
         self._reset_buffer()
         
         if not self._connection_opened:
-            self.pid_connection.open_connection()
+            self.pid_connection.open()
             self._connection_opened = True
         
         for _ in range(self._warmup_steps):
@@ -147,5 +147,5 @@ class Plant:
         return process_variables, control_outputs, self._setpoint
     
     def close(self) -> None:
-        self.pid_connection.close_connection()
+        self.pid_connection.close()
 

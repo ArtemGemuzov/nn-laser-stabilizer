@@ -1,13 +1,15 @@
-from typing import Protocol
+from typing import Protocol, Optional
+import math
+import random
 
 from nn_laser_stabilizer.connection import BaseConnection
 from nn_laser_stabilizer.logger import AsyncFileLogger
 
 
 class BaseConnectionToPid(Protocol):  
-    def open_connection(self) -> None: pass
+    def open(self) -> None: pass
     
-    def close_connection(self) -> None: pass
+    def close(self) -> None: pass
     
     def send_command(
         self,
@@ -36,11 +38,11 @@ class ConnectionToPid(BaseConnectionToPid):
     def __init__(self, connection: BaseConnection):
         self._connection = connection
     
-    def open_connection(self) -> None:
-        self._connection.open_connection()
+    def open(self) -> None:
+        self._connection.open()
     
-    def close_connection(self) -> None:
-        self._connection.close_connection()
+    def close(self) -> None:
+        self._connection.close()
 
     def _format_command(self, *, kp: float, ki: float, kd: float, control_min: int, control_max: int) -> str:
         return f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min:.4f} {control_max:.4f}\n" 
@@ -55,20 +57,17 @@ class ConnectionToPid(BaseConnectionToPid):
         control_max: int,
     ) -> None:
         command = self._format_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
-        self._connection.send_data(command)
+        self._connection.send(command)
 
     def _parse_response(self, raw: str) -> tuple[float, float]:
         parts = raw.strip().split()
         if len(parts) != 2:
             raise ValueError(f"Invalid PID response format: '{raw}'")
-        try:
-            return float(parts[0]), float(parts[1])
-        except Exception as ex:
-            raise ValueError(f"Invalid numeric values in PID response: '{raw}'") from ex
-
+        return float(parts[0]), float(parts[1])
+       
     def read_response(self) -> tuple[float, float]:
         while True:
-            raw = self._connection.read_data()
+            raw = self._connection.read()
             if raw is not None:
                 return self._parse_response(raw)
 
@@ -96,33 +95,15 @@ class LoggingConnectionToPid(BaseConnectionToPid):
         self._pid = connection_to_pid
         self._logger = logger
     
-    def open_connection(self) -> None:
+    def open(self) -> None:
         self._logger.log("OPEN: Opening connection to PID controller")
-        self._pid.open_connection()
+        self._pid.open()
         self._logger.log("OPEN: Connection opened successfully")
     
-    def close_connection(self) -> None:
+    def close(self) -> None:
         self._logger.log("CLOSE: Closing connection to PID controller")
-        self._pid.close_connection()
+        self._pid.close()
         self._logger.log("CLOSE: Connection closed successfully")
-    
-    def _log_send_command(
-        self,
-        kp: float,
-        ki: float,
-        kd: float,
-        control_min: int,
-        control_max: int,
-    ) -> None:
-        self._logger.log(
-            f"SEND: kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
-            f"control_min={control_min} control_max={control_max}"
-        )
-    
-    def _log_read_response(self, process_variable: float, control_output: float) -> None:
-        self._logger.log(
-            f"READ: process_variable={process_variable:.4f} control_output={control_output:.4f}"
-        )
     
     def send_command(
         self,
@@ -133,12 +114,17 @@ class LoggingConnectionToPid(BaseConnectionToPid):
         control_min: int,
         control_max: int,
     ) -> None:
-        self._log_send_command(kp, ki, kd, control_min, control_max)
+        self._logger.log(
+            f"SEND: kp={kp:.4f} ki={ki:.4f} kd={kd:.4f} "
+            f"control_min={control_min} control_max={control_max}"
+        )
         self._pid.send_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
     
     def read_response(self) -> tuple[float, float]:
         process_variable, control_output = self._pid.read_response()
-        self._log_read_response(process_variable, control_output)
+        self._logger.log(
+            f"READ: process_variable={process_variable:.4f} control_output={control_output:.4f}"
+        )
         return process_variable, control_output
     
     def exchange(
@@ -150,13 +136,75 @@ class LoggingConnectionToPid(BaseConnectionToPid):
         control_min: int,
         control_max: int,
     ) -> tuple[float, float]:
-        self._log_send_command(kp, ki, kd, control_min, control_max)
-        process_variable, control_output = self._pid.exchange(
+        self.send_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
+        return self.read_response()
+
+
+class TestConnectionToPid(ConnectionToPid):
+    def __init__(
+        self,
+        connection: BaseConnection,
+        optimal_kp: float = 10.0,
+        optimal_ki: float = 17.5,
+        setpoint: float = 1200.0,
+        max_distance: float = 20.0,
+        noise_std: float = 30.0,
+    ):
+        super().__init__(connection)
+        self._optimal_kp = optimal_kp
+        self._optimal_ki = optimal_ki
+        self._setpoint = setpoint
+        self._max_distance = max_distance
+        self._noise_std = noise_std
+        
+        self._last_kp: Optional[float] = None
+        self._last_ki: Optional[float] = None
+        self._last_control_min: Optional[float] = None
+        self._last_control_max: Optional[float] = None
+    
+    def send_command(
+        self,
+        *,
+        kp: float,
+        ki: float,
+        kd: float,
+        control_min: int,
+        control_max: int,
+    ) -> None:
+        self._last_kp = kp
+        self._last_ki = ki
+        self._last_control_min = float(control_min)
+        self._last_control_max = float(control_max)
+        
+        super().send_command(
             kp=kp,
             ki=ki,
             kd=kd,
             control_min=control_min,
             control_max=control_max,
         )
-        self._log_read_response(process_variable, control_output)
-        return process_variable, control_output
+    
+    def read_response(self) -> tuple[float, float]:
+        if self._last_kp is None or self._last_ki is None:
+            raise RuntimeError("No command was sent before reading response")
+        
+        distance = math.sqrt(
+            (self._last_kp - self._optimal_kp) ** 2 + 
+            (self._last_ki - self._optimal_ki) ** 2
+        )
+        closeness = max(0.0, 1.0 - min(distance, self._max_distance) / self._max_distance)
+        
+        random_component = random.randint(0, 2000)
+        noise = random.gauss(0, self._noise_std)
+        process_variable = (
+            closeness * self._setpoint + 
+            (1.0 - closeness) * random_component + 
+            noise
+        )
+        process_variable = int(max(0, min(2000, round(process_variable))))
+        
+        control_min = self._last_control_min or 0.0
+        control_max = self._last_control_max or 4095.0
+        control_output = random.randint(int(control_min), int(control_max))
+        
+        return float(process_variable), float(control_output)

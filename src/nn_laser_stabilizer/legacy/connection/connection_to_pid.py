@@ -17,11 +17,11 @@ class ConnectionToPid(BaseConnectionToPid):
     
     def open_connection(self) -> None:
         """Открывает соединение с контроллером."""
-        self._connection.open_connection()
+        self._connection.open()
     
     def close_connection(self) -> None:
         """Закрывает соединение с контроллером."""
-        self._connection.close_connection()
+        self._connection.close()
 
     def _format_command(self, *, kp: float, ki: float, kd: float, control_min: int, control_max: int) -> str:
         """
@@ -41,7 +41,7 @@ class ConnectionToPid(BaseConnectionToPid):
         control_max: int,
     ) -> None:
         command = self._format_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
-        self._connection.send_data(command)
+        self._connection.send(command)
 
     def _parse_response(self, raw: str) -> tuple[float, float]:
         """Парсит ответ PID из строки."""
@@ -60,7 +60,7 @@ class ConnectionToPid(BaseConnectionToPid):
         Возвращает кортеж (process_variable, control_output).
         """
         while True:
-            raw = self._connection.read_data()
+            raw = self._connection.read()
             if raw is not None:
                 return self._parse_response(raw)
 
