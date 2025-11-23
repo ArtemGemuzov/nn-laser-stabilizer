@@ -57,7 +57,8 @@ def main(context: ExperimentContext):
 
     train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
-    env = partial(make_env, env_name=context.config.env.name, seed=context.seed)
+    env_factory = partial(make_env, env_name=context.config.env.name, seed=context.seed)
+    env = env_factory()
     
     observation_space = env.observation_space
     observation_dim = observation_space.dim
@@ -107,7 +108,7 @@ def main(context: ExperimentContext):
     
     with AsyncCollector(
         buffer=buffer,
-        env_factory=lambda: make_env(context.config.env.name),
+        env_factory=env_factory,
         policy_factory=policy_factory,
     ) as collector:
         print("Collector started. Waiting for data accumulation...")

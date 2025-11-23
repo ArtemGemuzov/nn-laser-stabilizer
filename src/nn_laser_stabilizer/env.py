@@ -238,9 +238,6 @@ class PidDeltaTuningEnv(gym.Env):
         seed: Optional[int] = None, 
         options: Optional[dict] = None
     ) -> Tuple[np.ndarray, dict]:
-        if seed is not None:
-            self.set_seed(seed)
-
         process_variables, control_outputs, setpoint = self.plant.reset()
 
         observation = self._build_observation(
