@@ -1,7 +1,5 @@
 import numpy as np
 
-import torch
-
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import SyncCollector
 from nn_laser_stabilizer.env_wrapper import make_env
@@ -27,15 +25,14 @@ def validate(
     rewards = []
     obs, _ = env.reset()
     
-    with torch.no_grad():
-        for _ in range(num_steps):
-            action = policy.act(obs)
-            obs, reward, terminated, truncated, _ = env.step(action)
-            done = terminated or truncated
-            rewards.append(reward)
-            
-            if done:
-                obs, _ = env.reset()
+    for _ in range(num_steps):
+        action = policy.act(obs)
+        obs, reward, terminated, truncated, _ = env.step(action)
+        done = terminated or truncated
+        rewards.append(reward)
+        
+        if done:
+            obs, _ = env.reset()
     
     env.close()
     policy.train()
@@ -48,7 +45,7 @@ def main(context: ExperimentContext):
 
     train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
-    env = make_env("Pendulum-v1")
+    env = make_env("Pendulum-v1", seed=context.seed)
     
     observation_space = env.observation_space
     observation_dim = observation_space.dim

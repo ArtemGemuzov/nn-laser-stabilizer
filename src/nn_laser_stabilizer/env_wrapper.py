@@ -13,7 +13,7 @@ class TorchEnvWrapper:
         self,
         env: gym.Env
     ):
-        self.env : gym.Env = env
+        self._env : gym.Env = env
 
         if not isinstance(env.observation_space, gym.spaces.Box):
             raise ValueError(f"Unsupported observation space type: {type(env.observation_space)}")
@@ -43,7 +43,7 @@ class TorchEnvWrapper:
     def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         action_np = self._to_numpy(action)
         
-        observation, reward, terminated, truncated, info = self.env.step(action_np)
+        observation, reward, terminated, truncated, info = self._env.step(action_np)
 
         observation = self._to_tensor(observation)
         reward = self._to_tensor(reward)
@@ -56,9 +56,12 @@ class TorchEnvWrapper:
         self,
         options: Optional[dict] = None
     ) -> Tuple[torch.Tensor, dict]:
-        observation, info = self.env.reset(seed=self._seed, options=options)
+        observation, info = self._env.reset(seed=self._seed, options=options)
         observation = self._to_tensor(observation)
         return observation, info
+    
+    def close(self) -> None:
+        self._env.close()
     
     def set_seed(self, seed: int) -> None:
         self._seed = seed

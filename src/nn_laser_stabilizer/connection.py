@@ -1,6 +1,7 @@
+from typing import Protocol, Optional
 import math
 import random
-from typing import Protocol, Optional
+
 
 import serial
 
@@ -39,9 +40,7 @@ class SerialConnection(BaseConnection):
                 parity=self.parity,
                 stopbits=self.stopbits
             )
-            if self._serial_connection.is_open:
-                print("Serial connection established.")
-            else:
+            if not self._serial_connection.is_open:
                 raise ConnectionError("Failed to open serial port.")
         except Exception as ex:
             raise ConnectionError("Error initializing serial connection") from ex
@@ -50,9 +49,6 @@ class SerialConnection(BaseConnection):
         connection = self._serial_connection
         if connection is not None and connection.is_open:
             self._serial_connection.close()
-            print("Serial connection closed.")
-        else:
-            print("Serial connection already closed.")
 
     def read_data(self) -> str | None:
         # TODO: вынести в метод валидации открытия ИЛИ убрать вообще

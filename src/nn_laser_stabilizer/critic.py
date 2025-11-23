@@ -5,7 +5,7 @@ from typing import Sequence
 import torch
 
 from nn_laser_stabilizer.model import Model
-from nn_laser_stabilizer.utils import build_mlp
+from nn_laser_stabilizer.layers import build_mlp
 
 
 class Critic(Model, ABC):

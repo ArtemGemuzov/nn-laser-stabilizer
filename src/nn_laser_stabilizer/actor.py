@@ -2,9 +2,10 @@ from typing import Sequence
 
 import torch
 
+from nn_laser_stabilizer.layers import build_mlp
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.box import Box
-from nn_laser_stabilizer.utils import build_mlp, Scaler
+from nn_laser_stabilizer.layers import Scaler
 
 
 class Actor(Policy):
