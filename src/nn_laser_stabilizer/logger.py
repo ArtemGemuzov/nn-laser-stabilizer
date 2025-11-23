@@ -74,3 +74,15 @@ class AsyncFileLogger:
                 time.sleep(POLL_INTERVAL_SEC)
                 continue
             self._write_line(line)
+    
+    def close(self) -> None:
+        if self._stop:
+            return
+        self._stop = True
+        self._thread.join()
+        if self._file_handle is not None:
+            self._file_handle.close()
+            self._file_handle = None
+    
+    def __del__(self):
+        self.close()
