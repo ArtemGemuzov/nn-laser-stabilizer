@@ -1,0 +1,6 @@
+_extends: train_sync
+
+experiment_name: pendulum
+
+env:
+  name: Pendulum-v1

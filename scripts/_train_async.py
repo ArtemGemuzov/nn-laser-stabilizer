@@ -51,7 +51,7 @@ def validate(
     return np.array(rewards)
 
 
-@experiment("_train_async.yaml")
+@experiment("pid_delta_tuning")
 def main(context: ExperimentContext):
     print("Creating components...")
 

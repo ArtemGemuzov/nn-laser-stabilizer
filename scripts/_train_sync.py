@@ -39,7 +39,7 @@ def validate(
     
     return np.array(rewards)
 
-@experiment("_train_sync.yaml")
+@experiment("pendulum")
 def main(context: ExperimentContext):
     print("Creating components...")
 

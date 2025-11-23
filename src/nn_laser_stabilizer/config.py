@@ -66,7 +66,14 @@ class Config:
 
 
 def load_config(config_path: Path, configs_dir: Path = None, visited: Set[Path] = None) -> Config:
-    config_path = Path(config_path).resolve()
+    config_path = Path(config_path)
+    
+    if not config_path.suffix:
+        config_path = config_path.with_suffix('.yaml')
+    elif config_path.suffix not in ('.yaml', '.yml'):
+        config_path = config_path.with_suffix('.yaml')
+    
+    config_path = config_path.resolve()
     
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")

@@ -1,8 +1,4 @@
-experiment_name: test
 seed: 42
-
-env:
-  name: Pendulum-v1
 
 buffer:
   capacity: 100000
@@ -26,7 +22,6 @@ optimizer:
 training:
   initial_collect_steps: 10000
   num_training_steps: 20000
-  collect_steps_per_iteration: 10
   log_frequency: 100
   validation_frequency: 500
   policy_freq: 2
@@ -34,4 +29,3 @@ training:
 validation:
   num_steps: 200
   final_num_steps: 1000
-
