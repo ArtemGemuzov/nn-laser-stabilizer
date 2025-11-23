@@ -158,6 +158,12 @@ def main(context: ExperimentContext):
         train_logger.log(log_line)
         print(f"Final average reward: {final_rewards.mean()}")
         
+        print("Saving models...")
+        models_dir = context.models_dir
+        actor.save(models_dir / "actor.pth")
+        loss_module.critic1.save(models_dir / "critic1.pth")
+        print(f"Models saved to {models_dir}")
+        
         print("Training completed.")
         print(f"Final buffer size: {len(buffer)}")
     
