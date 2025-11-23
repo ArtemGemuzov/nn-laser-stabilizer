@@ -3,7 +3,6 @@ from functools import partial
 import numpy as np
 
 import torch
-import torch.optim as optim
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import AsyncCollector
@@ -14,7 +13,7 @@ from nn_laser_stabilizer.actor import MLPActor
 from nn_laser_stabilizer.critic import MLPCritic
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
-from nn_laser_stabilizer.utils import SoftUpdater
+from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.experiment import experiment, ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger
 
@@ -95,12 +94,11 @@ def main(context: ExperimentContext):
         noise_clip=0.25,
     )
     
-    actor_optimizer = optim.Adam(loss_module.actor.parameters(), lr=1e-3)
-    critic_optimizer = optim.Adam(
+    actor_optimizer = Optimizer(loss_module.actor.parameters(), lr=1e-3)
+    critic_optimizer = Optimizer(
         list(loss_module.critic1.parameters()) + list(loss_module.critic2.parameters()),
         lr=1e-3
     )
-    
     soft_updater = SoftUpdater(loss_module, tau=0.005)
     
     print("Starting collector...")

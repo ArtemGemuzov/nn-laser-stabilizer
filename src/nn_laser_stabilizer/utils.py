@@ -1,6 +1,6 @@
 import random
 
-from typing import Tuple, List, Sequence
+from typing import Sequence
 
 import numpy as np
 
@@ -17,25 +17,6 @@ def set_seeds(seed: int) -> None:
     
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
-
-class SoftUpdater:  
-    def __init__(self, loss_module, tau: float = 0.005):
-        # TODO: можно будет обобщить
-        self.tau = tau
-        self._pairs: List[Tuple[nn.Module, nn.Module]] = []
-        
-        self._register(loss_module.actor_target, loss_module.actor)
-        self._register(loss_module.critic1_target, loss_module.critic1)
-        self._register(loss_module.critic2_target, loss_module.critic2)
-    
-    def _register(self, target_network: nn.Module, source_network: nn.Module) -> None:
-        self._pairs.append((target_network, source_network))
-    
-    def update(self) -> None:
-        for target_net, source_net in self._pairs:
-            for target_param, source_param in zip(target_net.parameters(), source_net.parameters()):
-                target_param.data.lerp_(source_param.data, self.tau)
 
 
 def build_mlp(
