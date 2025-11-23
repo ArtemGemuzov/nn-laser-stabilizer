@@ -50,6 +50,12 @@ class Config:
     def __delattr__(self, name: str) -> None:
         raise AttributeError(f"Config is immutable. Cannot delete attribute '{name}'")
     
+    def __getstate__(self) -> Dict[str, Any]:
+        return {'_data': self._data}
+    
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        object.__setattr__(self, '_data', state['_data'])
+    
     def get(self, key: str, default: Any = None) -> Any:
         keys = key.split('.')
         cur_value = self._data
