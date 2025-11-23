@@ -91,7 +91,7 @@ def experiment(
         def wrapper(*args, **kwargs):
             absolute_config_path = CONFIGS_DIR / relative_config_path
             
-            config = load_config(absolute_config_path)
+            config = load_config(absolute_config_path, configs_dir=CONFIGS_DIR)
             with ExperimentContext(config) as context:
                 return func(context, *args, **kwargs)
         

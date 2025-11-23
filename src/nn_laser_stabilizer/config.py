@@ -1,6 +1,21 @@
+from typing import Any, Dict, Set
 from pathlib import Path
-from typing import Any, Dict
 import yaml
+
+
+def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    result = base.copy()
+    
+    for key, value in override.items():
+        if key == '_extends':
+            continue
+        
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    
+    return result
 
 
 class Config:
@@ -50,17 +65,47 @@ class Config:
         return convert(self._data)
 
 
-def load_config(config_path: Path) -> Config:
+def load_config(config_path: Path, configs_dir: Path = None, visited: Set[Path] = None) -> Config:
     config_path = Path(config_path).resolve()
     
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
     
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config_data = yaml.safe_load(f)
+    if configs_dir is None:
+        configs_dir = config_path.parent
     
-    if config_data is None:
-        config_data = {}
+    if visited is None:
+        visited = set()
     
-    return Config(config_data)
+    if config_path in visited:
+        raise ValueError(f"Circular dependency detected: {config_path} is already being loaded")
+    
+    visited.add(config_path)
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config_data = yaml.safe_load(f)
+        
+        if config_data is None:
+            config_data = {}
+        
+        extends_path = config_data.get('_extends')
+        
+        if extends_path:
+            if isinstance(extends_path, str):
+                if not Path(extends_path).is_absolute():
+                    base_config_path = configs_dir / extends_path
+                else:
+                    base_config_path = Path(extends_path)
+                
+                base_config = load_config(base_config_path, configs_dir=configs_dir, visited=visited)
+                base_data = base_config.to_dict()
+                
+                config_data = _deep_merge(base_data, config_data)
+            
+            config_data.pop('_extends', None)
+        
+        return Config(config_data)
+    finally:
+        visited.remove(config_path)
 
