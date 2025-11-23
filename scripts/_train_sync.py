@@ -39,13 +39,13 @@ def validate(
     
     return np.array(rewards)
 
-@experiment("_train_sync_async.yaml")
+@experiment("_train_sync.yaml")
 def main(context: ExperimentContext):
     print("Creating components...")
 
     train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
     
-    env = make_env("Pendulum-v1", seed=context.seed)
+    env = make_env(context.config.env.name, seed=context.seed)
     
     observation_space = env.observation_space
     observation_dim = observation_space.dim
@@ -54,43 +54,43 @@ def main(context: ExperimentContext):
     action_dim = action_space.dim
     
     buffer = ReplayBuffer(
-        capacity=100000,
+        capacity=context.config.buffer.capacity,
         obs_dim=observation_dim,
         action_dim=action_dim,
     )
     
-    sampler = BatchSampler(buffer=buffer, batch_size=64)
+    sampler = BatchSampler(buffer=buffer, batch_size=context.config.sampler.batch_size)
     
     actor = MLPActor(
         obs_dim=observation_dim,
         action_dim=action_dim,
         action_space=action_space,
-        hidden_sizes=(400, 300),
+        hidden_sizes=tuple(context.config.network.hidden_sizes),
     ).train()
     
     critic = MLPCritic(
         obs_dim=observation_dim,
         action_dim=action_dim,
-        hidden_sizes=(400, 300),
+        hidden_sizes=tuple(context.config.network.hidden_sizes),
     ).train()
     
     loss_module = TD3Loss(
         actor=actor,
         critic=critic,
         action_space=action_space,
-        gamma=0.98,
-        policy_noise=0.1,
-        noise_clip=0.25,
+        gamma=context.config.loss.gamma,
+        policy_noise=context.config.loss.policy_noise,
+        noise_clip=context.config.loss.noise_clip,
     )
     
-    actor_optimizer = Optimizer(loss_module.actor.parameters(), lr=1e-3)
+    actor_optimizer = Optimizer(loss_module.actor.parameters(), lr=context.config.optimizer.actor_lr)
     critic_optimizer = Optimizer(
         list(loss_module.critic1.parameters()) + list(loss_module.critic2.parameters()),
-        lr=1e-3
+        lr=context.config.optimizer.critic_lr
     )
-    soft_updater = SoftUpdater(loss_module, tau=0.005)
+    soft_updater = SoftUpdater(loss_module, tau=context.config.optimizer.tau)
     
-    collector_env = make_env("Pendulum-v1")
+    collector_env = make_env(context.config.env.name)
     
     print("Creating synchronous collector...")
     
@@ -101,17 +101,19 @@ def main(context: ExperimentContext):
     ) as collector:
         print("Collector started. Initial data collection...")
         
-        initial_collect_steps = 10000
-        collector.collect(initial_collect_steps)
+        collector.collect(context.config.training.initial_collect_steps)
         print(f"Initial data collection completed. Buffer size: {len(buffer)}")
         
-        num_training_steps = 20000
-        collect_steps_per_iteration = 10  
-        log_frequency = 100
-        validation_frequency = 500  
-        policy_freq = 2
-        
         print(f"Training started. Buffer size: {len(buffer)}")
+        
+        num_training_steps = context.config.training.num_training_steps
+        collect_steps_per_iteration = context.config.training.collect_steps_per_iteration
+        policy_freq = context.config.training.policy_freq
+        log_frequency = context.config.training.log_frequency
+        validation_frequency = context.config.training.validation_frequency
+        env_name = context.config.env.name
+        validation_num_steps = context.config.validation.num_steps
+        final_validation_num_steps = context.config.validation.final_num_steps
         
         for step in range(num_training_steps):
             collector.collect(collect_steps_per_iteration)
@@ -142,13 +144,13 @@ def main(context: ExperimentContext):
                             f"buffer size={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
-                rewards = validate(actor, lambda: make_env("Pendulum-v1"), num_steps=200)
+                rewards = validate(actor, lambda: make_env(env_name), num_steps=validation_num_steps)
                 log_line = f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}"
                 train_logger.log(log_line)
                 print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
         print("\nFinal validation...")
-        final_rewards = validate(actor, lambda: make_env("Pendulum-v1"), num_steps=1000)
+        final_rewards = validate(actor, lambda: make_env(context.config.env.name), num_steps=context.config.validation.final_num_steps)
         log_line = f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}"
         train_logger.log(log_line)
         print(f"Final average reward: {final_rewards.mean()}")
