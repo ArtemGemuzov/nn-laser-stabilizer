@@ -164,6 +164,10 @@ def main(context: ExperimentContext):
         loss_module.critic1.save(models_dir / "critic1.pth")
         print(f"Models saved to {models_dir}")
         
+        print("Saving replay buffer...")
+        buffer.save(context.data_dir / "replay_buffer.pth")
+        print(f"Replay buffer saved to {context.data_dir}")
+        
         print("Training completed.")
         print(f"Final buffer size: {len(buffer)}")
     

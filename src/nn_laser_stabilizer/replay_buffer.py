@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 
 
@@ -92,4 +94,58 @@ class ReplayBuffer:
     
     def __len__(self) -> int:
         return self.size
+    
+    def save(self, path: Path) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        checkpoint = {
+            'capacity': self.capacity,
+            'obs_dim': self._observations.shape[1],
+            'action_dim': self._actions.shape[1],
+            'size': self.size,
+            'index': self.index,
+            'observations': self._observations,
+            'actions': self._actions,
+            'rewards': self._rewards,
+            'next_observations': self._next_observations,
+            'dones': self._dones,
+        }
+        torch.save(checkpoint, path)
+    
+    @classmethod
+    def load(cls, path: Path) -> "ReplayBuffer":
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"ReplayBuffer file not found: {path}")
+        
+        checkpoint = torch.load(path, map_location='cpu')
+        
+        if not isinstance(checkpoint, dict):
+            raise ValueError(
+                f"Invalid checkpoint format in {path}. "
+                "Expected dict with buffer data."
+            )
+        
+        required_keys = ['capacity', 'obs_dim', 'action_dim', 'size', 'index',
+                        'observations', 'actions', 'rewards', 'next_observations', 'dones']
+        missing_keys = [key for key in required_keys if key not in checkpoint]
+        if missing_keys:
+            raise ValueError(
+                f"Checkpoint {path} is missing required keys: {missing_keys}"
+            )
+        
+        buffer = cls(
+            capacity=checkpoint['capacity'],
+            obs_dim=checkpoint['obs_dim'],
+            action_dim=checkpoint['action_dim'],
+        )
+        
+        buffer.size = checkpoint['size']
+        buffer.index = checkpoint['index']
+        buffer._observations.copy_(checkpoint['observations'])
+        buffer._actions.copy_(checkpoint['actions'])
+        buffer._rewards.copy_(checkpoint['rewards'])
+        buffer._next_observations.copy_(checkpoint['next_observations'])
+        buffer._dones.copy_(checkpoint['dones'])
+        return buffer
 
