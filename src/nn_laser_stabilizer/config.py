@@ -18,6 +18,22 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return result
 
 
+def _substitute_placeholders(data: Any, variables: Dict[str, Any]) -> Any:
+    if isinstance(data, str):
+        result = data
+        for var_name, var_value in variables.items():
+            placeholder = f"{{{var_name}}}"
+            if placeholder in result:
+                result = result.replace(placeholder, str(var_value))
+        return result
+    elif isinstance(data, dict):
+        return {k: _substitute_placeholders(v, variables) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_substitute_placeholders(item, variables) for item in data]
+    else:
+        return data
+
+
 class Config:
     """
     Поддерживается только простейший YAML.
@@ -43,6 +59,8 @@ class Config:
                 return default
             cur_value = cur_value[cur_key]
         
+        if isinstance(cur_value, dict):
+            return Config(cur_value)
         return cur_value
     
     def __getattr__(self, key: str) -> Any:
@@ -63,6 +81,10 @@ class Config:
                 return [convert(item) for item in value]
             return value
         return convert(self._data)
+    
+    def substitute_placeholders(self, variables: Dict[str, Any]) -> "Config":
+        substituted_data = _substitute_placeholders(self._data, variables)
+        return Config(substituted_data)
 
 
 def load_config(config_path: Path, configs_dir: Path = None, visited: Set[Path] = None) -> Config:

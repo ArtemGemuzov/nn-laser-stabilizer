@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
@@ -43,7 +45,8 @@ def validate(
 def main(context: ExperimentContext):
     print("Creating components...")
 
-    train_logger = SyncFileLogger(log_dir=context.logs_dir, log_file="train.log")
+    train_log_dir = Path(context.config.training.log_dir)
+    train_logger = SyncFileLogger(log_dir=train_log_dir, log_file=context.config.training.log_file)
     
     env = make_env_from_config(context.config.env, seed=context.seed)
     

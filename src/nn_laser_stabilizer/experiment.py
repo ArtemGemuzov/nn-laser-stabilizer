@@ -29,6 +29,13 @@ class ExperimentContext:
         self._experiment_dir : Path = EXPERIMENTS_DIR / self._experiment_name / timestamp
         self._experiment_dir.mkdir(parents=True, exist_ok=True)
         
+        variables = {
+            "EXPERIMENT_DIR": str(self._experiment_dir),
+            "EXPERIMENT_NAME": self._experiment_name,
+            "TIMESTAMP": timestamp,
+        }
+        self.config = self.config.substitute_placeholders(variables)
+        
         self._set_seed()
         self._save_config()
         
@@ -64,12 +71,8 @@ class ExperimentContext:
         return path
     
     @property
-    def seed(self) -> Optional[int]:
-        return self._seed
-    
-    @property
-    def logs_dir(self) -> Path:
-        return self._get_path("logs")
+    def experiment_dir(self) -> Path:
+        return self._experiment_dir
     
     @property
     def models_dir(self) -> Path:
@@ -78,6 +81,10 @@ class ExperimentContext:
     @property
     def data_dir(self) -> Path:
         return self._get_path("data")
+    
+    @property
+    def seed(self) -> Optional[int]:
+        return self._seed
 
 
 def experiment(
