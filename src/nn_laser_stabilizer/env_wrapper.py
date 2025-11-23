@@ -30,7 +30,7 @@ class TorchEnvWrapper:
         if isinstance(x, np.ndarray):
             return torch.from_numpy(x).to(dtype=torch.float32)
 
-        if isinstance(x, bool):
+        if isinstance(x, (bool, np.bool_)):
             return torch.tensor(x, dtype=torch.bool)
 
         if isinstance(x, (int, float, np.number)):
@@ -94,7 +94,7 @@ def make_env(
             f"Custom environments: {list(_CUSTOM_ENV_MAP.keys())}"
         )
     
-    
+
 def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> TorchEnvWrapper:
     env_name = env_config.name
     env_args_dict = env_config.get('args')

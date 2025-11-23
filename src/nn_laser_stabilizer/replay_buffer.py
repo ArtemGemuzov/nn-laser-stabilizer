@@ -47,7 +47,7 @@ class ReplayBuffer:
     def dones(self) -> torch.Tensor:
         return self._dones
     
-    def share_memory(self) -> None:
+    def share_memory(self) -> "ReplayBuffer":
         self._size.share_memory_()
         self._index.share_memory_()
         self._observations.share_memory_()
@@ -55,6 +55,7 @@ class ReplayBuffer:
         self._rewards.share_memory_()
         self._next_observations.share_memory_()
         self._dones.share_memory_()
+        return self
     
     @property
     def size(self) -> int:
