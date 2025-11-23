@@ -9,11 +9,6 @@ env:
     port: COM3
     timeout: 0.1
     baudrate: 115200
-    test_optimal_kp: 10.0
-    test_optimal_ki: 17.5
-    test_setpoint: 1200.0
-    test_max_distance: 20.0
-    test_noise_std: 30.0
     log_connection: false
     connection_log_dir: .
     connection_log_file: connection.log

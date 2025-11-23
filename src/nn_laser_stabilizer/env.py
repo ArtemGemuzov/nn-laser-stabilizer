@@ -20,12 +20,6 @@ class PidDeltaTuningEnv(gym.Env):
         port: str,
         timeout: float,
         baudrate: int,
-        # Параметры для TestConnectionToPid (если use_mock=True)
-        test_optimal_kp: float,
-        test_optimal_ki: float,
-        test_setpoint: float,
-        test_max_distance: float,
-        test_noise_std: float,
         # Параметры для логирования соединения
         log_connection: bool,
         connection_log_dir: Optional[str | Path],
@@ -89,11 +83,13 @@ class PidDeltaTuningEnv(gym.Env):
             )
             pid_connection = TestConnectionToPid(
                 connection=connection,
-                optimal_kp=test_optimal_kp,
-                optimal_ki=test_optimal_ki,
-                setpoint=test_setpoint,
-                max_distance=test_max_distance,
-                noise_std=test_noise_std,
+                kp_min=kp_min,
+                kp_max=kp_max,
+                ki_min=ki_min,
+                ki_max=ki_max,
+                kd_min=kd_min,
+                kd_max=kd_max,
+                setpoint=setpoint,
             )
         else:
             connection = SerialConnection(

@@ -141,24 +141,29 @@ class LoggingConnectionToPid(BaseConnectionToPid):
 
 
 class TestConnectionToPid(ConnectionToPid):
+    MAX_DISTANCE: float = 20.0
+    NOISE_STD: float = 30.0
+    
     def __init__(
         self,
         connection: BaseConnection,
-        optimal_kp: float = 10.0,
-        optimal_ki: float = 17.5,
-        setpoint: float = 1200.0,
-        max_distance: float = 20.0,
-        noise_std: float = 30.0,
+        kp_min: float,
+        kp_max: float,
+        ki_min: float,
+        ki_max: float,
+        kd_min: float,
+        kd_max: float,
+        setpoint: float,
     ):
         super().__init__(connection)
-        self._optimal_kp = optimal_kp
-        self._optimal_ki = optimal_ki
+        self._optimal_kp = kp_min + (kp_max - kp_min) * 0.75
+        self._optimal_ki = ki_min + (ki_max - ki_min) * 0.75
+        self._optimal_kd = kd_min + (kd_max - kd_min) * 0.75
         self._setpoint = setpoint
-        self._max_distance = max_distance
-        self._noise_std = noise_std
         
         self._last_kp: Optional[float] = None
         self._last_ki: Optional[float] = None
+        self._last_kd: Optional[float] = None
         self._last_control_min: Optional[float] = None
         self._last_control_max: Optional[float] = None
     
@@ -173,6 +178,7 @@ class TestConnectionToPid(ConnectionToPid):
     ) -> None:
         self._last_kp = kp
         self._last_ki = ki
+        self._last_kd = kd
         self._last_control_min = float(control_min)
         self._last_control_max = float(control_max)
         
@@ -185,17 +191,18 @@ class TestConnectionToPid(ConnectionToPid):
         )
     
     def read_response(self) -> tuple[float, float]:
-        if self._last_kp is None or self._last_ki is None:
+        if self._last_kp is None or self._last_ki is None or self._last_kd is None:
             raise RuntimeError("No command was sent before reading response")
         
         distance = math.sqrt(
             (self._last_kp - self._optimal_kp) ** 2 + 
-            (self._last_ki - self._optimal_ki) ** 2
+            (self._last_ki - self._optimal_ki) ** 2 +
+            (self._last_kd - self._optimal_kd) ** 2
         )
-        closeness = max(0.0, 1.0 - min(distance, self._max_distance) / self._max_distance)
+        closeness = max(0.0, 1.0 - min(distance, self.MAX_DISTANCE) / self.MAX_DISTANCE)
         
         random_component = random.randint(0, 2000)
-        noise = random.gauss(0, self._noise_std)
+        noise = random.gauss(0, self.NOISE_STD)
         process_variable = (
             closeness * self._setpoint + 
             (1.0 - closeness) * random_component + 
