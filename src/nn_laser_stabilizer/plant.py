@@ -6,18 +6,6 @@ from nn_laser_stabilizer.pid import BaseConnectionToPid
 
 
 class Plant:
-    KP_MIN = 2.5
-    KP_MAX = 12.5
-    KP_START = 7.5
-    
-    KI_MIN = 0.0
-    KI_MAX = 20.0
-    KI_START = 10.0
-    
-    KD_MIN = 0.0
-    KD_MAX = 0.0 
-    KD_START = 0.0
-    
     def __init__(
         self,
         pid_connection: BaseConnectionToPid,
@@ -31,14 +19,33 @@ class Plant:
         force_max_value: int = 2500,
         default_min: int = 0,
         default_max: int = 4095,
+        kp_min: float = 2.5,
+        kp_max: float = 12.5,
+        kp_start: float = 7.5,
+        ki_min: float = 0.0,
+        ki_max: float = 20.0,
+        ki_start: float = 10.0,
+        kd_min: float = 0.0,
+        kd_max: float = 0.0,
+        kd_start: float = 0.0,
     ):
         self.pid_connection = pid_connection
         self._connection_opened = False
         self._setpoint = setpoint
 
-        self._kp = self.KP_START
-        self._ki = self.KI_START
-        self._kd = self.KD_START
+        self._kp_min = kp_min
+        self._kp_max = kp_max
+        self._kp_start = kp_start
+        self._ki_min = ki_min
+        self._ki_max = ki_max
+        self._ki_start = ki_start
+        self._kd_min = kd_min
+        self._kd_max = kd_max
+        self._kd_start = kd_start
+
+        self._kp = kp_start
+        self._ki = ki_start
+        self._kd = kd_start
         
         self._warmup_steps = warmup_steps
         self._block_size = block_size
@@ -79,14 +86,14 @@ class Plant:
         return self._kd
     
     def update_pid(self, delta_kp: float, delta_ki: float, delta_kd: float) -> None:
-        self._kp = np.clip(self._kp + delta_kp, self.KP_MIN, self.KP_MAX)
-        self._ki = np.clip(self._ki + delta_ki, self.KI_MIN, self.KI_MAX)
-        self._kd = np.clip(self._kd + delta_kd, self.KD_MIN, self.KD_MAX)
+        self._kp = np.clip(self._kp + delta_kp, self._kp_min, self._kp_max)
+        self._ki = np.clip(self._ki + delta_ki, self._ki_min, self._ki_max)
+        self._kd = np.clip(self._kd + delta_kd, self._kd_min, self._kd_max)
     
     def reset_pid(self) -> None:
-        self._kp = self.KP_START
-        self._ki = self.KI_START
-        self._kd = self.KD_START
+        self._kp = self._kp_start
+        self._ki = self._ki_start
+        self._kd = self._kd_start
     
     def _should_reset(self, control_outputs: np.ndarray) -> bool:
         mean_control_output = np.mean(control_outputs)
