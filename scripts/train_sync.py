@@ -72,8 +72,7 @@ def main(context: ExperimentContext):
         hidden_sizes=tuple(context.config.network.hidden_sizes),
     ).train()
     
-    # Оборачиваем в RandomExplorationPolicy если нужно
-    exploration_steps = context.config.training.get("exploration_steps", 0)
+    exploration_steps = context.config.training.get.exploration_steps
     if exploration_steps > 0:
         policy = RandomExplorationPolicy(
             actor=actor,
@@ -83,9 +82,6 @@ def main(context: ExperimentContext):
     else:
         policy = actor
     
-    # Для loss_module используем внутренний actor
-    actor_for_loss = policy.actor if isinstance(policy, RandomExplorationPolicy) else policy
-    
     critic = MLPCritic(
         obs_dim=observation_dim,
         action_dim=action_dim,
@@ -93,7 +89,7 @@ def main(context: ExperimentContext):
     ).train()
     
     loss_module = TD3Loss(
-        actor=actor_for_loss,
+        actor=actor,
         critic=critic,
         action_space=action_space,
         gamma=context.config.loss.gamma,
@@ -162,20 +158,20 @@ def main(context: ExperimentContext):
                             f"buffer size={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
-                rewards = validate(actor_for_loss, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
+                rewards = validate(actor, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
                 log_line = f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}"
                 train_logger.log(log_line)
                 print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
         print("\nFinal validation...")
-        final_rewards = validate(actor_for_loss, lambda: make_env_from_config(context.config.env), num_steps=context.config.validation.final_num_steps)
+        final_rewards = validate(actor, lambda: make_env_from_config(context.config.env), num_steps=final_validation_num_steps)
         log_line = f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}"
         train_logger.log(log_line)
         print(f"Final average reward: {final_rewards.mean()}")
         
         print("Saving models...")
         models_dir = context.models_dir
-        actor_for_loss.save(models_dir / "actor.pth")
+        actor.save(models_dir / "actor.pth")
         loss_module.critic1.save(models_dir / "critic1.pth")
         print(f"Models saved to {models_dir}")
         
