@@ -39,3 +39,57 @@ class MLPCritic(Critic):
     def forward(self, observation: torch.Tensor, action: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
         q_value = self.net(torch.cat([observation, action], dim=-1))
         return q_value, {}
+
+
+class LSTMCritic(Critic):
+    def __init__(
+        self,
+        obs_dim: int,
+        action_dim: int,
+        lstm_hidden_size: int = 64,
+        lstm_num_layers: int = 2,
+        mlp_hidden_sizes: Sequence[int] = (256,),
+    ):
+        super().__init__(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            lstm_hidden_size=lstm_hidden_size,
+            lstm_num_layers=lstm_num_layers,
+            mlp_hidden_sizes=mlp_hidden_sizes,
+        )
+        self.lstm = nn.LSTM(obs_dim + action_dim, lstm_hidden_size, lstm_num_layers, batch_first=True)
+        self.net = build_mlp(
+            lstm_hidden_size,
+            1,
+            mlp_hidden_sizes,
+        )
+    
+    def forward(
+        self,
+        observation: torch.Tensor,
+        action: torch.Tensor,
+        options: Optional[Dict[str, Any]] = None
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        if options is None:
+            options = {}
+        hidden_state = options.get('hidden_state')
+        
+        if observation.dim() == 2 and action.dim() == 2:
+            observation = observation.unsqueeze(1)  # (batch_size, 1, obs_dim)
+            action = action.unsqueeze(1)  # (batch_size, 1, action_dim)
+            squeeze_output = True
+        else:
+            squeeze_output = False
+        
+        observation_action_pairs = torch.cat([observation, action], dim=-1)  # (batch_size, seq_len, obs_dim + action_dim)
+        lstm_out, hidden_state = self.lstm(observation_action_pairs, hidden_state)  # (batch_size, seq_len, lstm_hidden_size)
+        
+        batch_size, seq_len, lstm_hidden_size = lstm_out.shape
+        lstm_reshaped = lstm_out.view(batch_size * seq_len, lstm_hidden_size)
+        q_values_flat = self.net(lstm_reshaped)  # (batch_size * seq_len, 1)
+        q_values = q_values_flat.view(batch_size, seq_len, 1)  # (batch_size, seq_len, 1)
+        
+        if squeeze_output:
+            q_values = q_values.squeeze(1)  # (batch_size, 1)
+        
+        return q_values, {'hidden_state': hidden_state}
