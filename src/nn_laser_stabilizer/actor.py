@@ -1,6 +1,7 @@
-from typing import Sequence
+from typing import Sequence, Optional, Tuple, Dict, Any
 
 import torch
+import torch.nn as nn
 
 from nn_laser_stabilizer.layers import build_mlp
 from nn_laser_stabilizer.policy import Policy
@@ -24,6 +25,8 @@ class MLPActor(Actor):
         self.net_body = build_mlp(obs_dim, action_dim, hidden_sizes)
         self.scaler = Scaler(action_space)
     
-    def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        return self.scaler(self.net_body(obs))
+    def forward(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        action = self.scaler(self.net_body(observation))
+        return action, {}
+
 

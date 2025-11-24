@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -12,7 +12,7 @@ class Model(nn.Module, ABC):
         self._init_kwargs: Dict[str, Any] = kwargs
     
     @abstractmethod
-    def forward(self, *args, **kwargs) -> torch.Tensor:
+    def forward(self, *args, **kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
         pass
     
     def clone(self, reinitialize_weights: bool = False) -> "Model":

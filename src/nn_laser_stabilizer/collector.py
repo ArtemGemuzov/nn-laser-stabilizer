@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple, Any, Dict
 from functools import partial
 import time
 import traceback
@@ -32,8 +32,9 @@ def _collect_step(
     env: TorchEnvWrapper,
     obs: torch.Tensor,
     buffer: ReplayBuffer,
-) -> torch.Tensor:
-    action = policy.act(obs)
+    options: Optional[Dict[str, Any]] = None,
+) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    action, options = policy.act(obs, options)
     
     next_obs, reward, terminated, truncated, _ = env.step(action)
     done = terminated or truncated
@@ -41,9 +42,10 @@ def _collect_step(
     buffer.add(obs, action, reward, next_obs, done)
     
     if done:
+        options = {}
         next_obs, _ = env.reset()
     
-    return next_obs
+    return next_obs, options
 
 
 class SyncCollector:
@@ -58,6 +60,7 @@ class SyncCollector:
         self._policy = policy
         
         self._cur_obs: Optional[torch.Tensor] = None
+        self._options: Dict[str, Any] = {}
         self._running = False
     
     def start(self) -> None:
@@ -68,6 +71,7 @@ class SyncCollector:
         _warmup_policy(self._policy, self._env)
         
         self._cur_obs, _ = self._env.reset()
+        self._options = {}
         self._running = True
     
     def collect(self, num_steps: int) -> None:
@@ -75,11 +79,12 @@ class SyncCollector:
             raise RuntimeError("Collector is not running")
         
         for _ in range(num_steps):
-            self._cur_obs = _collect_step(
+            self._cur_obs, self._options = _collect_step(
                 self._policy,
                 self._env,
                 self._cur_obs,
                 self.buffer,
+                self._options,
             )
     
     def stop(self) -> None:
@@ -134,6 +139,7 @@ def _collector_worker(
         
         env = env_factory()
         obs, _ = env.reset()
+        options = {}
         
         _warmup_policy(policy, env)
 
@@ -150,7 +156,7 @@ def _collector_worker(
                 else:
                     raise ValueError(f"Unknown command received: {command}") 
             
-            obs = _collect_step(policy, env, obs, buffer)
+            obs, options = _collect_step(policy, env, obs, buffer, options)
                 
     except KeyboardInterrupt:
         pass

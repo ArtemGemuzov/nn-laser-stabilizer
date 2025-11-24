@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Tuple, Any, Optional, Dict
 
 import torch
 
@@ -10,9 +11,9 @@ class Policy(Model, ABC):
         super().__init__(**kwargs)
     
     @abstractmethod
-    def forward(self, observation: torch.Tensor) -> torch.Tensor:
+    def forward(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
         pass
     
     @torch.no_grad()
-    def act(self, observation: torch.Tensor) -> torch.Tensor:
-        return self(observation)
+    def act(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        return self(observation, options)

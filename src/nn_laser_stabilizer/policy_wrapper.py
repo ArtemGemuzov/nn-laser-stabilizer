@@ -1,3 +1,5 @@
+from typing import Tuple, Any, Optional, Dict
+
 import torch
 import torch.nn as nn
 
@@ -37,12 +39,13 @@ class RandomExplorationPolicy(Policy):
         
         return new_model
     
-    def forward(self, observation: torch.Tensor) -> torch.Tensor:
+    def forward(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
         if self._exploration_step_count < self.exploration_steps:
             self._exploration_step_count += 1
-            return self.action_space.sample()
+            action = self.action_space.sample()
+            return action, {}
         else:
-            return self.actor(observation)
+            return self.actor(observation, options)
     
     def train(self, mode: bool = True) -> nn.Module:
         self.actor.train(mode)

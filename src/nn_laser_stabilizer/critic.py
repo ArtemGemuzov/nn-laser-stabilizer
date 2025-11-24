@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 
-from typing import Sequence
+from typing import Sequence, Optional, Tuple, Dict, Any
 
 import torch
+import torch.nn as nn
 
 from nn_laser_stabilizer.model import Model
 from nn_laser_stabilizer.layers import build_mlp
@@ -13,12 +14,12 @@ class Critic(Model, ABC):
         super().__init__(**kwargs)
     
     @abstractmethod
-    def forward(self, observation: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+    def forward(self, observation: torch.Tensor, action: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
         pass
 
     @torch.no_grad()
-    def value(self, observation: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
-        return self(observation, action)
+    def value(self, observation: torch.Tensor, action: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        return self(observation, action, options)
     
 
 class MLPCritic(Critic):
@@ -35,5 +36,6 @@ class MLPCritic(Critic):
             hidden_sizes,
         )
     
-    def forward(self, observation: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
-        return self.net(torch.cat([observation, action], dim=-1))
+    def forward(self, observation: torch.Tensor, action: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        q_value = self.net(torch.cat([observation, action], dim=-1))
+        return q_value, {}
