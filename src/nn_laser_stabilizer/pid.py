@@ -45,7 +45,7 @@ class ConnectionToPid(BaseConnectionToPid):
         self._connection.close()
 
     def _format_command(self, *, kp: float, ki: float, kd: float, control_min: int, control_max: int) -> str:
-        return f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min:.4f} {control_max:.4f}\n" 
+        return f"{kp:.4f} {ki:.4f} {kd:.4f} {control_min:.1f} {control_max:.1f}\n" 
 
     def send_command(
         self,
