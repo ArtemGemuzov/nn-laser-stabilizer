@@ -40,6 +40,21 @@ class SyncFileLogger:
         self.close()
 
 
+class ConsoleLogger:
+    def __init__(self, log_dir: str | Path, log_file: str):
+        self._file_logger = SyncFileLogger(log_dir=log_dir, log_file=log_file)
+    
+    def log(self, message: str) -> None:
+        print(message, end='' if message.endswith("\n") else '\n')
+        self._file_logger.log(message)
+    
+    def close(self) -> None:
+        self._file_logger.close()
+    
+    def __del__(self):
+        self.close()
+
+
 class AsyncFileLogger:
     def __init__(self, log_dir: str | Path, log_file: str):
         self.log_dir = Path(log_dir)
