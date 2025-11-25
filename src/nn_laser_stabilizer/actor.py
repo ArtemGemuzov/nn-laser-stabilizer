@@ -29,7 +29,7 @@ class MLPActor(Actor):
     
     def forward(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
         action = self.scaler(self.net_body(observation))
-        return action, {}
+        return action, options
 
 
 class LSTMActor(Actor):

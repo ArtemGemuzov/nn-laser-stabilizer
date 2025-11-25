@@ -38,7 +38,7 @@ class MLPCritic(Critic):
     
     def forward(self, observation: torch.Tensor, action: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
         q_value = self.net(torch.cat([observation, action], dim=-1))
-        return q_value, {}
+        return q_value, options
 
 
 class LSTMCritic(Critic):
