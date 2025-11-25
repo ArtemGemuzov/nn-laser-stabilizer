@@ -135,83 +135,84 @@ def main(context: ExperimentContext):
         )
     
     with collector:
-        if is_async:
-            context.console_logger.log("Collector started. Waiting for data accumulation...")
-        else:
-            context.console_logger.log("Collector started. Initial data collection...")
-        
-        collector.collect(context.config.training.initial_collect_steps)
-        
-        if not is_async:
-            context.console_logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
-        
-        context.console_logger.log("Training started")
-        
-        num_training_steps = context.config.training.num_training_steps
-        policy_freq = context.config.training.policy_freq
-        log_frequency = context.config.training.log_frequency
-        validation_frequency = context.config.validation.frequency
-        env_config = context.config.env
-        validation_num_steps = context.config.validation.step_num_steps
-        final_validation_num_steps = context.config.validation.final_num_steps
-        
-        if is_async:
-            sync_frequency = context.config.collector.sync_frequency
-        else:
-            collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
-        
-        for step in range(num_training_steps):
+        try:
+            if is_async:
+                context.console_logger.log("Collector started. Waiting for data accumulation...")
+            else:
+                context.console_logger.log("Collector started. Initial data collection...")
+            
+            collector.collect(context.config.training.initial_collect_steps)
+            
             if not is_async:
-                collector.collect(collect_steps_per_iteration)
+                context.console_logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
             
-            batch = sampler.sample()
+            context.console_logger.log("Training started")
             
-            update_actor_and_target = (step % policy_freq == 0)
+            num_training_steps = context.config.training.num_training_steps
+            policy_freq = context.config.training.policy_freq
+            log_frequency = context.config.training.log_frequency
+            validation_frequency = context.config.validation.frequency
+            env_config = context.config.env
+            validation_num_steps = context.config.validation.step_num_steps
+            final_validation_num_steps = context.config.validation.final_num_steps
             
-            loss_q1, loss_q2, actor_loss = td3_train_step(
-                batch,
-                loss_module,
-                critic_optimizer=critic_optimizer,
-                actor_optimizer=actor_optimizer,
-                soft_updater=soft_updater,
-                update_actor_and_target=update_actor_and_target,
-            )
+            if is_async:
+                sync_frequency = context.config.collector.sync_frequency
+            else:
+                collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
             
-            if is_async and step % sync_frequency == 0:
-                collector.sync()
+            for step in range(num_training_steps):
+                if not is_async:
+                    collector.collect(collect_steps_per_iteration)
                 
-            if step % log_frequency == 0:
-                timestamp = time.time()
-                if actor_loss is not None:
-                    train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}")
-                else:
-                    train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}")
+                batch = sampler.sample()
+                
+                update_actor_and_target = (step % policy_freq == 0)
+                
+                loss_q1, loss_q2, actor_loss = td3_train_step(
+                    batch,
+                    loss_module,
+                    critic_optimizer=critic_optimizer,
+                    actor_optimizer=actor_optimizer,
+                    soft_updater=soft_updater,
+                    update_actor_and_target=update_actor_and_target,
+                )
+                
+                if is_async and step % sync_frequency == 0:
+                    collector.sync()
+                    
+                if step % log_frequency == 0:
+                    timestamp = time.time()
+                    if actor_loss is not None:
+                        train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}")
+                    else:
+                        train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}")
+                
+                if validation_num_steps > 0 and step % validation_frequency == 0 and step > 0:
+                    rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
+                    train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
             
-            if validation_num_steps > 0 and step % validation_frequency == 0 and step > 0:
-                rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
-                train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
-        
-        if final_validation_num_steps > 0:
-            context.console_logger.log("Final validation...")
-            final_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
-            train_logger.log(f"final_validation time={time.time():.6f} reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}")
-        
-        context.console_logger.log("Saving models...")
-        models_dir = context.models_dir
-        loss_module.actor.save(models_dir / "actor.pth")
-        loss_module.critic1.save(models_dir / "critic1.pth")
-        loss_module.critic2.save(models_dir / "critic2.pth")
-        loss_module.actor_target.save(models_dir / "actor_target.pth")
-        loss_module.critic1_target.save(models_dir / "critic1_target.pth")
-        loss_module.critic2_target.save(models_dir / "critic2_target.pth")
-        context.console_logger.log(f"Models saved to {models_dir}")
-        
-        context.console_logger.log("Saving replay buffer...")
-        buffer.save(context.data_dir / "replay_buffer.pth")
-        context.console_logger.log(f"Replay buffer saved to {context.data_dir}")
-        
-        context.console_logger.log("Training completed.")
-        context.console_logger.log(f"Final buffer size: {len(buffer)}")
+            if final_validation_num_steps > 0:
+                context.console_logger.log("Final validation...")
+                final_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
+                train_logger.log(f"final_validation time={time.time():.6f} reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}")
+            
+            context.console_logger.log("Training completed.")
+            context.console_logger.log(f"Final buffer size: {len(buffer)}")
+        finally:
+            context.console_logger.log("Saving models...")
+            models_dir = context.models_dir
+            loss_module.actor.save(models_dir / "actor.pth")
+            loss_module.critic1.save(models_dir / "critic1.pth")
+            loss_module.critic2.save(models_dir / "critic2.pth")
+            loss_module.actor_target.save(models_dir / "actor_target.pth")
+            loss_module.critic1_target.save(models_dir / "critic1_target.pth")
+            loss_module.critic2_target.save(models_dir / "critic2_target.pth")
+            context.console_logger.log(f"Models saved to {models_dir}")
+            
+            context.console_logger.log("Saving replay buffer...")
+            buffer.save(context.data_dir / "replay_buffer.pth")
+            context.console_logger.log(f"Replay buffer saved to {context.data_dir}")
     
     train_logger.close()
     context.console_logger.log("Collector stopped.")
