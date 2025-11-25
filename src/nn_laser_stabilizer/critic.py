@@ -76,15 +76,32 @@ class LSTMCritic(Critic):
             options = {}
         hidden_state = options.get('hidden_state')
         
-        if observation.dim() == 2 and action.dim() == 2:
+        # Remember if inputs were 1D to remove batch dimension from output
+        was_1d = observation.dim() == 1 and action.dim() == 1
+        
+        # 1D: (obs_dim) -> (1, 1, obs_dim), (action_dim) -> (1, 1, action_dim)
+        # 2D: (batch_size, obs_dim) -> (batch_size, 1, obs_dim), (batch_size, action_dim) -> (batch_size, 1, action_dim)
+        # 3D: (batch_size, seq_len, obs_dim) -> already correct
+        if observation.dim() == 1:
+            observation = observation.unsqueeze(0).unsqueeze(1)  # (1, 1, obs_dim)
+        elif observation.dim() == 2:
             observation = observation.unsqueeze(1)  # (batch_size, 1, obs_dim)
+        # If dim() == 3, it's already in the correct format
+        
+        if action.dim() == 1:
+            action = action.unsqueeze(0).unsqueeze(1)  # (1, 1, action_dim)
+        elif action.dim() == 2:
             action = action.unsqueeze(1)  # (batch_size, 1, action_dim)
+        # If dim() == 3, it's already in the correct format
         
         observation_action_pairs = torch.cat([observation, action], dim=-1)  # (batch_size, seq_len, obs_dim + action_dim)
         lstm_out, hidden_state = self.lstm(observation_action_pairs, hidden_state)  # (batch_size, seq_len, lstm_hidden_size)
         
         lstm_last = lstm_out[:, -1, :]  # (batch_size, lstm_hidden_size)
         q_values = self.net(lstm_last)  # (batch_size, 1)
+        
+        if was_1d:
+            q_values = q_values.squeeze(0).squeeze(0)  # scalar or (1,) -> scalar
         
         options['hidden_state'] = hidden_state
         return q_values, options
