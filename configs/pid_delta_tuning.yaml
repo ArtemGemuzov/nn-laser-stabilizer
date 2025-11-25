@@ -9,7 +9,7 @@ env:
     timeout: 0.1
     baudrate: 115200
 
-    log_connection: false
+    log_connection: true
     connection_log_dir: "{EXPERIMENT_DIR}/connection_logs"
     connection_log_file: connection.log
 
@@ -47,7 +47,7 @@ env:
 
     log_dir: "{EXPERIMENT_DIR}/env_logs"
     log_file: env.log
-    
+
 training:
   initial_collect_steps: 2000
   num_training_steps: 1_000_000_000
@@ -76,9 +76,9 @@ network:
   hidden_sizes: [256, 256]
 
 loss:
-  gamma: 0.98
-  policy_noise: 0.1
-  noise_clip: 0.25
+  gamma: 0.95
+  policy_noise: 0.05
+  noise_clip: 0.125
 
 optimizer:
   actor_lr: 0.001
