@@ -5,3 +5,14 @@ experiment_name: pendulum_no_vel
 env:
   name: PendulumNoVelEnv
 
+sampler:
+  type: sequence
+  seq_len: 20
+  batch_size: 64
+
+network:
+  type: lstm
+  lstm_hidden_size: 64
+  lstm_num_layers: 2
+  mlp_hidden_sizes: [256]
+
