@@ -150,9 +150,9 @@ def main(context: ExperimentContext):
         num_training_steps = context.config.training.num_training_steps
         policy_freq = context.config.training.policy_freq
         log_frequency = context.config.training.log_frequency
-        validation_frequency = context.config.training.validation_frequency
+        validation_frequency = context.config.validation.frequency
         env_config = context.config.env
-        validation_num_steps = context.config.validation.num_steps
+        validation_num_steps = context.config.validation.step_num_steps
         final_validation_num_steps = context.config.validation.final_num_steps
         
         if is_async:
@@ -191,15 +191,16 @@ def main(context: ExperimentContext):
                     print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
                             f"buffer size={len(buffer)}")
             
-            if step % validation_frequency == 0 and step > 0:
+            if validation_num_steps > 0 and step % validation_frequency == 0 and step > 0:
                 rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
                 train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
                 print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
-        context.console_logger.log("Final validation...")
-        final_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
-        train_logger.log(f"final_validation time={time.time():.6f} reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}")
-        print(f"Final average reward: {final_rewards.mean()}")
+        if final_validation_num_steps > 0:
+            context.console_logger.log("Final validation...")
+            final_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
+            train_logger.log(f"final_validation time={time.time():.6f} reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}")
+            print(f"Final average reward: {final_rewards.mean()}")
         
         context.console_logger.log("Saving models...")
         models_dir = context.models_dir

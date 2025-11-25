@@ -24,11 +24,11 @@ training:
   num_training_steps: 100000
   exploration_steps: 2500
   log_frequency: 100
-  validation_frequency: 500
   policy_freq: 2
   log_dir: "{EXPERIMENT_DIR}/logs"
   log_file: train.log
 
 validation:
-  num_steps: 200
+  frequency: 500
+  step_num_steps: 200
   final_num_steps: 1000
