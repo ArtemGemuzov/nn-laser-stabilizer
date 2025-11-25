@@ -154,8 +154,12 @@ def main(context: ExperimentContext):
         
         context.console_logger.log("Saving models...")
         models_dir = context.models_dir
-        actor.save(models_dir / "actor.pth")
+        loss_module.actor.save(models_dir / "actor.pth")
         loss_module.critic1.save(models_dir / "critic1.pth")
+        loss_module.critic2.save(models_dir / "critic2.pth")
+        loss_module.actor_target.save(models_dir / "actor_target.pth")
+        loss_module.critic1_target.save(models_dir / "critic1_target.pth")
+        loss_module.critic2_target.save(models_dir / "critic2_target.pth")
         context.console_logger.log(f"Models saved to {models_dir}")
         
         context.console_logger.log("Saving replay buffer...")
