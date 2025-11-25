@@ -138,10 +138,11 @@ def _collector_worker(
         policy.eval()
         
         env = env_factory()
+
+        _warmup_policy(policy, env)
+
         obs, _ = env.reset()
         options = {}
-        
-        _warmup_policy(policy, env)
 
         command_pipe.send((Commands.READY.value, None))
         
@@ -237,7 +238,7 @@ class AsyncCollector:
         if not self._process.is_alive():
             raise RuntimeError("Failed to start collector process")
 
-        if not self._parent_pipe.poll(timeout=10):
+        if not self._parent_pipe.poll(timeout=600):
             raise RuntimeError(f"Collector process did not send {Commands.READY} signal within timeout")
         
         command, data = self._parent_pipe.recv()
