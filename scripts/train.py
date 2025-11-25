@@ -5,7 +5,7 @@ import time
 import numpy as np
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
-from nn_laser_stabilizer.collector import AsyncCollector
+from nn_laser_stabilizer.collector import AsyncCollector, SyncCollector
 from nn_laser_stabilizer.env_wrapper import make_env_from_config
 from nn_laser_stabilizer.sampler import BatchSampler
 from nn_laser_stabilizer.policy import Policy
@@ -40,7 +40,7 @@ def validate(
     obs, _ = env.reset()
     
     for _ in range(num_steps):
-        action = policy.act(obs)
+        action, _ = policy.act(obs)
         obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
         rewards.append(reward)
@@ -54,12 +54,14 @@ def validate(
     return np.array(rewards)
 
 
-@experiment("pid_delta_tuning")
+@experiment("train")
 def main(context: ExperimentContext):
     context.console_logger.log("Creating components...")
 
     train_log_dir = Path(context.config.training.log_dir)
     train_logger = SyncFileLogger(log_dir=train_log_dir, log_file=context.config.training.log_file)
+    
+    is_async = context.config.collector.is_async
     
     env_factory = partial(make_env_from_config, env_config=context.config.env, seed=context.seed)
     env = env_factory()
@@ -84,14 +86,14 @@ def main(context: ExperimentContext):
         hidden_sizes=tuple(context.config.network.hidden_sizes),
     ).train()
     
-    exploration_steps = context.config.exploration_steps
+    exploration_steps = context.config.training.get.exploration_steps
     policy_factory = partial(
         make_policy,
         actor=actor,
         action_space=action_space,
         exploration_steps=exploration_steps
     )
-   
+
     policy = policy_factory().train()
     
     critic = MLPCritic(
@@ -116,20 +118,36 @@ def main(context: ExperimentContext):
     )
     soft_updater = SoftUpdater(loss_module, tau=context.config.optimizer.tau)
     
-    context.console_logger.log("Starting collector...")
+    if is_async:
+        context.console_logger.log("Starting async collector...")
+        collector = AsyncCollector(
+            buffer=buffer,
+            policy=policy,
+            env_factory=env_factory,
+        )
+    else:
+        context.console_logger.log("Creating synchronous collector...")
+        collector_env = make_env_from_config(context.config.env)
+        collector = SyncCollector(
+            buffer=buffer,
+            env=collector_env,
+            policy=policy,
+        )
     
-    with AsyncCollector(
-        buffer=buffer,
-        policy=policy,
-        env_factory=env_factory,
-    ) as collector:
-        context.console_logger.log("Collector started. Waiting for data accumulation...")
+    with collector:
+        if is_async:
+            context.console_logger.log("Collector started. Waiting for data accumulation...")
+        else:
+            context.console_logger.log("Collector started. Initial data collection...")
         
         collector.collect(context.config.training.initial_collect_steps)
-        context.console_logger.log(f"Training started")
+        
+        if not is_async:
+            context.console_logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
+        
+        context.console_logger.log("Training started")
         
         num_training_steps = context.config.training.num_training_steps
-        sync_frequency = context.config.training.sync_frequency
         policy_freq = context.config.training.policy_freq
         log_frequency = context.config.training.log_frequency
         validation_frequency = context.config.training.validation_frequency
@@ -137,7 +155,15 @@ def main(context: ExperimentContext):
         validation_num_steps = context.config.validation.num_steps
         final_validation_num_steps = context.config.validation.final_num_steps
         
+        if is_async:
+            sync_frequency = context.config.training.sync_frequency
+        else:
+            collect_steps_per_iteration = context.config.training.collect_steps_per_iteration
+        
         for step in range(num_training_steps):
+            if not is_async:
+                collector.collect(collect_steps_per_iteration)
+            
             batch = sampler.sample()
             
             update_actor_and_target = (step % policy_freq == 0)
@@ -151,7 +177,7 @@ def main(context: ExperimentContext):
                 update_actor_and_target=update_actor_and_target,
             )
             
-            if step % sync_frequency == 0:
+            if is_async and step % sync_frequency == 0:
                 collector.sync()
                 
             if step % log_frequency == 0:
@@ -166,12 +192,12 @@ def main(context: ExperimentContext):
                             f"buffer size={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
-                rewards = validate(actor, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
+                rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
                 train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
                 print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
         context.console_logger.log("Final validation...")
-        final_rewards = validate(actor, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
+        final_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
         train_logger.log(f"final_validation time={time.time():.6f} reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}")
         print(f"Final average reward: {final_rewards.mean()}")
         
@@ -198,3 +224,4 @@ def main(context: ExperimentContext):
 
 if __name__ == "__main__":
     main()
+

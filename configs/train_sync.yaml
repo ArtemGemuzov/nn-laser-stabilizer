@@ -1,5 +1,8 @@
 _extends: train_base
 
+collector:
+  is_async: false
+
 training:
   collect_steps_per_iteration: 10
 
