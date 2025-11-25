@@ -54,7 +54,7 @@ def validate(
     return np.array(rewards)
 
 
-@experiment("train")
+@experiment("pid_delta_tuning")
 def main(context: ExperimentContext):
     context.console_logger.log("Creating components...")
 
@@ -86,7 +86,7 @@ def main(context: ExperimentContext):
         hidden_sizes=tuple(context.config.network.hidden_sizes),
     ).train()
     
-    exploration_steps = context.config.training.get.exploration_steps
+    exploration_steps = context.config.training.exploration_steps
     policy_factory = partial(
         make_policy,
         actor=actor,
@@ -184,23 +184,17 @@ def main(context: ExperimentContext):
                 timestamp = time.time()
                 if actor_loss is not None:
                     train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}")
-                    print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
-                            f"actor_loss={actor_loss:.4f}, buffer size={len(buffer)}")
                 else:
                     train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}")
-                    print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
-                            f"buffer size={len(buffer)}")
             
             if validation_num_steps > 0 and step % validation_frequency == 0 and step > 0:
                 rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
                 train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
-                print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
         
         if final_validation_num_steps > 0:
             context.console_logger.log("Final validation...")
             final_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
             train_logger.log(f"final_validation time={time.time():.6f} reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}")
-            print(f"Final average reward: {final_rewards.mean()}")
         
         context.console_logger.log("Saving models...")
         models_dir = context.models_dir
