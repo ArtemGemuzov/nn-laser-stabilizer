@@ -4,13 +4,15 @@ import torch
 import torch.nn as nn
 
 from nn_laser_stabilizer.layers import build_mlp
-from nn_laser_stabilizer.policy import Policy
+from nn_laser_stabilizer.model import Model
 from nn_laser_stabilizer.box import Box
 from nn_laser_stabilizer.layers import Scaler
 
 
-class Actor(Policy):
-    pass
+class Actor(Model):
+    @torch.no_grad()
+    def act(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        return self(observation, options)
 
 
 class MLPActor(Actor):

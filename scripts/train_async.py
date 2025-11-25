@@ -5,12 +5,12 @@ import numpy as np
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import AsyncCollector
-from nn_laser_stabilizer.env_wrapper import make_env, make_env_from_config
+from nn_laser_stabilizer.env_wrapper import make_env_from_config
 from nn_laser_stabilizer.sampler import BatchSampler
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.actor import MLPActor
 from nn_laser_stabilizer.critic import MLPCritic
-from nn_laser_stabilizer.policy_wrapper import RandomExplorationPolicy
+from nn_laser_stabilizer.policy import make_policy
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
@@ -18,21 +18,13 @@ from nn_laser_stabilizer.experiment import experiment, ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger
 
 
-def make_policy(action_space, observation_space, hidden_sizes, exploration_steps: int = 0) -> Policy:
-    actor = MLPActor(
+def make_actor(action_space, observation_space, hidden_sizes) -> MLPActor:
+    return MLPActor(
         obs_dim=observation_space.dim,
         action_dim=action_space.dim,
         action_space=action_space,
         hidden_sizes=hidden_sizes,
     )
-    
-    if exploration_steps > 0:
-        return RandomExplorationPolicy(
-            actor=actor,
-            exploration_steps=exploration_steps,
-            action_space=action_space
-        )
-    return actor
 
 
 def validate(
@@ -85,18 +77,21 @@ def main(context: ExperimentContext):
     
     sampler = BatchSampler(buffer=buffer, batch_size=context.config.sampler.batch_size)
     
-    exploration_steps = context.config.training.get("exploration_steps", 0)
-    
-    policy_factory = partial(
-        make_policy, 
-        action_space=action_space, 
+    actor = make_actor(
+        action_space=action_space,
         observation_space=observation_space,
         hidden_sizes=tuple(context.config.network.hidden_sizes),
+    ).train()
+    
+    exploration_steps = context.config.exploration_steps
+    policy_factory = partial(
+        make_policy,
+        actor=actor,
+        action_space=action_space,
         exploration_steps=exploration_steps
     )
    
     policy = policy_factory().train()
-    actor = policy.actor if isinstance(policy, RandomExplorationPolicy) else policy
     
     critic = MLPCritic(
         obs_dim=observation_dim, 

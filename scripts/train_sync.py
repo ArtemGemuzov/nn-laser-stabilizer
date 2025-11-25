@@ -4,12 +4,12 @@ import numpy as np
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.collector import SyncCollector
-from nn_laser_stabilizer.env_wrapper import make_env, make_env_from_config
+from nn_laser_stabilizer.env_wrapper import make_env_from_config
 from nn_laser_stabilizer.sampler import BatchSampler
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.actor import MLPActor
 from nn_laser_stabilizer.critic import MLPCritic
-from nn_laser_stabilizer.policy_wrapper import RandomExplorationPolicy
+from nn_laser_stabilizer.policy import make_policy
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
@@ -73,14 +73,7 @@ def main(context: ExperimentContext):
     ).train()
     
     exploration_steps = context.config.training.get.exploration_steps
-    if exploration_steps > 0:
-        policy = RandomExplorationPolicy(
-            actor=actor,
-            exploration_steps=exploration_steps,
-            action_space=action_space
-        ).train()
-    else:
-        policy = actor
+    policy = make_policy(actor=actor, action_space=action_space, exploration_steps=exploration_steps).train()
     
     critic = MLPCritic(
         obs_dim=observation_dim,
