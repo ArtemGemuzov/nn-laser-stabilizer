@@ -6,6 +6,7 @@ from functools import wraps
 
 from nn_laser_stabilizer.config import Config, load_config
 from nn_laser_stabilizer.seed import set_seeds
+from nn_laser_stabilizer.logger import ConsoleLogger
 
 
 CONFIGS_DIR = Path("configs")
@@ -20,6 +21,7 @@ class ExperimentContext:
         self.config: Config = config
 
         self._seed: Optional[int] = None
+        self._console_logger: Optional[ConsoleLogger] = None
     
     def __enter__(self):
         start_time = datetime.now()
@@ -38,16 +40,18 @@ class ExperimentContext:
         
         self._set_seed()
         self._save_config()
+        self._setup_logger()
         
         start_time_str = start_time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"Experiment started: {self._experiment_name} | Start time: {start_time_str} | Directory: {self._experiment_dir}")
+        self.console_logger.log(f"Experiment started: {self._experiment_name} | Start time: {start_time_str} | Directory: {self._experiment_dir}")
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         end_time = datetime.now()
         end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        print(f"Experiment finished: {self._experiment_name} | End time: {end_time_str}")
+        self.console_logger.log(f"Experiment finished: {self._experiment_name} | End time: {end_time_str}")
+        self.console_logger.close()
         
         if exc_type is KeyboardInterrupt:
             return True  
@@ -62,6 +66,12 @@ class ExperimentContext:
         self._seed = self.config.get("seed") 
         if self._seed is not None:
             set_seeds(self._seed)
+    
+    def _setup_logger(self) -> None:
+        self._console_logger = ConsoleLogger(
+            log_dir=self._experiment_dir,
+            log_file="console.log"
+        )
 
     def _get_path(self, *subdirs: str) -> Path:
         path = self._experiment_dir
@@ -85,6 +95,10 @@ class ExperimentContext:
     @property
     def seed(self) -> Optional[int]:
         return self._seed
+    
+    @property
+    def console_logger(self) -> ConsoleLogger:
+        return self._console_logger
 
 
 def experiment(
