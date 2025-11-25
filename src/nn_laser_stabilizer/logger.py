@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Optional, Protocol, Deque
 from collections import deque
 from threading import Thread
+from datetime import datetime
 import time
 
 
@@ -45,8 +46,10 @@ class ConsoleLogger:
         self._file_logger = SyncFileLogger(log_dir=log_dir, log_file=log_file)
     
     def log(self, message: str) -> None:
-        print(message, end='' if message.endswith("\n") else '\n')
-        self._file_logger.log(message)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}"
+        print(formatted_message, end='' if message.endswith("\n") else '\n')
+        self._file_logger.log(formatted_message)
     
     def close(self) -> None:
         self._file_logger.close()
