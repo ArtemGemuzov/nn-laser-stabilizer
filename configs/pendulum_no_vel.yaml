@@ -1,0 +1,7 @@
+_extends: train_sync
+
+experiment_name: pendulum_no_vel
+
+env:
+  name: PendulumNoVelEnv
+
