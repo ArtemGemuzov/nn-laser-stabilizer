@@ -44,7 +44,7 @@ def validate(
 
 @experiment("pendulum")
 def main(context: ExperimentContext):
-    print("Creating components...")
+    context.console_logger.log("Creating components...")
 
     train_log_dir = Path(context.config.training.log_dir)
     train_logger = SyncFileLogger(log_dir=train_log_dir, log_file=context.config.training.log_file)
@@ -99,19 +99,19 @@ def main(context: ExperimentContext):
     
     collector_env = make_env_from_config(context.config.env)
     
-    print("Creating synchronous collector...")
+    context.console_logger.log("Creating synchronous collector...")
     
     with SyncCollector(
         buffer=buffer,
         env=collector_env,
         policy=policy,  
     ) as collector:
-        print("Collector started. Initial data collection...")
+        context.console_logger.log("Collector started. Initial data collection...")
         
         collector.collect(context.config.training.initial_collect_steps)
-        print(f"Initial data collection completed. Buffer size: {len(buffer)}")
+        context.console_logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
         
-        print(f"Training started. Buffer size: {len(buffer)}")
+        context.console_logger.log(f"Training started")
         
         num_training_steps = context.config.training.num_training_steps
         collect_steps_per_iteration = context.config.training.collect_steps_per_iteration
@@ -140,43 +140,33 @@ def main(context: ExperimentContext):
             
             if step % log_frequency == 0:
                 if actor_loss is not None:
-                    log_line = f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}"
-                    train_logger.log(log_line)
-                    print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
-                            f"actor_loss={actor_loss:.4f}, buffer size={len(buffer)}")
+                    train_logger.log(f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}")
                 else:
-                    log_line = f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}"
-                    train_logger.log(log_line)
-                    print(f"Step {step}: loss_q1={loss_q1:.4f}, loss_q2={loss_q2:.4f}, "
-                            f"buffer size={len(buffer)}")
+                    train_logger.log(f"step={step} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}")
             
             if step % validation_frequency == 0 and step > 0:
                 rewards = validate(actor, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
-                log_line = f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}"
-                train_logger.log(log_line)
-                print(f"Validation (step {step}): reward = {rewards.sum():.4f} for {rewards.size} episodes")
+                train_logger.log(f"validation step={step} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
         
-        print("\nFinal validation...")
+        context.console_logger.log("Final validation...")
         final_rewards = validate(actor, lambda: make_env_from_config(context.config.env), num_steps=final_validation_num_steps)
-        log_line = f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}"
-        train_logger.log(log_line)
-        print(f"Final average reward: {final_rewards.mean()}")
+        train_logger.log(f"final_validation reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}")
         
-        print("Saving models...")
+        context.console_logger.log("Saving models...")
         models_dir = context.models_dir
         actor.save(models_dir / "actor.pth")
         loss_module.critic1.save(models_dir / "critic1.pth")
-        print(f"Models saved to {models_dir}")
+        context.console_logger.log(f"Models saved to {models_dir}")
         
-        print("Saving replay buffer...")
+        context.console_logger.log("Saving replay buffer...")
         buffer.save(context.data_dir / "replay_buffer.pth")
-        print(f"Replay buffer saved to {context.data_dir}")
+        context.console_logger.log(f"Replay buffer saved to {context.data_dir}")
         
-        print("Training completed.")
-        print(f"Final buffer size: {len(buffer)}")
+        context.console_logger.log("Training completed.")
+        context.console_logger.log(f"Final buffer size: {len(buffer)}")
     
     train_logger.close()
-    print("Collector stopped.")
+    context.console_logger.log("Collector stopped.")
 
 
 if __name__ == "__main__":
