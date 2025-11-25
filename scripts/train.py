@@ -54,7 +54,7 @@ def validate(
     return np.array(rewards)
 
 
-@experiment("train")
+@experiment("pid_delta_tuning")
 def main(context: ExperimentContext):
     context.console_logger.log("Creating components...")
 
@@ -86,7 +86,7 @@ def main(context: ExperimentContext):
         hidden_sizes=tuple(context.config.network.hidden_sizes),
     ).train()
     
-    exploration_steps = context.config.training.get.exploration_steps
+    exploration_steps = context.config.training.exploration_steps
     policy_factory = partial(
         make_policy,
         actor=actor,
