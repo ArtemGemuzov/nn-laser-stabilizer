@@ -2,7 +2,5 @@ _extends: train_base
 
 collector:
   is_async: true
-
-training:
   sync_frequency: 100
 

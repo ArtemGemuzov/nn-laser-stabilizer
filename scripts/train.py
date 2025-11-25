@@ -156,9 +156,9 @@ def main(context: ExperimentContext):
         final_validation_num_steps = context.config.validation.final_num_steps
         
         if is_async:
-            sync_frequency = context.config.training.sync_frequency
+            sync_frequency = context.config.collector.sync_frequency
         else:
-            collect_steps_per_iteration = context.config.training.collect_steps_per_iteration
+            collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
         
         for step in range(num_training_steps):
             if not is_async:
