@@ -5,27 +5,18 @@ import time
 import numpy as np
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
+from nn_laser_stabilizer.sampler import make_sampler_from_config
 from nn_laser_stabilizer.collector import AsyncCollector, SyncCollector
 from nn_laser_stabilizer.env_wrapper import make_env_from_config
-from nn_laser_stabilizer.sampler import BatchSampler
 from nn_laser_stabilizer.policy import Policy
-from nn_laser_stabilizer.actor import MLPActor
-from nn_laser_stabilizer.critic import MLPCritic
 from nn_laser_stabilizer.policy import make_policy
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.experiment import experiment, ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger
-
-
-def make_actor(action_space, observation_space, hidden_sizes) -> MLPActor:
-    return MLPActor(
-        obs_dim=observation_space.dim,
-        action_dim=action_space.dim,
-        action_space=action_space,
-        hidden_sizes=hidden_sizes,
-    )
+from nn_laser_stabilizer.actor import make_actor_from_config
+from nn_laser_stabilizer.critic import make_critic_from_config
 
 
 def validate(
@@ -38,14 +29,16 @@ def validate(
     
     rewards = []
     obs, _ = env.reset()
+    options = {}  
     
     for _ in range(num_steps):
-        action, _ = policy.act(obs)
+        action, options = policy.act(obs, options) 
         obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
         rewards.append(reward)
         
         if done:
+            options = {}  # Сброс hidden state при done
             obs, _ = env.reset()
     
     env.close()
@@ -76,14 +69,18 @@ def main(context: ExperimentContext):
         capacity=context.config.buffer.capacity,
         obs_dim=observation_dim,
         action_dim=action_dim,
+    )    
+    sampler = make_sampler_from_config(
+        buffer=buffer,
+        sampler_config=context.config.sampler
     )
+
+    network_config = context.config.network
     
-    sampler = BatchSampler(buffer=buffer, batch_size=context.config.sampler.batch_size)
-    
-    actor = make_actor(
+    actor = make_actor_from_config(
         action_space=action_space,
         observation_space=observation_space,
-        hidden_sizes=tuple(context.config.network.hidden_sizes),
+        network_config=network_config,
     ).train()
     
     exploration_steps = context.config.training.exploration_steps
@@ -96,10 +93,10 @@ def main(context: ExperimentContext):
 
     policy = policy_factory().train()
     
-    critic = MLPCritic(
-        obs_dim=observation_dim, 
-        action_dim=action_dim, 
-        hidden_sizes=tuple(context.config.network.hidden_sizes)
+    critic = make_critic_from_config(
+        obs_dim=observation_dim,
+        action_dim=action_dim,
+        network_config=network_config,
     ).train()
     
     loss_module = TD3Loss(

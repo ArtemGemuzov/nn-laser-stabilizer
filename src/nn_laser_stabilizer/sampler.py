@@ -1,8 +1,10 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import torch
 
+from nn_laser_stabilizer.config import Config
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
+from nn_laser_stabilizer.types import SamplerType
 
 
 class BatchSampler:
@@ -62,3 +64,27 @@ class BatchSequenceSampler:
         next_observations = self.buffer.next_observations[indices]
         dones = self.buffer.dones[indices]
         return observations, actions, rewards, next_observations, dones
+    
+
+def make_sampler_from_config(
+    sampler_config: Config,
+    buffer: ReplayBuffer, 
+) -> Union[BatchSampler, BatchSequenceSampler]:
+    batch_size = sampler_config.batch_size
+    sampler_type_str = sampler_config.type
+    
+    try:
+        sampler_type = SamplerType(sampler_type_str)
+    except ValueError:
+        raise ValueError(
+            f"Unknown sampler type: '{sampler_type_str}'. "
+            f"Supported types: {[t.value for t in SamplerType]}"
+        )
+    
+    if sampler_type == SamplerType.SINGLE:
+        return BatchSampler(buffer=buffer, batch_size=batch_size)
+    elif sampler_type == SamplerType.SEQUENCE:
+        seq_len = sampler_config.seq_len
+        return BatchSequenceSampler(buffer=buffer, batch_size=batch_size, seq_len=seq_len)
+    else:
+        raise ValueError(f"Unhandled sampler type: {sampler_type}")

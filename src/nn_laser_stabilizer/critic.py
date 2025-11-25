@@ -7,6 +7,8 @@ import torch.nn as nn
 
 from nn_laser_stabilizer.model import Model
 from nn_laser_stabilizer.layers import build_mlp
+from nn_laser_stabilizer.config import Config
+from nn_laser_stabilizer.types import NetworkType
 
 
 class Critic(Model, ABC):
@@ -86,3 +88,32 @@ class LSTMCritic(Critic):
         
         options['hidden_state'] = hidden_state
         return q_values, options
+    
+
+def make_critic_from_config(network_config: Config, obs_dim: int, action_dim: int) -> Critic:
+    network_type_str = network_config.type
+    
+    try:
+        network_type = NetworkType(network_type_str)
+    except ValueError:
+        raise ValueError(
+            f"Unknown network type: '{network_type_str}'. "
+            f"Supported types: {[t.value for t in NetworkType]}"
+        )
+    
+    if network_type == NetworkType.MLP:
+        return MLPCritic(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            hidden_sizes=tuple(network_config.mlp_hidden_sizes),
+        )
+    elif network_type == NetworkType.LSTM:
+        return LSTMCritic(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            lstm_hidden_size=network_config.lstm_hidden_size,
+            lstm_num_layers=network_config.lstm_num_layers,
+            mlp_hidden_sizes=tuple(network_config.mlp_hidden_sizes),
+        )
+    else:
+        raise ValueError(f"Unhandled network type: {network_type}")

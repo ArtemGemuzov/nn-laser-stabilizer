@@ -7,6 +7,8 @@ from nn_laser_stabilizer.layers import build_mlp
 from nn_laser_stabilizer.model import Model
 from nn_laser_stabilizer.box import Box
 from nn_laser_stabilizer.layers import Scaler
+from nn_laser_stabilizer.config import Config
+from nn_laser_stabilizer.types import NetworkType
 
 
 class Actor(Model):
@@ -74,4 +76,35 @@ class LSTMActor(Actor):
         
         options['hidden_state'] = hidden_state
         return actions, options
+    
+
+def make_actor_from_config(network_config: Config, action_space: Box, observation_space: Box) -> "Actor":
+    network_type_str = network_config.type
+    
+    try:
+        network_type = NetworkType(network_type_str)
+    except ValueError:
+        raise ValueError(
+            f"Unknown network type: '{network_type_str}'. "
+            f"Supported types: {[t.value for t in NetworkType]}"
+        )
+    
+    if network_type == NetworkType.MLP:
+        return MLPActor(
+            obs_dim=observation_space.dim,
+            action_dim=action_space.dim,
+            action_space=action_space,
+            hidden_sizes=tuple(network_config.mlp_hidden_sizes),
+        )
+    elif network_type == NetworkType.LSTM:
+        return LSTMActor(
+            obs_dim=observation_space.dim,
+            action_dim=action_space.dim,
+            action_space=action_space,
+            lstm_hidden_size=network_config.lstm_hidden_size,
+            lstm_num_layers=network_config.lstm_num_layers,
+            mlp_hidden_sizes=tuple(network_config.mlp_hidden_sizes),
+        )
+    else:
+        raise ValueError(f"Unhandled network type: {network_type}")
 

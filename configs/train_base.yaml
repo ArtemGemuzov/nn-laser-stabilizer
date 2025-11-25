@@ -4,10 +4,12 @@ buffer:
   capacity: 100000
 
 sampler:
+  type: single
   batch_size: 64
 
 network:
-  hidden_sizes: [256, 256]
+  type: mlp
+  mlp_hidden_sizes: [256, 256]
 
 loss:
   gamma: 0.98
