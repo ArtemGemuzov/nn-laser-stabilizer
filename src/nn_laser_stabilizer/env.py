@@ -235,7 +235,7 @@ class PidDeltaTuningEnv(gym.Env):
         seed: Optional[int] = None, 
         options: Optional[dict] = None
     ) -> Tuple[np.ndarray, dict]:
-        process_variables, control_outputs, setpoint = self.plant.reset()
+        process_variables, control_outputs, setpoint, _ = self.plant.reset()
 
         observation = self._build_observation(
             process_variables, control_outputs, setpoint

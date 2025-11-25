@@ -149,9 +149,9 @@ class Plant:
             self._process_variables[self._current_index] = process_variable
             self._control_outputs[self._current_index] = control_output
             self._current_index += 1
-        
-        process_variables, control_outputs = self._get_buffer()
-        return process_variables, control_outputs, self._setpoint
+
+        self._reset_buffer()
+        return self.step()
     
     def close(self) -> None:
         self.pid_connection.close()
