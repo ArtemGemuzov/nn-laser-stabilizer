@@ -53,7 +53,10 @@ class SerialConnection(BaseConnection):
     def read(self) -> str | None:
         self._check_connected()
         
-        return self._serial_connection.readline().decode("utf-8").strip()
+        while True:
+            raw = self._serial_connection.readline().decode("utf-8").strip()
+            if raw:
+                return raw
     
     def send(self, data : str):
         self._check_connected()
