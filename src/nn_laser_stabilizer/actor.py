@@ -63,24 +63,14 @@ class LSTMActor(Actor):
             options = {}
         hidden_state = options.get('hidden_state')
         
-        # Проверяем, есть ли размерность последовательности
-        # dim == 2: (batch_size, obs_dim) - одиночные наблюдения без временной размерности
-        # dim == 3: (batch_size, seq_len, obs_dim) - последовательности наблюдений
-        has_sequence_dim = observation.dim() == 3
-        if not has_sequence_dim:
+        if observation.dim() == 2:
             observation = observation.unsqueeze(1)  # (batch_size, 1, obs_dim)
         
         lstm_out, hidden_state = self.lstm(observation, hidden_state)  # (batch_size, seq_len, lstm_hidden_size)
         
-        batch_size, seq_len, lstm_hidden_size = lstm_out.shape
-        lstm_reshaped = lstm_out.view(batch_size * seq_len, lstm_hidden_size)
-        actions_reshaped = self.net_body(lstm_reshaped)  # (batch_size * seq_len, action_dim)
-        actions = actions_reshaped.view(batch_size, seq_len, -1)  # (batch_size, seq_len, action_dim)
-        
-        actions = self.scaler(actions)  # (batch_size, seq_len, action_dim)
-        
-        if not has_sequence_dim:
-            actions = actions.squeeze(1)  # (batch_size, action_dim)
+        lstm_last = lstm_out[:, -1, :]  # (batch_size, lstm_hidden_size)
+        actions = self.net_body(lstm_last)  # (batch_size, action_dim)
+        actions = self.scaler(actions)  # (batch_size, action_dim)
         
         return actions, {'hidden_state': hidden_state}
 

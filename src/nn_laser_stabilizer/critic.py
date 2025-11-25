@@ -77,19 +77,11 @@ class LSTMCritic(Critic):
         if observation.dim() == 2 and action.dim() == 2:
             observation = observation.unsqueeze(1)  # (batch_size, 1, obs_dim)
             action = action.unsqueeze(1)  # (batch_size, 1, action_dim)
-            squeeze_output = True
-        else:
-            squeeze_output = False
         
         observation_action_pairs = torch.cat([observation, action], dim=-1)  # (batch_size, seq_len, obs_dim + action_dim)
         lstm_out, hidden_state = self.lstm(observation_action_pairs, hidden_state)  # (batch_size, seq_len, lstm_hidden_size)
         
-        batch_size, seq_len, lstm_hidden_size = lstm_out.shape
-        lstm_reshaped = lstm_out.view(batch_size * seq_len, lstm_hidden_size)
-        q_values_flat = self.net(lstm_reshaped)  # (batch_size * seq_len, 1)
-        q_values = q_values_flat.view(batch_size, seq_len, 1)  # (batch_size, seq_len, 1)
-        
-        if squeeze_output:
-            q_values = q_values.squeeze(1)  # (batch_size, 1)
+        lstm_last = lstm_out[:, -1, :]  # (batch_size, lstm_hidden_size)
+        q_values = self.net(lstm_last)  # (batch_size, 1)
         
         return q_values, {'hidden_state': hidden_state}
