@@ -72,5 +72,6 @@ class LSTMActor(Actor):
         actions = self.net_body(lstm_last)  # (batch_size, action_dim)
         actions = self.scaler(actions)  # (batch_size, action_dim)
         
-        return actions, {'hidden_state': hidden_state}
+        options['hidden_state'] = hidden_state
+        return actions, options
 

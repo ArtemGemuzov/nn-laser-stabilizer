@@ -84,4 +84,5 @@ class LSTMCritic(Critic):
         lstm_last = lstm_out[:, -1, :]  # (batch_size, lstm_hidden_size)
         q_values = self.net(lstm_last)  # (batch_size, 1)
         
-        return q_values, {'hidden_state': hidden_state}
+        options['hidden_state'] = hidden_state
+        return q_values, options
