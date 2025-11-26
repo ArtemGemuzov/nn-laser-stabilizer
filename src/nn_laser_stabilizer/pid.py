@@ -64,12 +64,10 @@ class ConnectionToPid(BaseConnectionToPid):
         if len(parts) != 2:
             raise ValueError(f"Invalid PID response format: '{raw}'")
         return float(parts[0]), float(parts[1])
-       
+
     def read_response(self) -> tuple[float, float]:
-        while True:
-            raw = self._connection.read()
-            if raw is not None:
-                return self._parse_response(raw)
+        raw = self._connection.read()
+        return self._parse_response(raw)
 
     def exchange(
         self,

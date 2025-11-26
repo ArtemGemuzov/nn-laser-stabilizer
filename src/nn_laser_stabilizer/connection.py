@@ -7,10 +7,10 @@ class BaseConnection(Protocol):
     def open(self) -> None: ...
     def close(self) -> None: ...
     def send(self, data: str) -> None: ...
-    def read(self) -> Optional[str]: ...
+    def read(self) -> str: ...
 
 
-class SerialConnection(BaseConnection):
+class COMConnection(BaseConnection):
     def __init__(self,
                  port: str,
                  timeout: float = 0.1,
@@ -50,13 +50,13 @@ class SerialConnection(BaseConnection):
         if not self._serial_connection or not self._serial_connection.is_open:
             raise ConnectionError("Serial connection is not open.")
 
-    def read(self) -> str | None:
+    def read(self) -> str:
         self._check_connected()
         
         while True:
-            raw = self._serial_connection.readline().decode("utf-8").strip()
-            if raw:
-                return raw
+            data = self._serial_connection.readline().decode("utf-8").strip()
+            if data:
+                return data
     
     def send(self, data : str):
         self._check_connected()
@@ -99,11 +99,13 @@ class MockSerialConnection(BaseConnection):
             self._log_file.close()
             self._log_file = None
 
-    def read(self) -> Optional[str]:
+    def read(self) -> str:
         if not self.is_connected:
             raise ConnectionError("Mock serial connection is not open.")
-        
-        return None
+
+        # В тестовом подключении чтение не используется напрямую,
+        # поэтому возвращаем заглушку валидного ответа.
+        return "0 0"
 
     def send(self, data: str):
         if not self.is_connected:
