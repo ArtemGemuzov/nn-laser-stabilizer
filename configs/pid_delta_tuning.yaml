@@ -63,8 +63,10 @@ collector:
 
 validation:
   frequency: 0
-  step_num_steps: 0
-  final_num_steps: 0
+  num_steps: 0
+
+testing:
+  num_steps: 0
 
 buffer:
   capacity: 10000

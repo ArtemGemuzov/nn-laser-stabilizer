@@ -150,8 +150,8 @@ def main(context: ExperimentContext):
             log_frequency = context.config.training.log_frequency
             validation_frequency = context.config.validation.frequency
             env_config = context.config.env
-            validation_num_steps = context.config.validation.step_num_steps
-            final_validation_num_steps = context.config.validation.final_num_steps
+            validation_num_steps = context.config.validation.num_steps
+            testing_num_steps = context.config.testing.num_steps
             
             if is_async:
                 sync_frequency = context.config.collector.sync_frequency
@@ -189,10 +189,10 @@ def main(context: ExperimentContext):
                     rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
                     train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
             
-            if final_validation_num_steps > 0:
-                context.console_logger.log("Final validation...")
-                final_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=final_validation_num_steps)
-                train_logger.log(f"final_validation time={time.time():.6f} reward_sum={final_rewards.sum():.4f} reward_mean={final_rewards.mean():.4f} episodes={final_rewards.size}")
+            if testing_num_steps > 0:
+                context.console_logger.log("Testing...")
+                test_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=testing_num_steps)
+                train_logger.log(f"testing time={time.time():.6f} reward_sum={test_rewards.sum():.4f} reward_mean={test_rewards.mean():.4f} episodes={test_rewards.size}")
             
             context.console_logger.log("Training completed.")
             context.console_logger.log(f"Final buffer size: {len(buffer)}")
