@@ -38,7 +38,7 @@ def validate(
         rewards.append(reward)
         
         if done:
-            options = {}  # Сброс hidden state при done
+            options = {}
             obs, _ = env.reset()
     
     env.close()
