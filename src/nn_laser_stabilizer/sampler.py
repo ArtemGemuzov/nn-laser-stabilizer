@@ -63,7 +63,11 @@ class BatchSequenceSampler:
         rewards = self.buffer.rewards[indices]
         next_observations = self.buffer.next_observations[indices]
         dones = self.buffer.dones[indices]
-        return observations, actions, rewards, next_observations, dones
+
+        actions_last = actions[:, -1, :]    
+        rewards_last = rewards[:, -1, :]   
+        dones_last = dones[:, -1, :]
+        return observations, actions_last, rewards_last, next_observations, dones_last
     
 
 def make_sampler_from_config(

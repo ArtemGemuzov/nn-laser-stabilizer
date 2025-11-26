@@ -73,12 +73,11 @@ class LSTMActor(Actor):
             observation = observation.unsqueeze(0).unsqueeze(1)  # (1, 1, obs_dim)
         elif observation.dim() == 2:
             observation = observation.unsqueeze(1)  # (batch_size, 1, obs_dim)
-        # If dim() == 3, it's already in the correct format
         
         lstm_out, hidden_state = self.lstm(observation, hidden_state)  # (batch_size, seq_len, lstm_hidden_size)
-        
-        lstm_last = lstm_out[:, -1, :]  # (batch_size, lstm_hidden_size)
-        actions = self.net_body(lstm_last)  # (batch_size, action_dim)
+        summary = lstm_out[:, -1, :]  # (batch_size, lstm_hidden_size)
+
+        actions = self.net_body(summary)  # (batch_size, action_dim)
         actions = self.scaler(actions)  # (batch_size, action_dim)
         
         if was_1d:
