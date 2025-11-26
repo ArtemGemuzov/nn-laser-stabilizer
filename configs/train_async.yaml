@@ -1,6 +1,0 @@
-_extends: train_base
-
-collector:
-  is_async: true
-  sync_frequency: 100
-
