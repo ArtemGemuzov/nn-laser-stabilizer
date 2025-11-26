@@ -39,6 +39,11 @@ class MLPCritic(Critic):
         )
     
     def forward(self, observation: torch.Tensor, action: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        if observation.shape[:-1] != action.shape[:-1]:
+            raise ValueError(
+                f"Observation and action must have matching leading dimensions, "
+                f"got observation.shape={tuple(observation.shape)}, action.shape={tuple(action.shape)}"
+            )
         q_value = self.net(torch.cat([observation, action], dim=-1))
         return q_value, options
 
@@ -75,8 +80,13 @@ class LSTMCritic(Critic):
         if options is None:
             options = {}
         hidden_state = options.get('hidden_state')
+
+        if observation.shape[:-1] != action.shape[:-1]:
+            raise ValueError(
+                f"Observation and action must have matching leading dimensions, "
+                f"got observation.shape={tuple(observation.shape)}, action.shape={tuple(action.shape)}"
+            )
         
-        # Remember if inputs were 1D to remove batch dimension from output
         was_1d = observation.dim() == 1 and action.dim() == 1
         
         # 1D: (obs_dim) -> (1, 1, obs_dim), (action_dim) -> (1, 1, action_dim)
