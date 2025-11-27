@@ -10,7 +10,7 @@ env:
     baudrate: 115200
 
     log_connection: true
-    connection_log_dir: "{EXPERIMENT_DIR}/connection_logs"
+    connection_log_dir: "connection_logs"
     connection_log_file: connection.log
 
     setpoint: 1200.0
@@ -45,7 +45,7 @@ env:
     stability_weight: 0.45
     action_weight: 0.1
 
-    log_dir: "{EXPERIMENT_DIR}/env_logs"
+    log_dir: "env_logs"
     log_file: env.log
 
 training:
@@ -54,7 +54,7 @@ training:
   exploration_steps: 2500
   log_frequency: 1
   policy_freq: 2
-  log_dir: "{EXPERIMENT_DIR}/logs"
+  log_dir: "train_logs"
   log_file: train.log
 
 collector:
