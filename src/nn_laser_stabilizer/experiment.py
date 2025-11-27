@@ -2,6 +2,7 @@ from typing import Callable, Optional
 from pathlib import Path
 from datetime import datetime
 from functools import wraps
+import traceback
 
 from nn_laser_stabilizer.config import Config, load_config
 from nn_laser_stabilizer.seed import set_seeds, generate_random_seed
@@ -49,12 +50,19 @@ class ExperimentContext:
         end_time = datetime.now()
         end_time_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
 
+        if exc_type is not None:
+            if exc_type is KeyboardInterrupt:
+                self.console_logger.log("Experiment interrupted by user (KeyboardInterrupt).")
+            else:
+                formatted_tb = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
+                self.console_logger.log(
+                    "Unhandled exception in experiment:\n"
+                    f"{formatted_tb}"
+                )
+
         self.console_logger.log(f"Experiment finished: {self._experiment_name} | End time: {end_time_str}")
         self.console_logger.close()
-        
-        if exc_type is KeyboardInterrupt:
-            return True  
-        return False
+        return True
     
     def _save_config(self) -> None:
         config_path = self._experiment_dir / "config.yaml"
