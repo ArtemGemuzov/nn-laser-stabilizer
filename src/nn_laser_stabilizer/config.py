@@ -3,6 +3,9 @@ from pathlib import Path
 import yaml
 
 
+CONFIGS_DIR = Path("configs")
+
+
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     result = base.copy()
     
@@ -95,6 +98,14 @@ class Config:
     def save(self, path: Path) -> None:
         with open(path, 'w', encoding='utf-8') as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+
+def find_config_path(relative_config_path: str | Path) -> Path:
+    rel_path = Path(relative_config_path)
+    if rel_path.is_absolute():
+        return rel_path
+    
+    return CONFIGS_DIR / rel_path
 
 
 def load_config(config_path: Path, configs_dir: Path = None, visited: Set[Path] = None) -> Config:
