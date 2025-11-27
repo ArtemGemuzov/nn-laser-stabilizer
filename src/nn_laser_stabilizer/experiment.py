@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import wraps
 
 from nn_laser_stabilizer.config import Config, load_config
-from nn_laser_stabilizer.seed import set_seeds
+from nn_laser_stabilizer.seed import set_seeds, generate_random_seed
 from nn_laser_stabilizer.logger import ConsoleLogger
 
 
@@ -20,7 +20,7 @@ class ExperimentContext:
     ):
         self.config: Config = config
 
-        self._seed: Optional[int] = None
+        self._seed: int = 0
         self._console_logger: Optional[ConsoleLogger] = None
     
     def __enter__(self):
@@ -63,9 +63,13 @@ class ExperimentContext:
             yaml.dump(self.config.to_dict(), f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
     def _set_seed(self) -> None:
-        self._seed = self.config.get("seed") 
-        if self._seed is not None:
-            set_seeds(self._seed)
+        self._seed = self.config.get("seed")
+        if self._seed is None:
+            self._seed = generate_random_seed()
+            config_dict = self.config.to_dict()
+            config_dict["seed"] = self._seed
+            self.config = Config(config_dict)
+        set_seeds(self._seed)
     
     def _setup_logger(self) -> None:
         self._console_logger = ConsoleLogger(
@@ -93,7 +97,7 @@ class ExperimentContext:
         return self._get_path("data")
     
     @property
-    def seed(self) -> Optional[int]:
+    def seed(self) -> int:
         return self._seed
     
     @property
