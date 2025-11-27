@@ -66,22 +66,27 @@ class LSTMActor(Actor):
         hidden_state = options.get('hidden_state')
         
         was_1d = observation.dim() == 1
+        was_2d = observation.dim() == 2
         # 1D: (obs_dim) -> (1, 1, obs_dim)
         # 2D: (batch_size, obs_dim) -> (batch_size, 1, obs_dim)
         # 3D: (batch_size, seq_len, obs_dim) -> already correct
-        if observation.dim() == 1:
+        if was_1d:
             observation = observation.unsqueeze(0).unsqueeze(1)  # (1, 1, obs_dim)
-        elif observation.dim() == 2:
+        elif was_2d:
             observation = observation.unsqueeze(1)  # (batch_size, 1, obs_dim)
         
         lstm_out, hidden_state = self.lstm(observation, hidden_state)  # (batch_size, seq_len, lstm_hidden_size)
-        summary = lstm_out[:, -1, :]  # (batch_size, lstm_hidden_size)
-
-        actions = self.net_body(summary)  # (batch_size, action_dim)
-        actions = self.scaler(actions)  # (batch_size, action_dim)
+        
+        batch_size, seq_len, hidden_size = lstm_out.shape
+        lstm_out_flat = lstm_out.reshape(-1, hidden_size)  # (batch_size * seq_len, lstm_hidden_size)
+        actions_flat = self.net_body(lstm_out_flat)  # (batch_size * seq_len, action_dim)
+        actions_flat = self.scaler(actions_flat)  # (batch_size * seq_len, action_dim)
+        actions = actions_flat.reshape(batch_size, seq_len, -1)  # (batch_size, seq_len, action_dim)
         
         if was_1d:
-            actions = actions.squeeze(0)  # (action_dim)
+            actions = actions.squeeze(0).squeeze(0)  # (action_dim)
+        elif was_2d:
+            actions = actions.squeeze(1)  # (batch_size, action_dim)
         
         options['hidden_state'] = hidden_state
         return actions, options

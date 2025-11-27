@@ -64,9 +64,7 @@ class LSTMCritic(Critic):
             lstm_num_layers=lstm_num_layers,
             mlp_hidden_sizes=mlp_hidden_sizes,
         )
-        # LSTM обрабатывает только последовательность наблюдений и формирует summary
         self.lstm = nn.LSTM(obs_dim, lstm_hidden_size, lstm_num_layers, batch_first=True)
-        # MLP получает на вход summary и действие
         self.net = build_mlp(
             lstm_hidden_size + action_dim,
             1,
@@ -79,28 +77,45 @@ class LSTMCritic(Critic):
         action: torch.Tensor,
         options: Optional[Dict[str, Any]] = None
     ) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        if observation.shape[:-1] != action.shape[:-1]:
+            raise ValueError(
+                f"Observation and action must have matching leading dimensions, "
+                f"got observation.shape={tuple(observation.shape)}, action.shape={tuple(action.shape)}"
+            )
+        
         if options is None:
             options = {}
         hidden_state = options.get('hidden_state')
 
+        was_1d = observation.dim() == 1
+        was_2d = observation.dim() == 2
+        
         # 1D: (obs_dim) -> (1, 1, obs_dim)
         # 2D: (batch_size, obs_dim) -> (batch_size, 1, obs_dim)
         # 3D: (batch_size, seq_len, obs_dim) -> already correct
-        if observation.dim() == 1:
+        if was_1d:
             observation = observation.unsqueeze(0).unsqueeze(1)  # (1, 1, obs_dim)
         elif observation.dim() == 2:
             observation = observation.unsqueeze(1)  # (batch_size, 1, obs_dim)
 
+        if was_1d == 1:
+            action = action.unsqueeze(0).unsqueeze(1)  # (1, 1, action_dim)
+        elif was_2d == 2:
+            action = action.unsqueeze(1)  # (batch_size, 1, action_dim)
+
         lstm_out, hidden_state = self.lstm(observation, hidden_state)  # (batch_size, seq_len, lstm_hidden_size)
-        summary = lstm_out[:, -1, :]  # (batch_size, lstm_hidden_size)
 
-        if action.dim() == 1:
-            action = action.unsqueeze(0)                     # (1, action_dim)
-        elif action.dim() == 3:
-            action = action[:, -1, :]                        # (batch_size, action_dim)
-
-        summary_action = torch.cat([summary, action], dim=-1)  # (batch_size, lstm_hidden_size + action_dim)
-        q_values = self.net(summary_action)  # (batch_size, 1)
+        batch_size, seq_len, hidden_size = lstm_out.shape
+        lstm_out_flat = lstm_out.reshape(-1, hidden_size)  # (batch_size * seq_len, lstm_hidden_size)
+        action_flat = action.reshape(-1, action.shape[-1])  # (batch_size * seq_len, action_dim)
+        summary_action_flat = torch.cat([lstm_out_flat, action_flat], dim=-1)  # (batch_size * seq_len, lstm_hidden_size + action_dim)
+        q_values_flat = self.net(summary_action_flat)  # (batch_size * seq_len, 1)
+        q_values = q_values_flat.reshape(batch_size, seq_len, 1)  # (batch_size, seq_len, 1)
+        
+        if was_1d:
+            q_values = q_values.squeeze(0).squeeze(0)  # scalar
+        elif was_2d:
+            q_values = q_values.squeeze(1)  # (batch_size, 1)
         
         options['hidden_state'] = hidden_state
         return q_values, options
