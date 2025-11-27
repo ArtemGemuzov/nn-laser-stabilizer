@@ -158,7 +158,7 @@ def main(context: ExperimentContext):
             else:
                 collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
             
-            for step in range(num_training_steps):
+            for step in range(1, num_training_steps + 1):
                 if not is_async:
                     collector.collect(collect_steps_per_iteration)
                 
@@ -185,7 +185,7 @@ def main(context: ExperimentContext):
                     else:
                         train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}")
                 
-                if validation_num_steps > 0 and step % validation_frequency == 0 and step > 0:
+                if validation_num_steps > 0 and step % validation_frequency == 0:
                     rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
                     train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
             
