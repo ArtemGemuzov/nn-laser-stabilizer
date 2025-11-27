@@ -121,6 +121,7 @@ def main(context: ExperimentContext):
             buffer=buffer,
             policy=policy,
             env_factory=env_factory,
+            seed=context.seed,
         )
     else:
         context.console_logger.log("Creating synchronous collector...")

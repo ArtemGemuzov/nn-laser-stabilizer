@@ -132,8 +132,13 @@ def _collector_worker(
     policy_factory: Callable[[], Policy],
     command_pipe: Connection,
     shared_state_dict: dict,
+    seed: Optional[int] = None,
 ):
     try:
+        if seed is not None:
+            from nn_laser_stabilizer.seed import set_seeds
+            set_seeds(seed)
+        
         policy = policy_factory()
         policy.eval()
         
@@ -181,11 +186,13 @@ class AsyncCollector:
         buffer: ReplayBuffer,
         policy: Policy,
         env_factory: Callable[[], TorchEnvWrapper],
+        seed: Optional[int] = None,
     ):
         self.buffer = buffer
         
         self.env_factory = env_factory
         self.policy = policy
+        self.seed = seed
         
         self._parent_pipe, self._child_pipe = mp.Pipe()
         self._process: Optional[mp.Process] = None
@@ -230,6 +237,7 @@ class AsyncCollector:
                 policy_factory,
                 self._child_pipe,
                 shared_state_dict,
+                self.seed,
             ),
             name="DataCollectorWorker",
         )
