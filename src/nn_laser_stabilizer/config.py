@@ -91,6 +91,10 @@ class Config:
     def substitute_placeholders(self, variables: Dict[str, Any]) -> "Config":
         substituted_data = _substitute_placeholders(self._data, variables)
         return Config(substituted_data)
+    
+    def save(self, path: Path) -> None:
+        with open(path, 'w', encoding='utf-8') as f:
+            yaml.dump(self.to_dict(), f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
 def load_config(config_path: Path, configs_dir: Path = None, visited: Set[Path] = None) -> Config:

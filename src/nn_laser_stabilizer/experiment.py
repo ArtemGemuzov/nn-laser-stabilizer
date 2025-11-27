@@ -1,6 +1,5 @@
 from typing import Callable, Optional
 from pathlib import Path
-import yaml
 from datetime import datetime
 from functools import wraps
 
@@ -59,8 +58,7 @@ class ExperimentContext:
     
     def _save_config(self) -> None:
         config_path = self._experiment_dir / "config.yaml"
-        with open(config_path, 'w', encoding='utf-8') as f:
-            yaml.dump(self.config.to_dict(), f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        self.config.save(config_path)
 
     def _set_seed(self) -> None:
         self._seed = self.config.get("seed")
