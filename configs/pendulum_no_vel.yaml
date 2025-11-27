@@ -20,7 +20,7 @@ network:
   type: lstm
   lstm_hidden_size: 64
   lstm_num_layers: 2
-  mlp_hidden_sizes: []
+  mlp_hidden_sizes: [256, 256]
 
 loss:
   gamma: 0.98
