@@ -20,7 +20,7 @@ class ExperimentContext:
         self.config: Config = config
 
         self._seed: int = 0
-        self._console_logger: Optional[ConsoleLogger] = None
+        self._logger: Optional[ConsoleLogger] = None
         self._old_cwd: Optional[Path] = None
 
     def __enter__(self):
@@ -43,7 +43,7 @@ class ExperimentContext:
         self._setup_logger()
 
         start_time_str = start_time.strftime("%Y-%m-%d %H:%M:%S")
-        self.console_logger.log(
+        self.logger.log(
             f"Experiment started: {self._experiment_name} | "
             f"Start time: {start_time_str} | Directory: {self._experiment_dir}"
         )
@@ -58,18 +58,18 @@ class ExperimentContext:
 
         if exc_type is not None:
             if exc_type is KeyboardInterrupt:
-                self.console_logger.log("Experiment interrupted by user")
+                self.logger.log("Experiment interrupted by user")
             else:
                 formatted_tb = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
-                self.console_logger.log(
+                self.logger.log(
                     "Unhandled exception in experiment:\n"
                     f"{formatted_tb}"
                 )
 
-        self.console_logger.log(
+        self.logger.log(
             f"Experiment finished: {self._experiment_name} | End time: {end_time_str}"
         )
-        self.console_logger.close()
+        self.logger.close()
 
         if self._old_cwd is not None:
             os.chdir(self._old_cwd)
@@ -89,36 +89,17 @@ class ExperimentContext:
         set_seeds(self._seed)
 
     def _setup_logger(self) -> None:
-        self._console_logger = ConsoleLogger(
+        self._logger = ConsoleLogger(
             log_dir=self._experiment_dir,
             log_file="console.log"
         )
-
-    def _get_path(self, *subdirs: str) -> Path:
-        path = self._experiment_dir
-        for subdir in subdirs:
-            path = path / subdir
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-
-    @property
-    def experiment_dir(self) -> Path:
-        return self._experiment_dir
-
-    @property
-    def models_dir(self) -> Path:
-        return self._get_path("models")
-
-    @property
-    def data_dir(self) -> Path:
-        return self._get_path("data")
 
     @property
     def seed(self) -> int:
         return self._seed
 
     @property
-    def console_logger(self) -> ConsoleLogger:
-        return self._console_logger
+    def logger(self) -> ConsoleLogger:
+        return self._logger
 
 

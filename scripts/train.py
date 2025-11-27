@@ -49,7 +49,7 @@ def validate(
 
 @experiment("pid_delta_tuning")
 def main(context: ExperimentContext):
-    context.console_logger.log("Creating components...")
+    context.logger.log("Creating components...")
 
     train_log_dir = Path(context.config.training.log_dir)
     train_logger = SyncFileLogger(log_dir=train_log_dir, log_file=context.config.training.log_file)
@@ -116,7 +116,7 @@ def main(context: ExperimentContext):
     soft_updater = SoftUpdater(loss_module, tau=context.config.optimizer.tau)
     
     if is_async:
-        context.console_logger.log("Starting async collector...")
+        context.logger.log("Starting async collector...")
         collector = AsyncCollector(
             buffer=buffer,
             policy=policy,
@@ -124,7 +124,7 @@ def main(context: ExperimentContext):
             seed=context.seed,
         )
     else:
-        context.console_logger.log("Creating synchronous collector...")
+        context.logger.log("Creating synchronous collector...")
         collector_env = make_env_from_config(context.config.env)
         collector = SyncCollector(
             buffer=buffer,
@@ -135,16 +135,16 @@ def main(context: ExperimentContext):
     with collector:
         try:
             if is_async:
-                context.console_logger.log("Collector started. Waiting for data accumulation...")
+                context.logger.log("Collector started. Waiting for data accumulation...")
             else:
-                context.console_logger.log("Collector started. Initial data collection...")
+                context.logger.log("Collector started. Initial data collection...")
             
             collector.collect(context.config.training.initial_collect_steps)
             
             if not is_async:
-                context.console_logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
+                context.logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
             
-            context.console_logger.log("Training started")
+            context.logger.log("Training started")
             
             num_training_steps = context.config.training.num_training_steps
             policy_freq = context.config.training.policy_freq
@@ -191,29 +191,30 @@ def main(context: ExperimentContext):
                     train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
             
             if testing_num_steps > 0:
-                context.console_logger.log("Testing...")
+                context.logger.log("Testing...")
                 test_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=testing_num_steps)
                 train_logger.log(f"testing time={time.time():.6f} reward_sum={test_rewards.sum():.4f} reward_mean={test_rewards.mean():.4f} episodes={test_rewards.size}")
             
-            context.console_logger.log("Training completed.")
-            context.console_logger.log(f"Final buffer size: {len(buffer)}")
+            context.logger.log("Training completed.")
+            context.logger.log(f"Final buffer size: {len(buffer)}")
         finally:
-            context.console_logger.log("Saving models...")
-            models_dir = context.models_dir
+            context.logger.log("Saving models...")
+            models_dir = Path("models").mkdir(parents=True, exist_ok=True)
             loss_module.actor.save(models_dir / "actor.pth")
             loss_module.critic1.save(models_dir / "critic1.pth")
             loss_module.critic2.save(models_dir / "critic2.pth")
             loss_module.actor_target.save(models_dir / "actor_target.pth")
             loss_module.critic1_target.save(models_dir / "critic1_target.pth")
             loss_module.critic2_target.save(models_dir / "critic2_target.pth")
-            context.console_logger.log(f"Models saved to {models_dir}")
+            context.logger.log(f"Models saved to {models_dir}")
             
-            context.console_logger.log("Saving replay buffer...")
-            buffer.save(context.data_dir / "replay_buffer.pth")
-            context.console_logger.log(f"Replay buffer saved to {context.data_dir}")
+            context.logger.log("Saving replay buffer...")
+            data_dir = Path("data").mkdir(parents=True, exist_ok=True)
+            buffer.save(data_dir / "replay_buffer.pth")
+            context.logger.log(f"Replay buffer saved to {data_dir}")
     
     train_logger.close()
-    context.console_logger.log("Collector stopped.")
+    context.logger.log("Collector stopped.")
 
 
 if __name__ == "__main__":
