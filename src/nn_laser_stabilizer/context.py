@@ -10,6 +10,7 @@ from nn_laser_stabilizer.logger import ConsoleLogger
 
 
 EXPERIMENTS_DIR = Path("experiments")
+RESOURCES_DIR = Path("resources")
 
 
 class ExperimentContext:
@@ -33,8 +34,7 @@ class ExperimentContext:
 
         variables = {
             "EXPERIMENT_DIR": str(self._experiment_dir),
-            "EXPERIMENT_NAME": self._experiment_name,
-            "TIMESTAMP": timestamp,
+            "RESOURCES_DIR": str(RESOURCES_DIR.resolve()),
         }
         self.config = self.config.substitute_placeholders(variables)
 
