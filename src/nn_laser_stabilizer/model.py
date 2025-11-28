@@ -37,7 +37,7 @@ class Model(nn.Module, ABC):
         if not path.exists():
             raise FileNotFoundError(f"Model file not found: {path}")
         
-        checkpoint = torch.load(path, map_location='cpu')
+        checkpoint = torch.load(path, map_location='cpu', weights_only=False)
         
         if not isinstance(checkpoint, dict) or 'state_dict' not in checkpoint:
             raise ValueError(
