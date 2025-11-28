@@ -11,12 +11,12 @@ from nn_laser_stabilizer.config import load_config
 
 @experiment("pid_delta_tuning-inference")
 def main(context: ExperimentContext):
-    source_experiment_dir = Path(context.config.inference.source_experiment_dir)
-    if not source_experiment_dir.exists():
-        raise FileNotFoundError(f"Source experiment directory not found: {source_experiment_dir}")
+    source_config_path = Path(context.config.inference.source_config_path)
+    if not source_config_path.exists():
+        raise FileNotFoundError(f"Source config file not found: {source_config_path}")
     
-    source_config = load_config(source_experiment_dir / "config.yaml")
-    context.logger.log(f"Loading actor from source experiment: {source_experiment_dir}")
+    source_config = load_config(source_config_path)
+    context.logger.log(f"Loading config from: {source_config_path}")
     
     env_config = context.config.env
     env_factory = partial(
@@ -25,8 +25,13 @@ def main(context: ExperimentContext):
         seed=context.seed
     )
     env = env_factory()
+
+    actor_path = Path(context.config.inference.actor_path)
+    if not actor_path.exists():
+        raise FileNotFoundError(f"Actor model file not found: {actor_path}")
     
-    actor_path = source_experiment_dir / "models" / "actor.pth"
+    context.logger.log(f"Loading actor from: {actor_path}")
+    
     actor = load_actor_from_path(actor_path, source_config.network)
     actor.eval()
     
