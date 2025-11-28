@@ -150,7 +150,6 @@ class Plant:
             self._control_outputs[self._current_index] = control_output
             self._current_index += 1
 
-        self._reset_buffer()
         return self.step()
     
     def close(self) -> None:
