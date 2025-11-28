@@ -62,7 +62,7 @@ class ConnectionToPid(BaseConnectionToPid):
     def _parse_response(self, raw: str) -> tuple[float, float]:
         parts = raw.strip().split()
         if len(parts) != 2:
-            raise ValueError(f"Invalid PID response format: '{raw}'")
+            raise ValueError(f"Invalid PID response format: {repr(raw)}")
         return float(parts[0]), float(parts[1])
 
     def read_response(self) -> tuple[float, float]:

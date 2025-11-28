@@ -54,7 +54,11 @@ class COMConnection(BaseConnection):
         self._check_connected()
         
         while True:
-            data = self._serial_connection.readline().decode("utf-8").strip()
+            raw_data = self._serial_connection.readline()
+            if not raw_data:
+                continue
+            
+            data = raw_data.decode("utf-8")
             if data:
                 return data
     
