@@ -38,7 +38,10 @@ def main(context: ExperimentContext):
     context.logger.log("Actor loaded successfully")
     
     num_steps = context.config.inference.num_steps
+    infinite_steps = num_steps == -1
+    
     log_frequency = context.config.inference.log_frequency
+    logging_enabled = log_frequency > 0
     
     step = 0
     episode_reward = 0.0
@@ -55,7 +58,7 @@ def main(context: ExperimentContext):
     context.logger.log("Press Ctrl+C to stop")
     
     try:
-        while num_steps is None or step < num_steps:
+        while infinite_steps or step < num_steps:
             action, options = policy.act(obs, options)
             obs, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
@@ -63,7 +66,7 @@ def main(context: ExperimentContext):
             step += 1
             episode_reward += reward.item()
             
-            if log_frequency is not None and step % log_frequency == 0:
+            if logging_enabled and step % log_frequency == 0:
                 context.logger.log(
                     f"step={step} episode={episode_count} "
                     f"episode_reward={episode_reward:.4f}"
@@ -72,7 +75,7 @@ def main(context: ExperimentContext):
             if done:
                 episode_count += 1
 
-                if log_frequency is not None:
+                if logging_enabled:
                     context.logger.log(
                         f"Episode {episode_count} finished | "
                         f"Steps: {step} | "
