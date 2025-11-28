@@ -37,7 +37,6 @@ def main(context: ExperimentContext):
     
     step = 0
     episode_reward = 0.0
-    total_reward = 0.0
     episode_count = 0
 
     policy = DeterministicPolicy(actor).eval()
@@ -58,7 +57,6 @@ def main(context: ExperimentContext):
             
             step += 1
             episode_reward += reward.item()
-            total_reward += reward.item()
             
             if log_frequency is not None and step % log_frequency == 0:
                 context.logger.log(
@@ -84,9 +82,6 @@ def main(context: ExperimentContext):
         context.logger.log("Inference finished")
         context.logger.log(f"Total steps: {step}")
         context.logger.log(f"Total episodes: {episode_count}")
-       
-        if episode_count > 0:
-            context.logger.log(f"Average episode reward: {total_reward / episode_count:.4f}")
         
         env.close()
 
