@@ -2,7 +2,8 @@ experiment_name: pid_delta_tuning_inference
 seed: 0
 
 inference:
-  source_experiment_dir: "experiments/pid_delta_tuning/2025-11-25_15-51-58"
+  source_config_path: "{RESOURCES_DIR}/2025-11-25_15-51-58/config.yaml"
+  actor_path: "{RESOURCES_DIR}/2025-11-25_15-51-58/models/actor.pth"
   num_steps: null  
   log_frequency: null
 
