@@ -1,4 +1,5 @@
 from typing import Sequence, Optional, Tuple, Dict, Any
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -121,4 +122,29 @@ def make_actor_from_config(network_config: Config, action_space: Box, observatio
         )
     else:
         raise ValueError(f"Unhandled network type: {network_type}")
+
+
+def load_actor_from_path(actor_path: Path, network_config: Config) -> Actor:
+    actor_path = Path(actor_path).resolve()
+    if not actor_path.exists():
+        raise FileNotFoundError(f"Actor model not found: {actor_path}")
+
+    network_type_str = network_config.type
+    
+    # TODO: убрать это дублирование
+    try:
+        network_type = NetworkType(network_type_str)
+    except ValueError:
+        raise ValueError(
+            f"Unknown network type: '{network_type_str}'. "
+            f"Supported types: {[t.value for t in NetworkType]}"
+        )
+    
+    if network_type == NetworkType.MLP:
+        actor = MLPActor.load(actor_path)
+    elif network_type == NetworkType.LSTM:
+        actor = LSTMActor.load(actor_path)
+    else:
+        raise ValueError(f"Unhandled network type: {network_type}")
+    return actor
 
