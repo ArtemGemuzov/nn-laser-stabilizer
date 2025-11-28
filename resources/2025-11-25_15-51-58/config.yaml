@@ -58,6 +58,7 @@ buffer:
 sampler:
   batch_size: 64
 network:
+  type: mlp
   hidden_sizes:
   - 256
   - 256
