@@ -72,14 +72,7 @@ def make_sampler_from_config(
 ) -> Union[BatchSampler, BatchSequenceSampler]:
     batch_size = sampler_config.batch_size
     sampler_type_str = sampler_config.type
-    
-    try:
-        sampler_type = SamplerType(sampler_type_str)
-    except ValueError:
-        raise ValueError(
-            f"Unknown sampler type: '{sampler_type_str}'. "
-            f"Supported types: {[t.value for t in SamplerType]}"
-        )
+    sampler_type = SamplerType.from_str(sampler_type_str)
     
     if sampler_type == SamplerType.SINGLE:
         return BatchSampler(buffer=buffer, batch_size=batch_size)
