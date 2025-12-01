@@ -1,31 +1,24 @@
 from enum import Enum
 
 
-class NetworkType(Enum):
+class BaseEnum(Enum):
+    @classmethod
+    def from_str(cls, value: str):
+        try:
+            return cls(value)
+        except ValueError:
+            raise ValueError(
+                f"Unknown {cls.__name__}: '{value}'. "
+                f"Supported values: {[t.value for t in cls]}"
+            )
+
+
+class NetworkType(BaseEnum):
     MLP = "mlp"
     LSTM = "lstm"
 
-    @classmethod
-    def from_str(cls, value: str) -> "NetworkType":
-        try:
-            return cls(value)
-        except ValueError:
-            raise ValueError(
-                f"Unknown network type: '{value}'. "
-                f"Supported types: {[t.value for t in cls]}"
-            )
 
-
-class SamplerType(Enum):
+class SamplerType(BaseEnum):
     SINGLE = "single"
     SEQUENCE = "sequence"
 
-    @classmethod
-    def from_str(cls, value: str) -> "SamplerType":
-        try:
-            return cls(value)
-        except ValueError:
-            raise ValueError(
-                f"Unknown sampler type: '{value}'. "
-                f"Supported types: {[t.value for t in cls]}"
-            )
