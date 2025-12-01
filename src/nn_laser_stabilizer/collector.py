@@ -146,10 +146,10 @@ def _collector_worker(
 
         _warmup_policy(policy, env)
 
+        command_pipe.send((Commands.READY.value, None))
+
         obs, _ = env.reset()
         options = {}
-
-        command_pipe.send((Commands.READY.value, None))
         
         while True:
             if command_pipe.poll():
