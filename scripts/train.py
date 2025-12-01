@@ -226,7 +226,8 @@ def main(context: ExperimentContext):
             context.logger.log(f"Final buffer size: {len(buffer)}")
         finally:
             context.logger.log("Saving models...")
-            models_dir = Path("models").mkdir(parents=True, exist_ok=True)
+            models_dir = Path("models")
+            models_dir.mkdir(parents=True, exist_ok=True)
             loss_module.actor.save(models_dir / "actor.pth")
             loss_module.critic1.save(models_dir / "critic1.pth")
             loss_module.critic2.save(models_dir / "critic2.pth")
@@ -236,7 +237,8 @@ def main(context: ExperimentContext):
             context.logger.log(f"Models saved to {models_dir}")
             
             context.logger.log("Saving replay buffer...")
-            data_dir = Path("data").mkdir(parents=True, exist_ok=True)
+            data_dir = Path("data")
+            data_dir.mkdir(parents=True, exist_ok=True)
             buffer.save(data_dir / "replay_buffer.pth")
             context.logger.log(f"Replay buffer saved to {data_dir}")
     
