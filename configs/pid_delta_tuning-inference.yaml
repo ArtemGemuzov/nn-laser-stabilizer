@@ -2,10 +2,10 @@ experiment_name: pid_delta_tuning-inference
 seed: 0
 
 inference:
-  source_config_path: "{RESOURCES_DIR}/2025-11-25_15-51-58/config.yaml"
+  actor_type: mlp
   actor_path: "{RESOURCES_DIR}/2025-11-25_15-51-58/actor.pth"
   num_steps: -1  
-  log_frequency: 0  
+  log_frequency: 0
 
 env:
   name: PidDeltaTuningEnv

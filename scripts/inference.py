@@ -2,22 +2,15 @@ from functools import partial
 from pathlib import Path
 
 from nn_laser_stabilizer.actor import load_actor_from_path
+from nn_laser_stabilizer.types import NetworkType
 from nn_laser_stabilizer.policy import DeterministicPolicy
 from nn_laser_stabilizer.env_wrapper import make_env_from_config
 from nn_laser_stabilizer.experiment import experiment
 from nn_laser_stabilizer.context import ExperimentContext
-from nn_laser_stabilizer.config import load_config
 
 
 @experiment("pid_delta_tuning-inference")
 def main(context: ExperimentContext):
-    source_config_path = Path(context.config.inference.source_config_path)
-    if not source_config_path.exists():
-        raise FileNotFoundError(f"Source config file not found: {source_config_path}")
-    
-    source_config = load_config(source_config_path)
-    context.logger.log(f"Loading config from: {source_config_path}")
-    
     env_config = context.config.env
     env_factory = partial(
         make_env_from_config,
@@ -32,7 +25,9 @@ def main(context: ExperimentContext):
     
     context.logger.log(f"Loading actor from: {actor_path}")
     
-    actor = load_actor_from_path(actor_path, source_config.network)
+    actor_type = context.config.inference.actor_type
+    network_type = NetworkType.from_str(actor_type)
+    actor = load_actor_from_path(actor_path, network_type)
     actor.eval()
     
     context.logger.log("Actor loaded successfully")
