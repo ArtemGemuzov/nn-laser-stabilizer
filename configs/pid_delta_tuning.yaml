@@ -1,10 +1,10 @@
-experiment_name: pid_delta_tuning
+experiment_name: test
 seed: 0
 
 env:
   name: PidDeltaTuningEnv
   args:
-    use_mock: false
+    use_mock: true
     port: COM3
     timeout: 0.1
     baudrate: 115200
@@ -27,20 +27,21 @@ env:
     kp_min: 2.5
     kp_max: 12.5
     kp_start: 7.5
+    kp_delta_scale: 0.01
 
     ki_min: 0.0
     ki_max: 20.0
     ki_start: 10.0
+    ki_delta_scale: 0.01
 
     kd_min: 0.0
-    kd_max: 0.0
+    kd_max: 0.01
     kd_start: 0.0
+    kd_delta_scale: 0.01
 
     error_mean_normalization_factor: 200.0
     error_std_normalization_factor: 300.0
-
-    kp_delta_scale: 0.01
-    ki_delta_scale: 0.01
+    
     precision_weight: 0.45
     stability_weight: 0.45
     action_weight: 0.1

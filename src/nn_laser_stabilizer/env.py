@@ -40,17 +40,18 @@ class PidDeltaTuningEnv(gym.Env):
         kp_min: float,
         kp_max: float,
         kp_start: float,
+        kp_delta_scale: float,
         ki_min: float,
         ki_max: float,
         ki_start: float,
+        ki_delta_scale: float,
         kd_min: float,
         kd_max: float,
         kd_start: float,
+        kd_delta_scale: float,
         # Константы для PidDeltaTuningEnv
         error_mean_normalization_factor: float,
         error_std_normalization_factor: float,
-        kp_delta_scale: float,
-        ki_delta_scale: float,
         precision_weight: float,
         stability_weight: float,
         action_weight: float,
@@ -59,18 +60,24 @@ class PidDeltaTuningEnv(gym.Env):
         log_file: str,
     ):
         super().__init__()
-        
-        self._kp_min = kp_min
-        self._kp_max = kp_max
-        self._ki_min = ki_min
-        self._ki_max = ki_max
+
         self._error_mean_normalization_factor = error_mean_normalization_factor
         self._error_std_normalization_factor = error_std_normalization_factor
         
-        kp_range = kp_max - kp_min
-        ki_range = ki_max - ki_min
-        self._kp_delta_max = kp_range * kp_delta_scale
-        self._ki_delta_max = ki_range * ki_delta_scale
+        self._kp_min = kp_min
+        self._kp_max = kp_max
+        self._kp_range = kp_max - kp_min
+        self._kp_delta_max = self._kp_range * kp_delta_scale
+
+        self._ki_min = ki_min
+        self._ki_max = ki_max
+        self._ki_range = ki_max - ki_min
+        self._ki_delta_max = self._ki_range * ki_delta_scale
+
+        self._kd_min = kd_min
+        self._kd_max = kd_max
+        self._kd_range = kd_max - kd_min
+        self._kd_delta_max = self._kd_range * kd_delta_scale
         
         self._precision_weight = precision_weight
         self._stability_weight = stability_weight
@@ -137,13 +144,13 @@ class PidDeltaTuningEnv(gym.Env):
         self.action_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(2,),
+            shape=(3,),
             dtype=np.float32
         )
         
         self.observation_space = gym.spaces.Box(
-            low=np.array([-1.0, 0.0, -1.0, -1.0], dtype=np.float32),
-            high=np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float32),
+            low=np.array([-1.0, 0.0, -1.0, -1.0, -1.0], dtype=np.float32),
+            high=np.array([1.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
             dtype=np.float32
         )
 
@@ -156,26 +163,27 @@ class PidDeltaTuningEnv(gym.Env):
         errors = process_variables - setpoint
         
         error_mean = np.mean(errors)
-        error_std = np.std(errors)
-        
         error_mean_norm = np.clip(
             error_mean / self._error_mean_normalization_factor, -1.0, 1.0
         )
+
+        error_std = np.std(errors)
         error_std_norm = np.clip(
             error_std / self._error_std_normalization_factor, 0.0, 1.0
         )
         
-        kp_range = self._kp_max - self._kp_min
-        ki_range = self._ki_max - self._ki_min
         kp_norm = np.clip(
-            (self.plant.kp - self._kp_min) / kp_range * 2.0 - 1.0, -1.0, 1.0
+            (self.plant.kp - self._kp_min) / self._kp_range * 2.0 - 1.0, -1.0, 1.0
         )
         ki_norm = np.clip(
-            (self.plant.ki - self._ki_min) / ki_range * 2.0 - 1.0, -1.0, 1.0
+            (self.plant.ki - self._ki_min) / self._ki_range * 2.0 - 1.0, -1.0, 1.0
+        )
+        kd_norm = np.clip(
+            (self.plant.kd - self._kd_min) / self._kd_range * 2.0 - 1.0, -1.0, 1.0
         )
         
         observation = np.array(
-            [error_mean_norm, error_std_norm, kp_norm, ki_norm],
+            [error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm],
             dtype=np.float32
         )
         
@@ -188,7 +196,7 @@ class PidDeltaTuningEnv(gym.Env):
         precision_penalty = -np.abs(error_mean_norm)      # [-1, 0]
         # 2. Штраф за нестабильность (чем больше разброс, тем больше штраф)
         stability_penalty = -np.abs(error_std_norm)       # [-1, 0]
-        # 3. Штраф за действие (чем больше изменение, тем больше штраф)
+        # 3. Штраф за действие (чем больше изменения kp/ki/kd, тем больше штраф)
         action_penalty = -np.mean(np.abs(action))  # [-1, 0]
         
         total_reward = (
@@ -200,12 +208,13 @@ class PidDeltaTuningEnv(gym.Env):
         return 2 * total_reward + 1
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
-        delta_kp_norm, delta_ki_norm = action[0], action[1]
+        delta_kp_norm, delta_ki_norm, delta_kd_norm = action[0], action[1], action[2]
 
         delta_kp = delta_kp_norm * self._kp_delta_max
         delta_ki = delta_ki_norm * self._ki_delta_max
+        delta_kd = delta_kd_norm * self._kd_delta_max
 
-        self.plant.update_pid(delta_kp, delta_ki, 0.0)
+        self.plant.update_pid(delta_kp, delta_ki, delta_kd)
         process_variables, control_outputs, setpoint, should_reset = self.plant.step()
         self._step += 1
 
@@ -213,7 +222,7 @@ class PidDeltaTuningEnv(gym.Env):
             process_variables, control_outputs, setpoint
         )
         
-        action_array = np.array([delta_kp_norm, delta_ki_norm], dtype=np.float32)
+        action_array = np.array([delta_kp_norm, delta_ki_norm, delta_kd_norm], dtype=np.float32)
         reward = self._compute_reward(observation, action_array)
         
         log_line = (
