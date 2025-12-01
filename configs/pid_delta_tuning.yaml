@@ -1,10 +1,10 @@
-experiment_name: test
+experiment_name: pid_delta_tuning
 seed: 0
 
 env:
   name: PidDeltaTuningEnv
   args:
-    use_mock: true
+    use_mock: false
     port: COM3
     timeout: 0.1
     baudrate: 115200
