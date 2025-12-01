@@ -3,7 +3,6 @@ from pathlib import Path
 import time
 
 import numpy as np
-
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.sampler import make_sampler_from_config
 from nn_laser_stabilizer.collector import AsyncCollector, SyncCollector
@@ -146,20 +145,31 @@ def main(context: ExperimentContext):
             
             context.logger.log("Training started")
             
-            num_training_steps = context.config.training.num_training_steps
-            policy_freq = context.config.training.policy_freq
+            num_steps = context.config.training.num_steps
+            infinite_steps = num_steps == -1
+            
             log_frequency = context.config.training.log_frequency
+            logging_enabled = log_frequency > 0
+
             validation_frequency = context.config.validation.frequency
-            env_config = context.config.env
             validation_num_steps = context.config.validation.num_steps
+            validation_enabled = validation_num_steps > 0 and validation_frequency > 0
+    
             testing_num_steps = context.config.testing.num_steps
+            testing_enabled = testing_num_steps > 0
+
+            env_config = context.config.env
+            policy_freq = context.config.training.policy_freq
             
             if is_async:
                 sync_frequency = context.config.collector.sync_frequency
             else:
                 collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
-            
-            for step in range(1, num_training_steps + 1):
+
+            step = 0
+            while infinite_steps or step < num_steps:
+                step += 1
+
                 if not is_async:
                     collector.collect(collect_steps_per_iteration)
                 
@@ -179,18 +189,35 @@ def main(context: ExperimentContext):
                 if is_async and step % sync_frequency == 0:
                     collector.sync()
                     
-                if step % log_frequency == 0:
+                if logging_enabled and step % log_frequency == 0:
                     timestamp = time.time()
                     if actor_loss is not None:
-                        train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} actor_loss={actor_loss:.4f} buffer_size={len(buffer)}")
+                        train_logger.log(
+                            f"step={step} time={timestamp:.6f} "
+                            f"loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} "
+                            f"actor_loss={actor_loss:.4f} buffer_size={len(buffer)}"
+                        )
                     else:
-                        train_logger.log(f"step={step} time={timestamp:.6f} loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} buffer_size={len(buffer)}")
+                        train_logger.log(
+                            f"step={step} time={timestamp:.6f} "
+                            f"loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} "
+                            f"buffer_size={len(buffer)}"
+                        )
                 
-                if validation_num_steps > 0 and step % validation_frequency == 0:
-                    rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=validation_num_steps)
-                    train_logger.log(f"validation step={step} time={time.time():.6f} reward_sum={rewards.sum():.4f} reward_mean={rewards.mean():.4f} episodes={rewards.size}")
+                if validation_enabled and step % validation_frequency == 0:
+                    rewards = validate(
+                        policy,
+                        lambda: make_env_from_config(env_config),
+                        num_steps=validation_num_steps,
+                    )
+                    train_logger.log(
+                        f"validation step={step} time={time.time():.6f} "
+                        f"reward_sum={rewards.sum():.4f} "
+                        f"reward_mean={rewards.mean():.4f} "
+                        f"episodes={rewards.size}"
+                    )
             
-            if testing_num_steps > 0:
+            if testing_enabled:
                 context.logger.log("Testing...")
                 test_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=testing_num_steps)
                 train_logger.log(f"testing time={time.time():.6f} reward_sum={test_rewards.sum():.4f} reward_mean={test_rewards.mean():.4f} episodes={test_rewards.size}")
