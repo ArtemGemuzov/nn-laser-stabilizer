@@ -1,4 +1,4 @@
-experiment_name: pid_delta_tuning
+experiment_name: pid_delta_tuning-recurrent
 seed: 0
 
 env:
@@ -73,8 +73,9 @@ buffer:
   capacity: 10000
 
 sampler:
-  type: single
+  type: sequence
   batch_size: 64
+  seq_len: 20
 
 network:
   type: lstm
