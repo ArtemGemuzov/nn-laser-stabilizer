@@ -228,7 +228,7 @@ class PidDeltaTuningEnv(gym.Env):
         log_line = (
             f"step={self._step} time={time.time():.6f} "
             f"kp={self.plant.kp:.4f} ki={self.plant.ki:.4f} kd={self.plant.kd:.4f} "
-            f"delta_kp_norm={action[0]:.4f} delta_ki_norm={action[1]:.4f} "
+            f"delta_kp_norm={action[0]:.4f} delta_ki_norm={action[1]:.4f} delta_kd_norm={action[2]:.4f} "
             f"error_mean_norm={observation[0]:.4f} error_std_norm={observation[1]:.4f} "
             f"reward={reward:.6f} should_reset={should_reset}"
         )
