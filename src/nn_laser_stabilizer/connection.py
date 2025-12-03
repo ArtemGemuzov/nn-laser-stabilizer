@@ -1,4 +1,4 @@
-from typing import Protocol, Optional
+from typing import Protocol
 
 import serial
 
@@ -28,6 +28,9 @@ class COMConnection(BaseConnection):
         self._serial_connection : serial.Serial = None
 
     def open(self):
+        if self._serial_connection is not None:
+            return
+        
         try:
             self._serial_connection = serial.Serial(
                 port=self.port,
@@ -84,18 +87,17 @@ class MockSerialConnection(BaseConnection):
         self.stopbits = stopbits
         self.is_connected = False
 
-        self._log_file = None
+        log_filename = f"mock_{self.port}.log"
+        self._log_file = open(log_filename, 'a', encoding='utf-8')
+        self._log_file.write(f"Mock serial connection opened")
+
         self._read_count = 0
         self._send_count = 0
 
     def open(self):
         self.is_connected = True
-    
-        log_filename = f"mock_{self.port}.log"
-        self._log_file = open(log_filename, 'a', encoding='utf-8')
         self._log_file.write(f"Mock serial connection opened")
       
-
     def close(self):
         self.is_connected = False
         self._log_file.write("Mock serial connection closed.")
@@ -107,8 +109,6 @@ class MockSerialConnection(BaseConnection):
         if not self.is_connected:
             raise ConnectionError("Mock serial connection is not open.")
 
-        # В тестовом подключении чтение не используется напрямую,
-        # поэтому возвращаем заглушку валидного ответа.
         return "0 0"
 
     def send(self, data: str):
@@ -118,3 +118,8 @@ class MockSerialConnection(BaseConnection):
         self._send_count += 1
         self._log_file.write(f"#{self._send_count} >> {repr(data)}\n")
         self._log_file.flush()
+
+    def __del__(self):
+        if self._log_file:
+            self._log_file.close()
+            self._log_file = None
