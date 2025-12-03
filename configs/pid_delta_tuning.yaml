@@ -1,5 +1,5 @@
 experiment_name: pid_delta_tuning
-seed: 0
+seed: 1
 
 env:
   name: PidDeltaTuningEnv
@@ -36,7 +36,7 @@ env:
 
     kd_min: 0.0
     kd_max: 0.01
-    kd_start: 0.0
+    kd_start: 0.005
     kd_delta_scale: 0.01
 
     error_mean_normalization_factor: 200.0
