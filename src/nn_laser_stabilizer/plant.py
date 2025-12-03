@@ -50,12 +50,10 @@ class Plant:
         self._warmup_steps = warmup_steps
         self._block_size = block_size
         
-        min_size = min(warmup_steps, block_size)
-        if burn_in_steps >= min_size:
+        if burn_in_steps >= block_size:
             raise ValueError(
                 f"burn_in_steps ({burn_in_steps}) must be less than "
-                f"min(warmup_steps={warmup_steps}, block_size={block_size})={min_size}, "
-                f"otherwise no data will remain after burn_in"
+                f"block_size={block_size}, otherwise no data will remain after burn_in"
             )
         
         self._burn_in_steps = burn_in_steps
@@ -68,9 +66,8 @@ class Plant:
         self._default_min = default_min
         self._default_max = default_max
         
-        buffer_size = max(warmup_steps, block_size)
-        self._process_variables = np.zeros(buffer_size, dtype=np.float32)
-        self._control_outputs = np.zeros(buffer_size, dtype=np.float32)
+        self._process_variables = np.zeros(block_size, dtype=np.float32)
+        self._control_outputs = np.zeros(block_size, dtype=np.float32)
         self._current_index = 0
     
     @property
@@ -131,25 +128,19 @@ class Plant:
         self._current_index = 0
     
     def reset(self) -> Tuple[np.ndarray, np.ndarray, float]:
-        self._reset_buffer()
-        
         if not self._connection_opened:
             self.pid_connection.open()
             self._connection_opened = True
         
         for _ in range(self._warmup_steps):
-            process_variable, control_output = self.pid_connection.exchange(
+            self.pid_connection.exchange(
                 kp=self._kp,
                 ki=self._ki,
                 kd=self._kd,
                 control_min=self._force_min_value,
                 control_max=self._force_max_value,
             )
-            
-            self._process_variables[self._current_index] = process_variable
-            self._control_outputs[self._current_index] = control_output
-            self._current_index += 1
-
+        
         return self.step()
     
     def close(self) -> None:
