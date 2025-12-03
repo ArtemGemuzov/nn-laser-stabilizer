@@ -6,7 +6,7 @@ import numpy as np
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.sampler import make_sampler_from_config
 from nn_laser_stabilizer.collector import AsyncCollector, SyncCollector
-from nn_laser_stabilizer.env_wrapper import make_env_from_config
+from nn_laser_stabilizer.env_wrapper import make_env_from_config, make_spaces_from_config
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.policy import make_policy
 from nn_laser_stabilizer.loss import TD3Loss
@@ -56,12 +56,9 @@ def main(context: ExperimentContext):
     is_async = context.config.collector.is_async
     
     env_factory = partial(make_env_from_config, env_config=context.config.env, seed=context.seed)
-    env = env_factory()
     
-    observation_space = env.observation_space
+    observation_space, action_space = make_spaces_from_config(context.config.env, seed=context.seed)
     observation_dim = observation_space.dim
-
-    action_space = env.action_space
     action_dim = action_space.dim
     
     buffer = ReplayBuffer(

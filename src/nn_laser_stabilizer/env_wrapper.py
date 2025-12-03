@@ -100,3 +100,14 @@ def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> Torc
     env_args_dict = env_config.get('args')
     env_args = env_args_dict.to_dict() if env_args_dict is not None else {}
     return make_env(env_name, seed=seed, **env_args)
+
+
+def make_spaces_from_config(
+    env_config: Config,
+    seed: Optional[int] = None,
+) -> Tuple[Box, Box]:
+    env = make_env_from_config(env_config, seed=seed)
+    observation_space = env.observation_space
+    action_space = env.action_space
+    env.close()
+    return observation_space, action_space
