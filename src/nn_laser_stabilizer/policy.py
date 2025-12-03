@@ -13,7 +13,7 @@ class Policy(ABC):
         pass
     
     @abstractmethod
-    def clone(self, reinitialize_weights: bool = False) -> "Policy":
+    def clone(self) -> "Policy":
         pass
     
     @abstractmethod
@@ -44,8 +44,8 @@ class DeterministicPolicy(Policy):
     def act(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
         return self._actor.act(observation, options)
     
-    def clone(self, reinitialize_weights: bool = False) -> "DeterministicPolicy":
-        cloned_actor = self._actor.clone(reinitialize_weights=reinitialize_weights)
+    def clone(self) -> "DeterministicPolicy":
+        cloned_actor = self._actor.clone()
         return DeterministicPolicy(actor=cloned_actor)
     
     def share_memory(self) -> "DeterministicPolicy":
@@ -88,8 +88,8 @@ class RandomExplorationPolicy(Policy):
         else:
             return self._actor.act(observation, options)
     
-    def clone(self, reinitialize_weights: bool = False) -> "RandomExplorationPolicy":
-        cloned_actor = self._actor.clone(reinitialize_weights=reinitialize_weights)
+    def clone(self) -> "RandomExplorationPolicy":
+        cloned_actor = self._actor.clone()
         return RandomExplorationPolicy(
             actor=cloned_actor,
             exploration_steps=self.exploration_steps,
