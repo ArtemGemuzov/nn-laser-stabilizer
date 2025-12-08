@@ -35,6 +35,11 @@ class Policy(ABC):
     @abstractmethod
     def train(self, mode: bool = True) -> "Policy":
         pass
+    
+    @abstractmethod
+    def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
+        """Run light inference-only warmup without affecting exploration counters."""
+        pass
 
 
 class DeterministicPolicy(Policy):
@@ -65,6 +70,12 @@ class DeterministicPolicy(Policy):
     def eval(self) -> "DeterministicPolicy":
         self._actor.eval()
         return self
+    
+    def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
+        self._actor.eval()
+        for _ in range(num_steps):
+            fake_obs = observation_space.sample()
+            self._actor.act(fake_obs)
 
 
 class RandomExplorationPolicy(Policy):
@@ -113,6 +124,12 @@ class RandomExplorationPolicy(Policy):
     def eval(self) -> "RandomExplorationPolicy":
         self._actor.eval()
         return self
+    
+    def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
+        self._actor.eval()
+        for _ in range(num_steps):
+            fake_obs = observation_space.sample()
+            self._actor.act(fake_obs)
 
 
 def make_policy(

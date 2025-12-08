@@ -15,14 +15,6 @@ from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
 
 
-@torch.no_grad()
-def _warmup_policy(policy: Policy, env: TorchEnvWrapper, num_steps: int = 100) -> None:
-    policy.eval()
-    for _ in range(num_steps):
-        fake_obs = env.observation_space.sample()
-        policy.act(fake_obs)
-
-
 def _policy_factory(policy : Policy):
     return policy.clone()
 
@@ -68,7 +60,7 @@ class SyncCollector:
             raise RuntimeError("Collector is already running")
         
         self._policy.eval()
-        _warmup_policy(self._policy, self._env)
+        self._policy.warmup(self._env.observation_space)
         
         self._cur_obs, _ = self._env.reset()
         self._options = {}
@@ -138,13 +130,12 @@ def _collector_worker(
         if seed is not None:
             from nn_laser_stabilizer.seed import set_seeds
             set_seeds(seed)
+
+        env = env_factory()
         
         policy = policy_factory()
         policy.eval()
-        
-        env = env_factory()
-
-        _warmup_policy(policy, env)
+        policy.warmup(env.observation_space)
 
         command_pipe.send((Commands.READY.value, None))
 
