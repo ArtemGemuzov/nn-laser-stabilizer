@@ -1,4 +1,5 @@
 from typing import Protocol
+import warnings
 
 import serial
 
@@ -57,13 +58,30 @@ class COMConnection(BaseConnection):
         self._check_connected()
         
         while True:
-            raw_data = self._serial_connection.readline()
-            if not raw_data:
+            try:
+                raw_data = self._serial_connection.readline()
+                if not raw_data:
+                    continue
+                
+                try:
+                    data = raw_data.decode("utf-8")
+                    if data:
+                        return data
+                except UnicodeDecodeError as e:
+                    warnings.warn(
+                        f"Failed to decode data from serial port: {e}. "
+                        f"Raw data: {raw_data!r}. Retrying...",
+                        RuntimeWarning,
+                        stacklevel=2
+                    )
+                    continue
+            except Exception as e:
+                warnings.warn(
+                    f"Error reading from serial port: {e}. Retrying...",
+                    RuntimeWarning,
+                    stacklevel=2
+                )
                 continue
-            
-            data = raw_data.decode("utf-8")
-            if data:
-                return data
     
     def send(self, data : str):
         self._check_connected()
