@@ -144,7 +144,7 @@ class PidDeltaTuningEnv(gym.Env):
         self.action_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(3,),
+            shape=(2,),
             dtype=np.float32
         )
         
@@ -208,11 +208,11 @@ class PidDeltaTuningEnv(gym.Env):
         return 2 * total_reward + 1
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
-        delta_kp_norm, delta_ki_norm, delta_kd_norm = action[0], action[1], action[2]
+        delta_kp_norm, delta_ki_norm = action[0], action[1]
 
         delta_kp = delta_kp_norm * self._kp_delta_max
         delta_ki = delta_ki_norm * self._ki_delta_max
-        delta_kd = delta_kd_norm * self._kd_delta_max
+        delta_kd = 0.0  # Kd не подстраивается
 
         self.plant.update_pid(delta_kp, delta_ki, delta_kd)
         process_variables, control_outputs, setpoint, should_reset = self.plant.step()
@@ -222,13 +222,13 @@ class PidDeltaTuningEnv(gym.Env):
             process_variables, control_outputs, setpoint
         )
         
-        action_array = np.array([delta_kp_norm, delta_ki_norm, delta_kd_norm], dtype=np.float32)
+        action_array = np.array([delta_kp_norm, delta_ki_norm], dtype=np.float32)
         reward = self._compute_reward(observation, action_array)
         
         log_line = (
             f"step={self._step} time={time.time():.6f} "
             f"kp={self.plant.kp:.4f} ki={self.plant.ki:.4f} kd={self.plant.kd:.4f} "
-            f"delta_kp_norm={action[0]:.4f} delta_ki_norm={action[1]:.4f} delta_kd_norm={action[2]:.4f} "
+            f"delta_kp_norm={action[0]:.4f} delta_ki_norm={action[1]:.4f} "
             f"error_mean_norm={observation[0]:.4f} error_std_norm={observation[1]:.4f} "
             f"reward={reward:.6f} should_reset={should_reset}"
         )
