@@ -46,7 +46,7 @@ def validate(
     return np.array(rewards)
 
 
-@experiment("pid_delta_tuning")
+@experiment("pid_delta_tuning-recurrent")
 def main(context: ExperimentContext):
     context.logger.log("Creating components...")
 
