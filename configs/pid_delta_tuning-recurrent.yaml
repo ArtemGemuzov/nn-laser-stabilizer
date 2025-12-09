@@ -1,5 +1,5 @@
 experiment_name: pid_delta_tuning-recurrent
-seed: 0
+seed: 1
 
 env:
   name: PidDeltaTuningEnv
