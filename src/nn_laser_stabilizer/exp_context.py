@@ -1,7 +1,6 @@
 from typing import Optional
 from pathlib import Path
 from datetime import datetime
-import os
 import traceback
 
 from nn_laser_stabilizer.config import Config
@@ -22,7 +21,7 @@ class ExperimentContext:
 
         self._seed: int = 0
         self._logger: Optional[ConsoleLogger] = None
-        self._old_cwd: Optional[Path] = None
+        self._experiment_dir: Optional[Path] = None
 
     def __enter__(self):
         start_time = datetime.now()
@@ -48,8 +47,6 @@ class ExperimentContext:
             f"Start time: {start_time_str} | Directory: {self._experiment_dir}"
         )
 
-        self._old_cwd = Path.cwd()
-        os.chdir(self._experiment_dir)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -70,9 +67,7 @@ class ExperimentContext:
             f"Experiment finished: {self._experiment_name} | End time: {end_time_str}"
         )
         self.logger.close()
-
-        if self._old_cwd is not None:
-            os.chdir(self._old_cwd)
+        
         return True
 
     def _save_config(self) -> None:
@@ -101,5 +96,9 @@ class ExperimentContext:
     @property
     def logger(self) -> ConsoleLogger:
         return self._logger
+    
+    @property
+    def experiment_dir(self) -> Path:
+        return self._experiment_dir
 
 

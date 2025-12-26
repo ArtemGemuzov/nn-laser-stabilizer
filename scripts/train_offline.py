@@ -7,7 +7,8 @@ from nn_laser_stabilizer.sampler import make_sampler_from_config
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
-from nn_laser_stabilizer.experiment import ExperimentContext
+from nn_laser_stabilizer.exp_context import ExperimentContext
+from nn_laser_stabilizer.workdir_context import WorkingDirectoryContext
 from nn_laser_stabilizer.logger import SyncFileLogger
 from nn_laser_stabilizer.actor import make_actor_from_config
 from nn_laser_stabilizer.critic import make_critic_from_config
@@ -24,7 +25,7 @@ def offline_train(
 
     buffer_path = buffer_path.resolve()
 
-    with ExperimentContext(config) as context:
+    with ExperimentContext(config) as context, WorkingDirectoryContext(context.experiment_dir):
         context.logger.log(f"Loading replay buffer from: {buffer_path}")
         buffer = ReplayBuffer.load(buffer_path)
         context.logger.log(f"Replay buffer loaded. Size: {len(buffer)} / capacity={buffer.capacity}")

@@ -3,7 +3,8 @@ from functools import wraps
 import argparse
 
 from nn_laser_stabilizer.config import load_config, find_config_path
-from nn_laser_stabilizer.context import ExperimentContext
+from nn_laser_stabilizer.exp_context import ExperimentContext
+from nn_laser_stabilizer.workdir_context import WorkingDirectoryContext
 
 
 def experiment(
@@ -29,8 +30,8 @@ def experiment(
             absolute_config_path = find_config_path(config_name)
             config = load_config(absolute_config_path)
             
-            with ExperimentContext(config) as context:
-                return func(context, *args, **kwargs)
+            with ExperimentContext(config) as exp_context, WorkingDirectoryContext(exp_context.experiment_dir):
+                return func(exp_context, *args, **kwargs)
         return wrapper
     return decorator
 
