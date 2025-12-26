@@ -14,7 +14,9 @@ class BatchSampler:
 
         self._indices = torch.zeros((batch_size,), dtype=torch.int64, device='cpu')
     
-    def sample(self) -> Tuple[torch.Tensor, ...]:
+    def sample(
+        self,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         current_size = self.buffer.size
         if current_size < self.batch_size:
             raise ValueError(
@@ -22,14 +24,7 @@ class BatchSampler:
             )
         
         torch.randint(0, current_size, (self.batch_size,), out=self._indices)
-        indices = self._indices
-        
-        observations = self.buffer.observations[indices]
-        actions = self.buffer.actions[indices]
-        rewards = self.buffer.rewards[indices]
-        next_observations = self.buffer.next_observations[indices]
-        dones = self.buffer.dones[indices]
-        return observations, actions, rewards, next_observations, dones
+        return self.buffer.get_batch(self._indices)
 
 
 class BatchSequenceSampler:
@@ -41,7 +36,9 @@ class BatchSequenceSampler:
         self._seq_indices = torch.arange(seq_len)
         self._start_indices = torch.zeros((batch_size,), dtype=torch.int64)
 
-    def sample(self) -> Tuple[torch.Tensor, ...]:
+    def sample(
+        self,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         current_size = self.buffer.size
         if current_size < self.seq_len:
             raise ValueError(
@@ -57,13 +54,7 @@ class BatchSequenceSampler:
 
         torch.randint(0, max_start, (self.batch_size,), out=self._start_indices)
         indices = self._start_indices.unsqueeze(1) + self._seq_indices.unsqueeze(0)
-
-        observations = self.buffer.observations[indices]
-        actions = self.buffer.actions[indices]
-        rewards = self.buffer.rewards[indices]
-        next_observations = self.buffer.next_observations[indices]
-        dones = self.buffer.dones[indices]
-        return observations, actions, rewards, next_observations, dones
+        return self.buffer.get_batch(indices)
     
 
 def make_sampler_from_config(

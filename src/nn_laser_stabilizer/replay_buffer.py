@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Tuple
 
 import torch
 
@@ -95,6 +96,16 @@ class ReplayBuffer:
     
     def __len__(self) -> int:
         return self.size
+    
+    def get_batch(
+        self, indices: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        observations = self.observations[indices]
+        actions = self.actions[indices]
+        rewards = self.rewards[indices]
+        next_observations = self.next_observations[indices]
+        dones = self.dones[indices]
+        return observations, actions, rewards, next_observations, dones
     
     def save(self, path: Path) -> None:
         path = Path(path)
