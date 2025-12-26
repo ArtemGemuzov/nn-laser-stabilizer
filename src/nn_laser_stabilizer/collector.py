@@ -100,7 +100,7 @@ class AsyncCollector:
         
         self._connection, self._child_connection = CollectorConnection.create_pair()
         
-        self._process: Optional[mp.Process] = None
+        self._process: Optional[CollectorWorker] = None
         self._running = False
          
     def start(self) -> None:
@@ -167,10 +167,7 @@ class AsyncCollector:
             self._raise_worker_error(error)
         
         if self._process is not None:
-            self._process.join(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
-            if self._process.is_alive():
-                self._process.terminate()
-                self._process.join()
+            self._process.stop(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
             self._process = None
         
         self._running = False

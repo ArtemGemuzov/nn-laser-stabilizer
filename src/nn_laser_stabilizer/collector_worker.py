@@ -69,3 +69,9 @@ class CollectorWorker(mp.Process):
             if env is not None:
                 env.close()
 
+    def stop(self, timeout: Optional[float] = None) -> None:
+        self.join(timeout=timeout)
+        if self.is_alive():
+            self.terminate()
+            self.join()
+
