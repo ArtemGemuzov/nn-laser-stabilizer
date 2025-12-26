@@ -1,11 +1,6 @@
-from dataclasses import dataclass
-from enum import Enum
-from typing import Callable, Optional, Tuple, Any, Dict
+from typing import Callable, Optional, Any, Dict
 from functools import partial
 import time
-import traceback
-
-from multiprocessing.connection import Connection
 
 import torch
 import torch.multiprocessing as mp
@@ -13,31 +8,13 @@ import torch.multiprocessing as mp
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
+from nn_laser_stabilizer.collector_worker import CollectorWorker
+from nn_laser_stabilizer.collector_connection import CollectorConnection
+from nn_laser_stabilizer.collector_utils import CollectorError, _collect_step
 
 
 def _policy_factory(policy : Policy):
     return policy.clone()
-
-
-def _collect_step(
-    policy: Policy,
-    env: TorchEnvWrapper,
-    obs: torch.Tensor,
-    buffer: ReplayBuffer,
-    options: Optional[Dict[str, Any]] = None,
-) -> Tuple[torch.Tensor, Dict[str, Any]]:
-    action, options = policy.act(obs, options)
-    
-    next_obs, reward, terminated, truncated, _ = env.step(action)
-    done = terminated or truncated
-    
-    buffer.add(obs, action, reward, next_obs, done)
-    
-    if done:
-        options = {}
-        next_obs, _ = env.reset()
-    
-    return next_obs, options
 
 
 class SyncCollector:
@@ -103,75 +80,11 @@ class SyncCollector:
             self.stop()
 
 
-class Commands(Enum):
-    CLOSE = "close"
-    UPDATE_WEIGHTS = "update_weights"
-    UPDATE_WEIGHTS_DONE = "update_weights_done"
-    ERROR = "error"
-    READY = "ready"
-
-
-@dataclass
-class CollectorError:
-    type: str
-    message: str
-    traceback: str
-
-
-def _collector_worker(
-    buffer: ReplayBuffer,
-    env_factory: Callable[[], TorchEnvWrapper],
-    policy_factory: Callable[[], Policy],
-    command_pipe: Connection,
-    shared_state_dict: dict,
-    seed: Optional[int] = None,
-):
-    try:
-        if seed is not None:
-            from nn_laser_stabilizer.seed import set_seeds
-            set_seeds(seed)
-
-        env = env_factory()
-        
-        policy = policy_factory()
-        policy.eval()
-        policy.warmup(env.observation_space)
-
-        command_pipe.send((Commands.READY.value, None))
-
-        obs, _ = env.reset()
-        options = {}
-        
-        while True:
-            if command_pipe.poll():
-                command, _ = command_pipe.recv()
-                if command == Commands.UPDATE_WEIGHTS.value:
-                    policy.load_state_dict(shared_state_dict)
-                    command_pipe.send((Commands.UPDATE_WEIGHTS_DONE.value, None))
-                elif command == Commands.CLOSE.value:
-                    break
-                else:
-                    raise ValueError(f"Unknown command received: {command}") 
-            
-            obs, options = _collect_step(policy, env, obs, buffer, options)
-                
-    except KeyboardInterrupt:
-        pass
-
-    except Exception as e:
-        error_info = CollectorError(
-            type=type(e).__name__,
-            message=str(e),
-            traceback=traceback.format_exc(),
-        )
-        command_pipe.send((Commands.ERROR.value, error_info))
-    
-    finally:
-        if env is not None:
-            env.close()
-
-
 class AsyncCollector:
+    READY_TIMEOUT_SEC = 600.0
+    WEIGHT_UPDATE_DONE_TIMEOUT_SEC = 10.0
+    PROCESS_JOIN_TIMEOUT_SEC = 5.0
+    
     def __init__(
         self,
         buffer: ReplayBuffer,
@@ -185,30 +98,10 @@ class AsyncCollector:
         self.policy = policy
         self.seed = seed
         
-        self._parent_pipe, self._child_pipe = mp.Pipe()
+        self._connection, self._child_connection = CollectorConnection.create_pair()
+        
         self._process: Optional[mp.Process] = None
         self._running = False
-        self._error: Optional[CollectorError] = None
-    
-    def _send_command(self, command: Commands, data=None) -> None:
-        self._parent_pipe.send((command.value, data))
-    
-    def _worker_has_errors(self) -> bool:
-        if self._parent_pipe.poll():
-            command, data = self._parent_pipe.recv()
-            if command == Commands.ERROR.value:
-                self._error = data
-                return True
-        return False
-    
-    def _raise_collector_error(self) -> None:  
-        if self._error is not None:
-            raise RuntimeError(
-                f"Collector process encountered an error: {self._error.type}: {self._error.message}\n"
-                f"Traceback from collector process:\n{self._error.traceback}"
-            )
-        else:
-            raise RuntimeError("Collector process encountered an error")
          
     def start(self) -> None:
         if self._running:
@@ -220,16 +113,13 @@ class AsyncCollector:
         shared_state_dict = self.policy.state_dict()
         policy_factory = partial(_policy_factory, policy=self.policy)
         
-        self._process = mp.Process(
-            target=_collector_worker,
-            args=(
-                self.buffer,
-                self.env_factory,
-                policy_factory,
-                self._child_pipe,
-                shared_state_dict,
-                self.seed,
-            ),
+        self._process = CollectorWorker(
+            buffer=self.buffer,
+            env_factory=self.env_factory,
+            policy_factory=policy_factory,
+            connection=self._child_connection,
+            shared_state_dict=shared_state_dict,
+            seed=self.seed,
             name="DataCollectorWorker",
         )
         self._process.start()
@@ -237,58 +127,47 @@ class AsyncCollector:
         if not self._process.is_alive():
             raise RuntimeError("Failed to start collector process")
 
-        if not self._parent_pipe.poll(timeout=600):
-            raise RuntimeError(f"Collector process did not send {Commands.READY} signal within timeout")
+        error = self._connection.wait_for_ready(timeout=AsyncCollector.READY_TIMEOUT_SEC)
+        if error is not None:
+            self._raise_worker_error(error)
         
-        command, data = self._parent_pipe.recv()
-        if command == Commands.READY.value:
-            self._running = True
-        elif command == Commands.ERROR.value:
-            self._error = data
-            self._raise_collector_error()
-        else:
-            raise ValueError(f"Unknown command received: {command}") 
+        self._running = True 
     
     def collect(self, num_steps: int, check_interval: float = 0.1) -> None:
         if not self._running:
             raise RuntimeError("Collector is not running")
         
         while len(self.buffer) < num_steps:
-            if self._worker_has_errors():
-                self._raise_collector_error()
+            error = self._connection.poll_worker_error(timeout=0.0)
+            if error is not None:
+                self._raise_worker_error(error)
             time.sleep(check_interval)
     
     def sync(self) -> None:
         if not self._running:
             raise RuntimeError("Collector is not running")
         
-        if self._worker_has_errors():
-            self._raise_collector_error()
+        error = self._connection.poll_worker_error(timeout=0.0)
+        if error is not None:
+            self._raise_worker_error(error)
         
-        self._send_command(Commands.UPDATE_WEIGHTS, None)
-        if not self._parent_pipe.poll(timeout=10):
-            raise RuntimeError("Collector process did not send UPDATE_WEIGHTS_DONE signal within timeout")
-        
-        command, data = self._parent_pipe.recv()
-        if command == Commands.UPDATE_WEIGHTS_DONE.value:
-            pass
-        elif command == Commands.ERROR.value:
-            self._error = data
-            self._raise_collector_error()
-        else:
-            raise ValueError(f"Unknown command received: {command}")
+        self._connection.request_weight_update()
+        error = self._connection.wait_for_weight_update_done(timeout=AsyncCollector.WEIGHT_UPDATE_DONE_TIMEOUT_SEC)
+        if error is not None:
+            self._raise_worker_error(error)
     
     def stop(self) -> None:
         if not self._running:
             return
         
-        self._send_command(Commands.CLOSE, None) 
+        self._connection.send_shutdown()
         
-        if self._worker_has_errors():
-            self._raise_collector_error()
+        error = self._connection.wait_for_shutdown_complete(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
+        if error is not None:
+            self._raise_worker_error(error)
         
         if self._process is not None:
-            self._process.join(timeout=5.0)
+            self._process.join(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
             if self._process.is_alive():
                 self._process.terminate()
                 self._process.join()
@@ -306,3 +185,9 @@ class AsyncCollector:
     def __del__(self):
         if self._running:
             self.stop()
+
+    def _raise_worker_error(self, error: CollectorError) -> None:
+        raise RuntimeError(
+            f"Collector process encountered an error: {error.type}: {error.message}\n"
+            f"Traceback from collector process:\n{error.traceback}"
+        )
