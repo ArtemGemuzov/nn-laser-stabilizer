@@ -120,7 +120,6 @@ class AsyncCollector:
             connection=self._child_connection,
             shared_state_dict=shared_state_dict,
             seed=self.seed,
-            name="DataCollectorWorker",
         )
         self._process.start()
 

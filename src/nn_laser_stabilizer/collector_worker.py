@@ -9,7 +9,9 @@ from nn_laser_stabilizer.collector_connection import CollectorConnection
 from nn_laser_stabilizer.collector_utils import CollectorCommand, CollectorError, _collect_step
 
 
-class CollectorWorker(mp.Process): 
+class CollectorWorker: 
+    PROCESS_NAME = "DataCollectorWorker"
+    
     def __init__(
         self,
         buffer: ReplayBuffer,
@@ -18,17 +20,23 @@ class CollectorWorker(mp.Process):
         connection: CollectorConnection,
         shared_state_dict: dict,
         seed: Optional[int] = None,
-        name: str = "DataCollectorWorker",
     ):
-        super().__init__(name=name)
         self.buffer = buffer
         self.env_factory = env_factory
         self.policy_factory = policy_factory
         self.connection = connection
         self.shared_state_dict = shared_state_dict
         self.seed = seed
+        
+        self._process = mp.Process(target=self._run, name=CollectorWorker.PROCESS_NAME)
     
-    def run(self) -> None:
+    def start(self) -> None:
+        self._process.start()
+    
+    def is_alive(self) -> bool:
+        return self._process.is_alive()
+    
+    def _run(self) -> None:
         env = None
         try:
             if self.seed is not None:
@@ -70,8 +78,8 @@ class CollectorWorker(mp.Process):
                 env.close()
 
     def stop(self, timeout: Optional[float] = None) -> None:
-        self.join(timeout=timeout)
-        if self.is_alive():
-            self.terminate()
-            self.join()
+        self._process.join(timeout=timeout)
+        if self._process.is_alive():
+            self._process.terminate()
+            self._process.join()
 
