@@ -138,7 +138,7 @@ class AsyncCollector:
             raise RuntimeError("Collector is not running")
         
         while len(self.buffer) < num_steps:
-            error = self._connection.poll_worker_error(timeout=0.0)
+            error = self._connection.poll_worker_error()
             if error is not None:
                 self._raise_worker_error(error)
             time.sleep(check_interval)
@@ -147,7 +147,7 @@ class AsyncCollector:
         if not self._running:
             raise RuntimeError("Collector is not running")
         
-        error = self._connection.poll_worker_error(timeout=0.0)
+        error = self._connection.poll_worker_error()
         if error is not None:
             self._raise_worker_error(error)
         
