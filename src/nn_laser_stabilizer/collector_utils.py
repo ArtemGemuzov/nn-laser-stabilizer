@@ -20,18 +20,30 @@ class CollectorCommand(BaseEnum):
 
 
 @dataclass
-class CollectorError:
+class CollectorWorkerErrorInfo:
     type: str
     message: str
     traceback: str
     
     @staticmethod
-    def from_exception(exception: Exception) -> "CollectorError":
-        return CollectorError(
+    def from_exception(exception: Exception) -> "CollectorWorkerErrorInfo":
+        return CollectorWorkerErrorInfo(
             type=type(exception).__name__,
             message=str(exception),
             traceback=traceback.format_exc(),
         )
+    
+    def raise_exception(self) -> None:
+        raise CollectorWorkerError(self)
+
+
+class CollectorWorkerError(Exception):
+    def __init__(self, error: CollectorWorkerErrorInfo):
+        message = (
+            f"Collector worker process encountered an error: {error.type}: {error.message}\n"
+            f"Traceback from worker process:\n{error.traceback}"
+        )
+        super().__init__(message)
 
 
 def _collect_step(

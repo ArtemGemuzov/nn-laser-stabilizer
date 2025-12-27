@@ -10,7 +10,7 @@ from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.collector_worker import CollectorWorker
 from nn_laser_stabilizer.collector_connection import CollectorConnection
-from nn_laser_stabilizer.collector_utils import CollectorError, _collect_step
+from nn_laser_stabilizer.collector_utils import _collect_step
 
 
 def _policy_factory(policy : Policy):
@@ -126,9 +126,7 @@ class AsyncCollector:
         if not self._process.is_alive():
             raise RuntimeError("Failed to start collector process")
 
-        error = self._connection.wait_for_ready(timeout=AsyncCollector.READY_TIMEOUT_SEC)
-        if error is not None:
-            self._raise_worker_error(error)
+        self._connection.wait_for_ready(timeout=AsyncCollector.READY_TIMEOUT_SEC)
         
         self._running = True 
     
@@ -137,33 +135,26 @@ class AsyncCollector:
             raise RuntimeError("Collector is not running")
         
         while len(self.buffer) < num_steps:
-            error = self._connection.poll_worker_error()
-            if error is not None:
-                self._raise_worker_error(error)
+            self._connection.poll_worker_error()
             time.sleep(check_interval)
     
     def sync(self) -> None:
         if not self._running:
             raise RuntimeError("Collector is not running")
         
-        error = self._connection.poll_worker_error()
-        if error is not None:
-            self._raise_worker_error(error)
+        self._connection.poll_worker_error()
         
         self._connection.request_weight_update()
-        error = self._connection.wait_for_weight_update_done(timeout=AsyncCollector.WEIGHT_UPDATE_DONE_TIMEOUT_SEC)
-        if error is not None:
-            self._raise_worker_error(error)
+        self._connection.wait_for_weight_update_done(timeout=AsyncCollector.WEIGHT_UPDATE_DONE_TIMEOUT_SEC)
     
     def stop(self) -> None:
         if not self._running:
             return
         
+        self._connection.poll_worker_error()
+
         self._connection.send_shutdown()
-        
-        error = self._connection.wait_for_shutdown_complete(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
-        if error is not None:
-            self._raise_worker_error(error)
+        self._connection.wait_for_shutdown_complete(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
         
         if self._process is not None:
             self._process.stop(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
@@ -181,9 +172,3 @@ class AsyncCollector:
     def __del__(self):
         if self._running:
             self.stop()
-
-    def _raise_worker_error(self, error: CollectorError) -> None:
-        raise RuntimeError(
-            f"Collector process encountered an error: {error.type}: {error.message}\n"
-            f"Traceback from collector process:\n{error.traceback}"
-        )

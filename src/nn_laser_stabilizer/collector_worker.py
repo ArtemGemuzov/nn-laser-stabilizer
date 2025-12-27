@@ -6,7 +6,7 @@ from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.collector_connection import CollectorConnection
-from nn_laser_stabilizer.collector_utils import CollectorCommand, CollectorError, _collect_step
+from nn_laser_stabilizer.collector_utils import CollectorCommand, CollectorWorkerErrorInfo, _collect_step
 
 
 class CollectorWorker: 
@@ -70,7 +70,7 @@ class CollectorWorker:
             pass
 
         except Exception as e:
-            error_info = CollectorError.from_exception(e)
+            error_info = CollectorWorkerErrorInfo.from_exception(e)
             self.connection.send_worker_error(error_info)
         
         finally:
