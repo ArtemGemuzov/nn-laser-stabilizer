@@ -212,6 +212,7 @@ def create_connection(
     timeout: float = 0.1,
     baudrate: int = 115200,
 ) -> BaseConnection:
+    # TODO: возможен порт типа COM:1234
     if port.startswith("COM"):
         return COMConnection(
             port=port,
