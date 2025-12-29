@@ -4,6 +4,7 @@ import argparse
 import random
 import signal
 import math
+import time
 from typing import Optional
 
 from nn_laser_stabilizer.config import load_config, find_config_path
@@ -88,10 +89,12 @@ class PidServer:
         host: str,
         port: int,
         pid_simulator: PidSimulator,
+        delay: float = 0.0,
     ):
         self.host = host
         self.port = port
         self._pid_simulator = pid_simulator
+        self._delay = delay
         self.socket: Optional[socket.socket] = None
         self.client_socket: Optional[socket.socket] = None
         self.running = False
@@ -140,6 +143,9 @@ class PidServer:
                     response = PidProtocol.format_response(process_variable, control_output)
                     connection.send(response)
                     
+                    if self._delay > 0:
+                        time.sleep(self._delay)
+                    
                 except ConnectionError as e:
                     print("Client disconnected")
                     break
@@ -174,6 +180,12 @@ def main():
         required=True,
         help="Path to config file (e.g., 'pid_delta_tuning')"
     )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        help="Delay in seconds between sending responses (default: 0.0)"
+    )
     
     args = parser.parse_args()
     
@@ -197,6 +209,7 @@ def main():
         host=host,
         port=port,
         pid_simulator=pid_simulator,
+        delay=args.delay,
     )
     
     def signal_handler(sig, frame):
