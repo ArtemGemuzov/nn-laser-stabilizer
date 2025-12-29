@@ -191,7 +191,7 @@ class TCPConnection(BaseConnection):
             return
         
         try:
-            socket = net.socket(socket.AF_INET, socket.SOCK_STREAM)
+            socket = net.socket(net.AF_INET, net.SOCK_STREAM)
             socket.settimeout(self.timeout)
             socket.connect((self.host, self.port))
 
