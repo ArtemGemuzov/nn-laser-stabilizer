@@ -1,4 +1,4 @@
-from typing import Protocol, Union
+from typing import Protocol
 import warnings
 import socket
 
@@ -246,6 +246,22 @@ class TCPConnection(BaseConnection):
             return False
 
 
+def parse_tcp_port(port_str: str) -> tuple[str, int]:
+    if ":" not in port_str:
+        raise ValueError(f"Invalid TCP port format: '{port_str}'. Expected 'host:port' (e.g., 'localhost:8080')")
+    
+    host, port_str = port_str.rsplit(":", 1)
+    if not host:
+        raise ValueError(f"Invalid host in TCP port: '{port_str}'. Host cannot be empty")
+    
+    try:
+        port = int(port_str)
+    except ValueError:
+        raise ValueError(f"Invalid TCP port number in '{port_str}': '{port_str}' is not a valid integer")
+    
+    return host, port
+
+
 def create_connection(
     port: str,
     timeout: float = 0.1,
@@ -258,18 +274,10 @@ def create_connection(
             baudrate=baudrate,
         )
     
-    if ":" in port:
-        host, port_str = port.rsplit(":", 1)
-        try:
-            tcp_port = int(port_str)
-        except ValueError:
-            raise ValueError(f"Invalid TCP port number in '{port}': '{port_str}' is not a valid integer")
-        
-        return TCPConnection(
-                host=host,
-                port=tcp_port,
-                timeout=timeout,
-            )
-    
-    raise ValueError(f"Invalid port format: '{port}'. Expected COM port (e.g., 'COM1'), TCP address (e.g., 'localhost:8080')")
-        
+    host, tcp_port = parse_tcp_port(port)
+    return TCPConnection(
+        host=host,
+        port=tcp_port,
+        timeout=timeout,
+    )
+      
