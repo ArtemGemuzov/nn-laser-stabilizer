@@ -74,10 +74,6 @@ class SyncCollector:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
-    
-    def __del__(self):
-        if self._env is not None:
-            self.stop()
 
 
 class AsyncCollector:
@@ -168,7 +164,4 @@ class AsyncCollector:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
-    
-    def __del__(self):
-        if self._running:
-            self.stop()
+        
