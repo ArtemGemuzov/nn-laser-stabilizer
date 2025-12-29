@@ -10,7 +10,7 @@ from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.collector_worker import CollectorWorker
 from nn_laser_stabilizer.collector_connection import CollectorConnection
-from nn_laser_stabilizer.collector_utils import _collect_step
+from nn_laser_stabilizer.collector_utils import _collect_step, CollectorWorkerError
 
 
 def _policy_factory(policy : Policy):
@@ -165,7 +165,7 @@ class AsyncCollector:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is KeyboardInterrupt:
+        if exc_type is KeyboardInterrupt or CollectorWorkerError:
             self.stop(wait_for_shutdown=False)
         else:
             self.stop(wait_for_shutdown=True)
