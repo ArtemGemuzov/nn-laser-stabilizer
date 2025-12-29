@@ -132,7 +132,6 @@ class SocketConnection(BaseConnection):
                         )
                         continue
                 
-                # TODO: так ли это
                 raw_data = self._socket.recv(self.RECV_BUFFER_SIZE)
                 if not raw_data:
                     raise ConnectionError("Socket connection closed by peer")
@@ -196,7 +195,7 @@ class TCPConnection(BaseConnection):
             socket.settimeout(self.timeout)
             socket.connect((self.host, self.port))
 
-            self._socket_connection = SocketConnection(self._socket)
+            self._socket_connection = SocketConnection(socket)
         except net.error as ex:
             raise ConnectionError(f"Error connecting to {self.host}:{self.port}") from ex
         except Exception as ex:
