@@ -1,5 +1,6 @@
-from typing import Protocol
+from typing import Protocol, Union
 import warnings
+import socket
 
 import serial
 
@@ -146,4 +147,129 @@ class MockSerialConnection(BaseConnection):
     def _check_connected(self) -> None:
         if not self.is_connected:
             raise ConnectionError("Serial connection is not open.")
+
+
+class TCPConnection(BaseConnection):
+    RECV_BUFFER_SIZE = 4096
+    
+    def __init__(self,
+                 host: str = "localhost",
+                 port: int = 8080,
+                 timeout: float = 0.1):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        
+        self._socket: socket.socket = None
+        self._buffer = b""
+
+    def open(self):
+        if self._is_open():
+            return
+        
+        try:
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._socket.settimeout(self.timeout)
+            self._socket.connect((self.host, self.port))
+        except socket.error as ex:
+            raise ConnectionError(f"Error connecting to {self.host}:{self.port}") from ex
+        except Exception as ex:
+            raise ConnectionError(f"Error initializing TCP connection") from ex
+
+    def close(self):
+        if self._is_open():
+            self._socket.close()
+
+        self._socket = None
+        self._buffer = b""
+
+    def read(self) -> str:
+        self._check_connected()
+        
+        while True:
+            try:
+                if b"\n" in self._buffer:
+                    line, self._buffer = self._buffer.split(b"\n", 1)
+                    try:
+                        data = line.decode("utf-8")
+                        if data:
+                            return data
+                    except UnicodeDecodeError as e:
+                        warnings.warn(
+                            f"Failed to decode data from TCP socket: {e}. "
+                            f"Raw data: {line!r}. Retrying...",
+                            RuntimeWarning,
+                            stacklevel=2
+                        )
+                        continue
+                
+                raw_data = self._socket.recv(self.RECV_BUFFER_SIZE)
+                if not raw_data:
+                    raise ConnectionError("TCP connection closed by peer")
+                
+                self._buffer += raw_data
+                
+            except socket.timeout:
+                continue
+            except socket.error as e:
+                warnings.warn(
+                    f"Error reading from TCP socket: {e}. Retrying...",
+                    RuntimeWarning,
+                    stacklevel=2
+                )
+                continue
+            except Exception as e:
+                warnings.warn(
+                    f"Unexpected error reading from TCP socket: {e}. Retrying...",
+                    RuntimeWarning,
+                    stacklevel=2
+                )
+                continue
+    
+    def send(self, data: str):
+        self._check_connected()
+        
+        encoded_data = data.encode('utf-8')
+        self._socket.sendall(encoded_data)
+
+    def _check_connected(self) -> None:
+        if not self._is_open():
+            raise ConnectionError("TCP connection is not open.")
+
+    def _is_open(self) -> bool:
+        if self._socket is None:
+            return False
+        
+        try:
+            return self._socket.fileno() != -1
+        except (socket.error, OSError):
+            return False
+
+
+def create_connection(
+    port: str,
+    timeout: float = 0.1,
+    baudrate: int = 115200,
+) -> BaseConnection:
+    if port.startswith("COM"):
+        return COMConnection(
+            port=port,
+            timeout=timeout,
+            baudrate=baudrate,
+        )
+    
+    if ":" in port:
+        host, port_str = port.rsplit(":", 1)
+        try:
+            tcp_port = int(port_str)
+        except ValueError:
+            raise ValueError(f"Invalid TCP port number in '{port}': '{port_str}' is not a valid integer")
+        
+        return TCPConnection(
+                host=host,
+                port=tcp_port,
+                timeout=timeout,
+            )
+    
+    raise ValueError(f"Invalid port format: '{port}'. Expected COM port (e.g., 'COM1'), TCP address (e.g., 'localhost:8080')")
         

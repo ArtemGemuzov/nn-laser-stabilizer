@@ -7,7 +7,7 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.plant import Plant
 from nn_laser_stabilizer.logger import AsyncFileLogger
-from nn_laser_stabilizer.connection import COMConnection, MockSerialConnection
+from nn_laser_stabilizer.connection import MockSerialConnection, create_connection
 from nn_laser_stabilizer.pid import ConnectionToPid, TestConnectionToPid, LoggingConnectionToPid
 
 
@@ -100,7 +100,7 @@ class PidDeltaTuningEnv(gym.Env):
                 setpoint=setpoint,
             )
         else:
-            connection = COMConnection(
+            connection = create_connection(
                 port=port,
                 timeout=timeout,
                 baudrate=baudrate,
