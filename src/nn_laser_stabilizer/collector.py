@@ -44,8 +44,7 @@ class SyncCollector:
         self._running = True
     
     def collect(self, num_steps: int) -> None:
-        if not self._running:
-            raise RuntimeError("Collector is not running")
+        self._check_running()
         
         for _ in range(num_steps):
             self._cur_obs, self._options = _collect_step(
@@ -74,6 +73,10 @@ class SyncCollector:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
+
+    def _check_running(self) -> None:
+        if not self._running:
+            raise RuntimeError("Collector is not running")
 
 
 class AsyncCollector:
@@ -127,16 +130,14 @@ class AsyncCollector:
         self._running = True 
     
     def collect(self, num_steps: int, check_interval: float = 0.1) -> None:
-        if not self._running:
-            raise RuntimeError("Collector is not running")
+        self._check_running()
         
         while len(self.buffer) < num_steps:
             self._connection.poll_worker_error()
             time.sleep(check_interval)
     
     def sync(self) -> None:
-        if not self._running:
-            raise RuntimeError("Collector is not running")
+        self._check_running()
         
         self._connection.poll_worker_error()
         
@@ -164,4 +165,8 @@ class AsyncCollector:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
+
+    def _check_running(self) -> None:
+        if not self._running:
+            raise RuntimeError("Collector is not running")
         
