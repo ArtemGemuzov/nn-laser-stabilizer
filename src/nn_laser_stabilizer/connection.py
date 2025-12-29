@@ -1,6 +1,6 @@
 from typing import Protocol
 import warnings
-import socket
+import socket as net
 
 import serial
 
@@ -92,42 +92,26 @@ class COMConnection(BaseConnection):
 
     def _is_open(self) -> bool:
         return self._serial_connection is not None and self._serial_connection.is_open
-        
 
-class TCPConnection(BaseConnection):
+
+class SocketConnection(BaseConnection):
     RECV_BUFFER_SIZE = 4096
     
-    def __init__(self,
-                 host: str = "localhost",
-                 port: int = 8080,
-                 timeout: float = 0.1):
-        self.host = host
-        self.port = port
-        self.timeout = timeout
-        
-        self._socket: socket.socket = None
+    def __init__(self, sock: net.socket):
+        self._socket = sock
         self._buffer = b""
-
-    def open(self):
-        if self._is_open():
-            return
-        
-        try:
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.settimeout(self.timeout)
-            self._socket.connect((self.host, self.port))
-        except socket.error as ex:
-            raise ConnectionError(f"Error connecting to {self.host}:{self.port}") from ex
-        except Exception as ex:
-            raise ConnectionError(f"Error initializing TCP connection") from ex
-
-    def close(self):
+    
+    def open(self) -> None:
+        """Сокет уже открыт, ничего не делаем."""
+        pass
+    
+    def close(self) -> None:
         if self._is_open():
             self._socket.close()
 
         self._socket = None
         self._buffer = b""
-
+    
     def read(self) -> str:
         self._check_connected()
         
@@ -141,7 +125,7 @@ class TCPConnection(BaseConnection):
                             return data
                     except UnicodeDecodeError as e:
                         warnings.warn(
-                            f"Failed to decode data from TCP socket: {e}. "
+                            f"Failed to decode data from socket: {e}. "
                             f"Raw data: {line!r}. Retrying...",
                             RuntimeWarning,
                             stacklevel=2
@@ -150,45 +134,92 @@ class TCPConnection(BaseConnection):
                 
                 raw_data = self._socket.recv(self.RECV_BUFFER_SIZE)
                 if not raw_data:
-                    raise ConnectionError("TCP connection closed by peer")
+                    raise ConnectionError("Socket connection closed by peer")
                 
                 self._buffer += raw_data
                 
-            except socket.timeout:
+            except net.timeout:
                 continue
-            except socket.error as e:
+            except net.error as e:
                 warnings.warn(
-                    f"Error reading from TCP socket: {e}. Retrying...",
+                    f"Error reading from socket: {e}. Retrying...",
                     RuntimeWarning,
                     stacklevel=2
                 )
                 continue
             except Exception as e:
                 warnings.warn(
-                    f"Unexpected error reading from TCP socket: {e}. Retrying...",
+                    f"Unexpected error reading from socket: {e}. Retrying...",
                     RuntimeWarning,
                     stacklevel=2
                 )
                 continue
     
-    def send(self, data: str):
+    def send(self, data: str) -> None:
         self._check_connected()
         
         encoded_data = data.encode('utf-8')
         self._socket.sendall(encoded_data)
-
+    
     def _check_connected(self) -> None:
         if not self._is_open():
-            raise ConnectionError("TCP connection is not open.")
-
+            raise ConnectionError("Socket connection is not open.")
+    
     def _is_open(self) -> bool:
         if self._socket is None:
             return False
         
         try:
             return self._socket.fileno() != -1
-        except (socket.error, OSError):
+        except (net.error, OSError):
             return False
+        
+
+class TCPConnection(BaseConnection):
+    def __init__(self,
+                 host: str = "localhost",
+                 port: int = 8080,
+                 timeout: float = 0.1):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        
+        self._socket_connection: SocketConnection | None = None
+
+    def open(self):
+        if self._is_open():
+            return
+        
+        try:
+            socket = net.socket(socket.AF_INET, socket.SOCK_STREAM)
+            socket.settimeout(self.timeout)
+            socket.connect((self.host, self.port))
+
+            self._socket_connection = SocketConnection(self._socket)
+        except net.error as ex:
+            raise ConnectionError(f"Error connecting to {self.host}:{self.port}") from ex
+        except Exception as ex:
+            raise ConnectionError(f"Error initializing TCP connection") from ex
+
+    def close(self):
+        if self._socket_connection is not None:
+            self._socket_connection.close()
+        self._socket_connection = None
+
+    def read(self) -> str:
+        self._check_connected()
+        return self._socket_connection.read()
+    
+    def send(self, data: str):
+        self._check_connected()
+        self._socket_connection.send(data)
+
+    def _check_connected(self) -> None:
+        if self._socket_connection is None:
+            raise ConnectionError("TCP connection is not open.")
+
+    def _is_open(self) -> bool:
+        return self._socket_connection is not None
 
 
 def parse_tcp_port(port_str: str) -> tuple[str, int]:
