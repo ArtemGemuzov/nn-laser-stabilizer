@@ -89,11 +89,12 @@ class PidDeltaTuningEnv(gym.Env):
         )
         pid_connection = ConnectionToPid(connection=connection)
         
-        self._connection_logger: Optional[AsyncFileLogger] = None
         if log_connection:
-            # TODO: убрать это поле
-            self._connection_logger = AsyncFileLogger(log_dir=connection_log_dir, log_file=connection_log_file)
-            pid_connection = LoggingConnectionToPid(connection_to_pid=pid_connection, logger=self._connection_logger)
+            pid_connection = LoggingConnectionToPid(
+                connection_to_pid=pid_connection,
+                log_dir=connection_log_dir,
+                log_file=connection_log_file,
+            )
         
         self.plant = Plant(
             pid_connection=pid_connection,
@@ -244,8 +245,6 @@ class PidDeltaTuningEnv(gym.Env):
     def close(self) -> None:
         self.plant.close()
         self.logger.close()
-        if self._connection_logger is not None:
-            self._connection_logger.close()
 
 
 class PendulumNoVelEnv(gym.Env):
