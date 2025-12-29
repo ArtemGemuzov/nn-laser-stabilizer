@@ -1,0 +1,221 @@
+import socket
+import sys
+import argparse
+import random
+import signal
+import math
+from typing import Optional
+
+from nn_laser_stabilizer.config import load_config, find_config_path
+from nn_laser_stabilizer.pid_protocol import PidProtocol
+from nn_laser_stabilizer.connection import parse_tcp_port, SocketConnection
+
+
+class PidSimulator:
+    MAX_DISTANCE = 20.0
+    NOISE_STD = 30.0
+    
+    def __init__(
+        self,
+        setpoint: float,
+        kp_min: float,
+        kp_max: float,
+        ki_min: float,
+        ki_max: float,
+        kd_min: float,
+        kd_max: float,
+    ):
+        self._setpoint = setpoint
+        self._kp_min = kp_min
+        self._kp_max = kp_max
+        self._ki_min = ki_min
+        self._ki_max = ki_max
+        self._kd_min = kd_min
+        self._kd_max = kd_max
+        
+        self._optimal_kp = self._kp_min + (self._kp_max - self._kp_min) * 0.75
+        self._optimal_ki = self._ki_min + (self._ki_max - self._ki_min) * 0.75
+        self._optimal_kd = self._kd_min + (self._kd_max - self._kd_min) * 0.75
+    
+    def step(
+        self,
+        kp: float,
+        ki: float,
+        kd: float,
+        control_min: float,
+        control_max: float,
+    ) -> tuple[float, float]:
+        distance = math.sqrt(
+            (kp - self._optimal_kp) ** 2 + 
+            (ki - self._optimal_ki) ** 2 +
+            (kd - self._optimal_kd) ** 2
+        )
+        
+        closeness = max(0.0, 1.0 - min(distance, self.MAX_DISTANCE) / self.MAX_DISTANCE)
+        
+        random_component = random.randint(0, 2000)
+        noise = random.gauss(0, self.NOISE_STD)
+        process_variable = (
+            closeness * self._setpoint + 
+            (1.0 - closeness) * random_component + 
+            noise
+        )
+        
+        process_variable = int(max(0, min(2000, round(process_variable))))
+        control_output = random.randint(int(control_min), int(control_max))
+        return float(process_variable), float(control_output)
+    
+    @property
+    def setpoint(self) -> float:
+        return self._setpoint
+    
+    @property
+    def optimal_kp(self) -> float:
+        return self._optimal_kp
+    
+    @property
+    def optimal_ki(self) -> float:
+        return self._optimal_ki
+    
+    @property
+    def optimal_kd(self) -> float:
+        return self._optimal_kd
+
+
+class PidServer:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        pid_simulator: PidSimulator,
+    ):
+        self.host = host
+        self.port = port
+        self._pid_simulator = pid_simulator
+        self.socket: Optional[socket.socket] = None
+        self.client_socket: Optional[socket.socket] = None
+        self.running = False
+        
+    def start(self):
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
+        try:
+            self.socket.bind((self.host, self.port))
+            self.socket.listen(1)
+
+            print(f"Mock PID server listening on {self.host}:{self.port}")
+            print(f"Setpoint: {self._pid_simulator.setpoint}")
+            print(f"Optimal PID: kp={self._pid_simulator.optimal_kp:.3f}, ki={self._pid_simulator.optimal_ki:.3f}, kd={self._pid_simulator.optimal_kd:.6f}")
+            print("Waiting for connection...")
+            
+            self.running = True
+            self.client_socket, address = self.socket.accept()
+            print(f"Client connected from {address}")
+            self._handle_client()
+        finally:
+            self._cleanup()
+    
+    
+    def _handle_client(self):
+        connection = SocketConnection(self.client_socket)
+        
+        try:
+            while self.running:
+                try:
+                    command = connection.read()
+                    if not command:
+                        continue
+                    
+                    kp, ki, kd, control_min, control_max = PidProtocol.parse_command(command)
+            
+                    process_variable, control_output = self._pid_simulator.step(
+                        kp=kp,
+                        ki=ki,
+                        kd=kd,
+                        control_min=control_min,
+                        control_max=control_max,
+                    )
+                    
+                    response = PidProtocol.format_response(process_variable, control_output)
+                    connection.send(response)
+                    
+                except ConnectionError as e:
+                    print("Client disconnected")
+                    break
+                except Exception as e:
+                    print(f"Error handling client: {e}")
+                    break
+                    
+        except Exception as e:
+            print(f"Error in client handler: {e}")
+        finally:
+            connection.close()
+            self.client_socket = None
+    
+    def stop(self):
+        self.running = False
+        if self.socket:
+            self.socket.close()
+    
+    def _cleanup(self):
+        if self.client_socket:
+            self.client_socket.close()
+        if self.socket:
+            self.socket.close()
+        print("Server stopped")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Mock PID server for testing")
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="Path to config file (e.g., 'pid_delta_tuning')"
+    )
+    
+    args = parser.parse_args()
+    
+    config_path = find_config_path(args.config)
+    config = load_config(config_path)
+    
+    env_args = config.env.args
+    host, port = parse_tcp_port(str(env_args.port))
+    
+    pid_simulator = PidSimulator(
+        setpoint=env_args.setpoint,
+        kp_min=env_args.kp_min,
+        kp_max=env_args.kp_max,
+        ki_min=env_args.ki_min,
+        ki_max=env_args.ki_max,
+        kd_min=env_args.kd_min,
+        kd_max=env_args.kd_max,
+    )
+    
+    server = PidServer(
+        host=host,
+        port=port,
+        pid_simulator=pid_simulator,
+    )
+    
+    def signal_handler(sig, frame):
+        print("\nShutting down server...")
+        server.stop()
+        sys.exit()
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        server.start()
+    except KeyboardInterrupt:
+        signal_handler(None, None)
+    except Exception as e:
+        print(f"Server error: {e}")
+        server.stop()
+
+
+if __name__ == "__main__":
+    main()
+
