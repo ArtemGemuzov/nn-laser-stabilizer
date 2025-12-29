@@ -1,9 +1,0 @@
-defaults:
-  - train_async
-  - _self_
-
-experiment_name: td3_train_async_test
-
-serial:
-  use_mock: true 
-

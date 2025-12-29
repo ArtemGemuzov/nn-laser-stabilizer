@@ -1,9 +1,0 @@
-defaults:
-  - inference_async
-  - _self_
-
-experiment_name: td3_inference_async_test
-
-serial:
-  use_mock: true 
-
