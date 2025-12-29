@@ -3,6 +3,7 @@ from pathlib import Path
 import time
 
 import numpy as np
+
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.sampler import make_sampler_from_config
 from nn_laser_stabilizer.collector import AsyncCollector, SyncCollector
@@ -127,6 +128,29 @@ def main(context: ExperimentContext):
             env=collector_env,
             policy=policy,
         )
+
+    num_steps = context.config.training.num_steps
+    infinite_steps = num_steps == -1
+    
+    log_frequency = context.config.training.log_frequency
+    logging_enabled = log_frequency > 0
+
+    validation_frequency = context.config.validation.frequency
+    validation_num_steps = context.config.validation.num_steps
+    validation_enabled = validation_num_steps > 0 and validation_frequency > 0
+
+    testing_num_steps = context.config.testing.num_steps
+    testing_enabled = testing_num_steps > 0
+
+    env_config = context.config.env
+    policy_freq = context.config.training.policy_freq
+
+    if is_async:
+        sync_frequency = context.config.collector.sync_frequency
+    else:
+        collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
+
+    initial_collect_steps = context.config.training.initial_collect_steps
     
     with collector:
         try:
@@ -135,33 +159,12 @@ def main(context: ExperimentContext):
             else:
                 context.logger.log("Collector started. Initial data collection...")
             
-            collector.collect(context.config.training.initial_collect_steps)
+            collector.collect(initial_collect_steps)
             
             if not is_async:
                 context.logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
             
             context.logger.log("Training started")
-            
-            num_steps = context.config.training.num_steps
-            infinite_steps = num_steps == -1
-            
-            log_frequency = context.config.training.log_frequency
-            logging_enabled = log_frequency > 0
-
-            validation_frequency = context.config.validation.frequency
-            validation_num_steps = context.config.validation.num_steps
-            validation_enabled = validation_num_steps > 0 and validation_frequency > 0
-    
-            testing_num_steps = context.config.testing.num_steps
-            testing_enabled = testing_num_steps > 0
-
-            env_config = context.config.env
-            policy_freq = context.config.training.policy_freq
-            
-            if is_async:
-                sync_frequency = context.config.collector.sync_frequency
-            else:
-                collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
 
             step = 0
             while infinite_steps or step < num_steps:
