@@ -132,6 +132,7 @@ class SocketConnection(BaseConnection):
                         )
                         continue
                 
+                # TODO: так ли это
                 raw_data = self._socket.recv(self.RECV_BUFFER_SIZE)
                 if not raw_data:
                     raise ConnectionError("Socket connection closed by peer")
