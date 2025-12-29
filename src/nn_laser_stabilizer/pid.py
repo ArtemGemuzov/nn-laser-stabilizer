@@ -2,6 +2,7 @@ from typing import Protocol
 
 from nn_laser_stabilizer.connection import BaseConnection
 from nn_laser_stabilizer.logger import AsyncFileLogger
+from nn_laser_stabilizer.pid_protocol import PidProtocol
 
 
 class BaseConnectionToPid(Protocol):  
@@ -42,9 +43,6 @@ class ConnectionToPid(BaseConnectionToPid):
     def close(self) -> None:
         self._connection.close()
 
-    def _format_command(self, *, kp: float, ki: float, kd: float, control_min: int, control_max: int) -> str:
-        return f"{kp:.3f} {ki:.3f} {kd:.6f} {control_min:.1f} {control_max:.1f}\n" 
-
     def send_command(
         self,
         *,
@@ -54,18 +52,12 @@ class ConnectionToPid(BaseConnectionToPid):
         control_min: int,
         control_max: int,
     ) -> None:
-        command = self._format_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
+        command = PidProtocol.format_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
         self._connection.send(command)
-
-    def _parse_response(self, raw: str) -> tuple[float, float]:
-        parts = raw.strip().split()
-        if len(parts) != 2:
-            raise ValueError(f"Invalid PID response format: {repr(raw)}")
-        return float(parts[0]), float(parts[1])
 
     def read_response(self) -> tuple[float, float]:
         raw = self._connection.read()
-        return self._parse_response(raw)
+        return PidProtocol.parse_response(raw)
 
     def exchange(
         self,
