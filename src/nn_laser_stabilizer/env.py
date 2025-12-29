@@ -7,8 +7,8 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.plant import Plant
 from nn_laser_stabilizer.logger import AsyncFileLogger
-from nn_laser_stabilizer.connection import MockSerialConnection, create_connection
-from nn_laser_stabilizer.pid import ConnectionToPid, TestConnectionToPid, LoggingConnectionToPid
+from nn_laser_stabilizer.connection import create_connection
+from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
 
 
 class PidDeltaTuningEnv(gym.Env):  
@@ -17,7 +17,6 @@ class PidDeltaTuningEnv(gym.Env):
     def __init__(
         self,
         # Параметры для соединения
-        use_mock: bool,
         port: str,
         timeout: float,
         baudrate: int,
@@ -83,34 +82,16 @@ class PidDeltaTuningEnv(gym.Env):
         self._stability_weight = stability_weight
         self._action_weight = action_weight
         
-        if use_mock:
-            connection = MockSerialConnection(
-                port=port,
-                timeout=timeout,
-                baudrate=baudrate
-            )
-            pid_connection = TestConnectionToPid(
-                connection=connection,
-                kp_min=kp_min,
-                kp_max=kp_max,
-                ki_min=ki_min,
-                ki_max=ki_max,
-                kd_min=kd_min,
-                kd_max=kd_max,
-                setpoint=setpoint,
-            )
-        else:
-            connection = create_connection(
-                port=port,
-                timeout=timeout,
-                baudrate=baudrate,
-            )
-            pid_connection = ConnectionToPid(connection=connection)
+        connection = create_connection(
+            port=port,
+            timeout=timeout,
+            baudrate=baudrate,
+        )
+        pid_connection = ConnectionToPid(connection=connection)
         
         self._connection_logger: Optional[AsyncFileLogger] = None
         if log_connection:
-            if connection_log_dir is None:
-                connection_log_dir = log_dir
+            # TODO: убрать это поле
             self._connection_logger = AsyncFileLogger(log_dir=connection_log_dir, log_file=connection_log_file)
             pid_connection = LoggingConnectionToPid(connection_to_pid=pid_connection, logger=self._connection_logger)
         

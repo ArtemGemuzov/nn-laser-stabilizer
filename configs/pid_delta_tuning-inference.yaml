@@ -10,7 +10,6 @@ inference:
 env:
   name: PidDeltaTuningEnv
   args:
-    use_mock: false
     port: COM3
     timeout: 0.1
     baudrate: 115200

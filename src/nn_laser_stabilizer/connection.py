@@ -94,61 +94,6 @@ class COMConnection(BaseConnection):
         return self._serial_connection is not None and self._serial_connection.is_open
         
 
-class MockSerialConnection(BaseConnection):   
-    def __init__(self,
-                 port: str,
-                 timeout: float = 0.1,
-                 baudrate: int = 115200,
-                 bytesize: int = serial.EIGHTBITS,
-                 parity: str = serial.PARITY_NONE,
-                 stopbits: int = serial.STOPBITS_ONE):
-        self.port = port  # используется как имя файла для записи
-        self.timeout = timeout
-        self.baudrate = baudrate
-        self.bytesize = bytesize
-        self.parity = parity
-        self.stopbits = stopbits
-        self.is_connected = False
-
-        log_filename = f"mock_{self.port}.log"
-        self._log_file = open(log_filename, 'a', encoding='utf-8')
-        self._log_file.write(f"Mock serial connection opened")
-
-        self._read_count = 0
-        self._send_count = 0
-
-    def open(self):
-        if self.is_connected:
-            return
-        
-        self.is_connected = True
-        self._log_file.write(f"Mock serial connection opened")
-      
-    def close(self):
-        if self.is_connected and self._log_file:
-            self._log_file.write("Mock serial connection closed.")
-        if self._log_file:
-            self._log_file.close()
-            self._log_file = None
-        self.is_connected = False
-
-    def read(self) -> str:
-        self._check_connected()
-
-        return "0 0"
-
-    def send(self, data: str):
-        self._check_connected()
-
-        self._send_count += 1
-        self._log_file.write(f"#{self._send_count} >> {repr(data)}\n")
-        self._log_file.flush()
-
-    def _check_connected(self) -> None:
-        if not self.is_connected:
-            raise ConnectionError("Serial connection is not open.")
-
-
 class TCPConnection(BaseConnection):
     RECV_BUFFER_SIZE = 4096
     
