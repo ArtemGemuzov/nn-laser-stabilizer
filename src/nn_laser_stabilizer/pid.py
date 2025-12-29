@@ -94,14 +94,10 @@ class LoggingConnectionToPid(BaseConnectionToPid):
         self._logger = logger
     
     def open(self) -> None:
-        self._logger.log("OPEN: Opening connection to PID controller")
         self._pid.open()
-        self._logger.log("OPEN: Connection opened successfully")
     
     def close(self) -> None:
-        self._logger.log("CLOSE: Closing connection to PID controller")
         self._pid.close()
-        self._logger.log("CLOSE: Connection closed successfully")
     
     def send_command(
         self,
