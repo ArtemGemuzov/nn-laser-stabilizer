@@ -144,14 +144,15 @@ class AsyncCollector:
         self._connection.request_weight_update()
         self._connection.wait_for_weight_update_done(timeout=AsyncCollector.WEIGHT_UPDATE_DONE_TIMEOUT_SEC)
     
-    def stop(self) -> None:
+    def stop(self, wait_for_shutdown: bool = True) -> None:
         if not self._running:
             return
         
         self._connection.poll_worker_error()
 
         self._connection.send_shutdown()
-        self._connection.wait_for_shutdown_complete(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
+        if wait_for_shutdown:
+            self._connection.wait_for_shutdown_complete(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
         
         if self._process is not None:
             self._process.stop(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
@@ -164,7 +165,10 @@ class AsyncCollector:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop()
+        if exc_type is KeyboardInterrupt:
+            self.stop(wait_for_shutdown=False)
+        else:
+            self.stop(wait_for_shutdown=True)
 
     def _check_running(self) -> None:
         if not self._running:
