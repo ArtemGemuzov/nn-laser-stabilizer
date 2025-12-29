@@ -243,7 +243,21 @@ def create_connection(
     timeout: float = 0.1,
     baudrate: int = 115200,
 ) -> BaseConnection:
-    # TODO: возможен порт типа COM:1234
+    if port.startswith("COM") and ":" in port:
+        raise ValueError(
+            f"Ambiguous port format: '{port}'. "
+            f"Cannot determine if this is a COM port or TCP port. "
+            f"Use 'COM1', 'COM3' for COM ports or 'host:port' (e.g., 'localhost:8080') for TCP ports"
+        )
+    
+    if ":" in port:
+        host, tcp_port = parse_tcp_port(port)
+        return TCPConnection(
+            host=host,
+            port=tcp_port,
+            timeout=timeout,
+        )
+    
     if port.startswith("COM"):
         return COMConnection(
             port=port,
@@ -251,10 +265,8 @@ def create_connection(
             baudrate=baudrate,
         )
     
-    host, tcp_port = parse_tcp_port(port)
-    return TCPConnection(
-        host=host,
-        port=tcp_port,
-        timeout=timeout,
+    raise ValueError(
+        f"Invalid port format: '{port}'. "
+        f"Expected COM port (e.g., 'COM1', 'COM3') or TCP port (e.g., 'localhost:8080')"
     )
       
