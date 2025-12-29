@@ -29,7 +29,7 @@ class COMConnection(BaseConnection):
         self._serial_connection : serial.Serial = None
 
     def open(self):
-        if self._serial_connection is not None:
+        if self._is_open():
             return
         
         try:
@@ -47,12 +47,9 @@ class COMConnection(BaseConnection):
             raise ConnectionError("Error initializing serial connection") from ex
 
     def close(self):
-        if self._serial_connection is not None and self._serial_connection.is_open:
+        if self._is_open():
             self._serial_connection.close()
-
-    def _check_connected(self) -> None:
-        if not self._serial_connection or not self._serial_connection.is_open:
-            raise ConnectionError("Serial connection is not open.")
+        self._serial_connection = None
 
     def read(self) -> str:
         self._check_connected()
@@ -87,6 +84,13 @@ class COMConnection(BaseConnection):
         self._check_connected()
     
         self._serial_connection.write(data.encode('utf-8'))
+
+    def _check_connected(self) -> None:
+        if not self._is_open():
+            raise ConnectionError("Serial connection is not open.")
+
+    def _is_open(self) -> bool:
+        return self._serial_connection is not None and self._serial_connection.is_open
         
 
 class MockSerialConnection(BaseConnection):   
@@ -113,31 +117,33 @@ class MockSerialConnection(BaseConnection):
         self._send_count = 0
 
     def open(self):
+        if self.is_connected:
+            return
+        
         self.is_connected = True
         self._log_file.write(f"Mock serial connection opened")
       
     def close(self):
-        self.is_connected = False
-        self._log_file.write("Mock serial connection closed.")
+        if self.is_connected and self._log_file:
+            self._log_file.write("Mock serial connection closed.")
         if self._log_file:
             self._log_file.close()
             self._log_file = None
+        self.is_connected = False
 
     def read(self) -> str:
-        if not self.is_connected:
-            raise ConnectionError("Mock serial connection is not open.")
+        self._check_connected()
 
         return "0 0"
 
     def send(self, data: str):
-        if not self.is_connected:
-            raise ConnectionError("Mock serial connection is not open.")
+        self._check_connected()
 
         self._send_count += 1
         self._log_file.write(f"#{self._send_count} >> {repr(data)}\n")
         self._log_file.flush()
 
-    def __del__(self):
-        if self._log_file:
-            self._log_file.close()
-            self._log_file = None
+    def _check_connected(self) -> None:
+        if not self.is_connected:
+            raise ConnectionError("Serial connection is not open.")
+        

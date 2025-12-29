@@ -30,7 +30,6 @@ class Plant:
         kd_start: float = 0.0,
     ):
         self.pid_connection = pid_connection
-        self._connection_opened = False
         self._setpoint = setpoint
 
         self._kp_min = kp_min
@@ -128,9 +127,7 @@ class Plant:
         self._current_index = 0
     
     def reset(self) -> Tuple[np.ndarray, np.ndarray, float]:
-        if not self._connection_opened:
-            self.pid_connection.open()
-            self._connection_opened = True
+        self.pid_connection.open()
         
         for _ in range(self._warmup_steps):
             self.pid_connection.exchange(
