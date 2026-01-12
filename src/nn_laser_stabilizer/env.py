@@ -209,13 +209,13 @@ class PidDeltaTuningEnv(gym.Env):
         reward = self._compute_reward(observation, action_array)
         
         log_line = (
-            f"step={self._step} time={time.time():.6f} "
+            f"step={self._step} time={time.time()} "
             f"kp={self.plant.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
             f"ki={self.plant.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
             f"kd={self.plant.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
-            f"delta_kp_norm={action[0]:.4f} delta_ki_norm={action[1]:.4f} delta_kd_norm={action[2]:.4f} "
-            f"error_mean_norm={observation[0]:.4f} error_std_norm={observation[1]:.4f} "
-            f"reward={reward:.6f} should_reset={should_reset}"
+            f"delta_kp_norm={action[0]} delta_ki_norm={action[1]} delta_kd_norm={action[2]} "
+            f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
+            f"reward={reward} should_reset={should_reset}"
         )
         self.logger.log(log_line)   
 
@@ -236,11 +236,11 @@ class PidDeltaTuningEnv(gym.Env):
         )
         
         log_line = (
-            f"reset time={time.time():.6f} "
+            f"reset time={time.time()} "
             f"kp={self.plant.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
             f"ki={self.plant.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
             f"kd={self.plant.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
-            f"error_mean_norm={observation[0]:.4f} error_std_norm={observation[1]:.4f} "
+            f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
         )
         self.logger.log(log_line) 
 
