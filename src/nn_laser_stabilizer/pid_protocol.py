@@ -21,8 +21,8 @@ class PidProtocol:
             raise ValueError(f"Error parsing command values: {e}")
 
     @staticmethod
-    def format_response(process_variable: float, control_output: float) -> str:
-        return f"{process_variable:.6f} {control_output:.6f}\n"
+    def format_response(process_variable: int, control_output: int) -> str:
+        return f"{process_variable} {control_output}\n"
 
     @staticmethod
     def parse_response(response: str) -> tuple[float, float]:

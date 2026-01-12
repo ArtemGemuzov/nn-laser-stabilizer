@@ -45,7 +45,7 @@ class PidSimulator:
         kd: float,
         control_min: float,
         control_max: float,
-    ) -> tuple[float, float]:
+    ) -> tuple[int, int]:
         distance = math.sqrt(
             (kp - self._optimal_kp) ** 2 + 
             (ki - self._optimal_ki) ** 2 +
@@ -64,7 +64,7 @@ class PidSimulator:
         
         process_variable = int(max(0, min(2000, round(process_variable))))
         control_output = random.randint(int(control_min), int(control_max))
-        return float(process_variable), float(control_output)
+        return process_variable, control_output
     
     @property
     def setpoint(self) -> float:
