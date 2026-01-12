@@ -6,7 +6,7 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.box import Box
 from nn_laser_stabilizer.env import _CUSTOM_ENV_MAP
-from nn_laser_stabilizer.config import Config
+from nn_laser_stabilizer.experiment.config import Config
 
 
 class TorchEnvWrapper: 

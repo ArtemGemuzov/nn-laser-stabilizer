@@ -2,7 +2,7 @@ from typing import Tuple, Union
 
 import torch
 
-from nn_laser_stabilizer.config import Config
+from nn_laser_stabilizer.experiment.config import Config
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.types import SamplerType
 

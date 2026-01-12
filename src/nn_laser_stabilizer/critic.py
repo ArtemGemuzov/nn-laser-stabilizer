@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from nn_laser_stabilizer.model import Model
 from nn_laser_stabilizer.layers import build_mlp
-from nn_laser_stabilizer.config import Config
+from nn_laser_stabilizer.experiment.config import Config
 from nn_laser_stabilizer.types import NetworkType
 
 

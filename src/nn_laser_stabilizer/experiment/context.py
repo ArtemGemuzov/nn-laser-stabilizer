@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 import traceback
 
-from nn_laser_stabilizer.config import Config
+from nn_laser_stabilizer.experiment.config import Config
 from nn_laser_stabilizer.seed import set_seeds, generate_random_seed
 from nn_laser_stabilizer.logger import ConsoleLogger
 

@@ -5,8 +5,8 @@ from nn_laser_stabilizer.actor import load_actor_from_path
 from nn_laser_stabilizer.types import NetworkType
 from nn_laser_stabilizer.policy import DeterministicPolicy
 from nn_laser_stabilizer.env_wrapper import make_env_from_config
-from nn_laser_stabilizer.exp_decorator import experiment
-from nn_laser_stabilizer.exp_context import ExperimentContext
+from nn_laser_stabilizer.experiment.decorator import experiment
+from nn_laser_stabilizer.experiment.context import ExperimentContext
 
 
 @experiment("pid_delta_tuning-inference")
