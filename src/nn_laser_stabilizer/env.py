@@ -14,7 +14,7 @@ from nn_laser_stabilizer.pid_protocol import PidProtocol
 
 class PidDeltaTuningEnv(gym.Env):
     LOG_PREFIX = "ENV"  
-    
+
     metadata = {"render_modes": []}
 
     def __init__(
@@ -231,7 +231,7 @@ class PidDeltaTuningEnv(gym.Env):
         seed: Optional[int] = None, 
         options: Optional[dict] = None
     ) -> Tuple[np.ndarray, dict]:
-        process_variables, control_outputs, setpoint, _ = self.plant.reset()
+        process_variables, control_outputs, setpoint = self.plant.reset()
 
         observation = self._build_observation(
             process_variables, control_outputs, setpoint
