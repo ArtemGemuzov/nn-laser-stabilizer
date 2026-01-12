@@ -47,9 +47,9 @@ env:
     action_weight: 0.1
 
 training:
-  initial_collect_steps: 2000
+  initial_collect_steps: 2500
   num_steps: -1
-  exploration_steps: 2500
+  exploration_steps: 2650
   log_frequency: 1
   policy_freq: 2
   log_dir: "train_logs"
