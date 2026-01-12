@@ -153,6 +153,7 @@ class ProcessFileLogger:
         with open(log_file, 'a', encoding='utf-8') as file:
             while True:
                 if stop_event.is_set():
+                    file.flush()
                     break
 
                 try:
@@ -163,6 +164,9 @@ class ProcessFileLogger:
                 if not message.endswith("\n"):
                     message += "\n"
                 file.write(message)
+
+                if queue.empty():
+                    file.flush()
                   
     
     def close(self) -> None:
