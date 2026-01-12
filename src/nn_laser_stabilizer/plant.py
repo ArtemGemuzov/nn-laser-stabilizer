@@ -131,7 +131,7 @@ class Plant:
     def _reset_buffer(self) -> None:
         self._current_index = 0
     
-    def reset(self) -> Tuple[np.ndarray, np.ndarray, float]:
+    def reset(self) -> Tuple[np.ndarray, np.ndarray, float, bool]:
         self.pid_connection.open()
         
         for _ in range(self._warmup_steps):
