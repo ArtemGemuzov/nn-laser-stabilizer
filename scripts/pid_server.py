@@ -109,7 +109,12 @@ class PidServer:
 
             print(f"Mock PID server listening on {self.host}:{self.port}")
             print(f"Setpoint: {self._pid_simulator.setpoint}")
-            print(f"Optimal PID: kp={self._pid_simulator.optimal_kp:.3f}, ki={self._pid_simulator.optimal_ki:.3f}, kd={self._pid_simulator.optimal_kd:.6f}")
+            print(
+                f"Optimal PID: "
+                f"kp={self._pid_simulator.optimal_kp:.{PidProtocol.KP_DECIMAL_PLACES}f}, "
+                f"ki={self._pid_simulator.optimal_ki:.{PidProtocol.KI_DECIMAL_PLACES}f}, "
+                f"kd={self._pid_simulator.optimal_kd:.{PidProtocol.KD_DECIMAL_PLACES}f}"
+            )
             print("Waiting for connection...")
             
             self.running = True

@@ -9,6 +9,7 @@ from nn_laser_stabilizer.plant import Plant
 from nn_laser_stabilizer.logger import AsyncFileLogger
 from nn_laser_stabilizer.connection import create_connection
 from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
+from nn_laser_stabilizer.pid_protocol import PidProtocol
 
 
 class PidDeltaTuningEnv(gym.Env):  
@@ -209,7 +210,9 @@ class PidDeltaTuningEnv(gym.Env):
         
         log_line = (
             f"step={self._step} time={time.time():.6f} "
-            f"kp={self.plant.kp:.4f} ki={self.plant.ki:.4f} kd={self.plant.kd:.4f} "
+            f"kp={self.plant.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
+            f"ki={self.plant.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
+            f"kd={self.plant.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
             f"delta_kp_norm={action[0]:.4f} delta_ki_norm={action[1]:.4f} "
             f"error_mean_norm={observation[0]:.4f} error_std_norm={observation[1]:.4f} "
             f"reward={reward:.6f} should_reset={should_reset}"
@@ -234,7 +237,9 @@ class PidDeltaTuningEnv(gym.Env):
         
         log_line = (
             f"reset time={time.time():.6f} "
-            f"kp={self.plant.kp:.4f} ki={self.plant.ki:.4f} kd={self.plant.kd:.4f} "
+            f"kp={self.plant.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
+            f"ki={self.plant.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
+            f"kd={self.plant.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
             f"error_mean_norm={observation[0]:.4f} error_std_norm={observation[1]:.4f} "
         )
         self.logger.log(log_line) 
