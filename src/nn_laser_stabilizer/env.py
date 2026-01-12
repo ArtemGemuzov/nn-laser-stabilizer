@@ -6,7 +6,7 @@ import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.plant import Plant
-from nn_laser_stabilizer.logger import ProcessFileLogger, PrefixedLogger
+from nn_laser_stabilizer.logger import AsyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.connection import create_connection
 from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
 from nn_laser_stabilizer.pid_protocol import PidProtocol
@@ -83,7 +83,7 @@ class PidDeltaTuningEnv(gym.Env):
         self._stability_weight = stability_weight
         self._action_weight = action_weight
         
-        self._base_logger = ProcessFileLogger(log_dir=log_dir, log_file=log_file)
+        self._base_logger = AsyncFileLogger(log_dir=log_dir, log_file=log_file)
         self._env_logger = PrefixedLogger(self._base_logger, PidDeltaTuningEnv.LOG_PREFIX)
         
         connection = create_connection(
