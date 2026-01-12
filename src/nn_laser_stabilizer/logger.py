@@ -1,7 +1,9 @@
 from pathlib import Path
-from typing import Optional, Protocol, Deque
+from typing import Protocol, Deque
 from collections import deque
 from threading import Thread
+from multiprocessing import Process, Queue, Event
+from queue import Empty, Full
 from datetime import datetime
 import time
 
@@ -12,6 +14,18 @@ POLL_INTERVAL_SEC = 0.1
 class Logger(Protocol):
     def log(self, message: str) -> None: ...
     def close(self) -> None: ...
+
+
+class PrefixedLogger:
+    def __init__(self, logger: Logger, prefix: str):
+        self._logger = logger
+        self._prefix = prefix
+    
+    def log(self, message: str) -> None:
+        self._logger.log(f"[{self._prefix}] {message}")
+    
+    def close(self) -> None:
+        pass
 
 
 class SyncFileLogger:
@@ -64,7 +78,7 @@ class AsyncFileLogger:
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
         self.log_file = self.log_dir / log_file
-        self._file_handle: Optional[object] = open(self.log_file, 'a', encoding='utf-8')
+        self._file_handle = open(self.log_file, 'a', encoding='utf-8')
 
         self._queue: Deque[str] = deque()
         self._stop: bool = False
@@ -101,6 +115,67 @@ class AsyncFileLogger:
         if self._file_handle is not None:
             self._file_handle.close()
             self._file_handle = None
+    
+    def __del__(self):
+        self.close()
+
+
+class ProcessFileLogger:
+    def __init__(self, log_dir: str | Path, log_file: str):
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.log_file = self.log_dir / log_file
+        
+        self._queue: Queue[str] = Queue(maxsize=1000) 
+
+        self._stop_event = Event()
+        self._stop = False
+        
+        self._process = Process(
+            target=self._worker,
+            args=(self._queue, self.log_file, self._stop_event),
+            daemon=False
+        )
+        self._process.start()
+    
+    def log(self, message: str) -> None:
+        if self._stop:
+            return
+        
+        try:
+            self._queue.put_nowait(message)  
+        except Full:
+            pass
+    
+    @staticmethod
+    def _worker(queue: Queue, log_file: Path, stop_event) -> None:    
+        with open(log_file, 'a', encoding='utf-8') as file:
+            while True:
+                if stop_event.is_set():
+                    break
+
+                try:
+                    message: str = queue.get(timeout=0.1)
+                except Empty:
+                    continue
+
+                if not message.endswith("\n"):
+                    message += "\n"
+                file.write(message)
+                  
+    
+    def close(self) -> None:
+        if self._stop:
+            return
+        self._stop = True
+
+        self._stop_event.set()  
+
+        self._process.join(timeout=1.0)
+        if self._process.is_alive():
+            self._process.terminate()
+            self._process.join(timeout=0.5)
     
     def __del__(self):
         self.close()
