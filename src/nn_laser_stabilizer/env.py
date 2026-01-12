@@ -6,13 +6,15 @@ import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.plant import Plant
-from nn_laser_stabilizer.logger import AsyncFileLogger
+from nn_laser_stabilizer.logger import ProcessFileLogger, PrefixedLogger
 from nn_laser_stabilizer.connection import create_connection
 from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
 from nn_laser_stabilizer.pid_protocol import PidProtocol
 
 
-class PidDeltaTuningEnv(gym.Env):  
+class PidDeltaTuningEnv(gym.Env):
+    LOG_PREFIX = "ENV"  
+    
     metadata = {"render_modes": []}
 
     def __init__(
@@ -55,7 +57,7 @@ class PidDeltaTuningEnv(gym.Env):
         precision_weight: float,
         stability_weight: float,
         action_weight: float,
-        # Параметры для AsyncFileLogger
+        # Параметры для логирования
         log_dir: str | Path,
         log_file: str,
     ):
@@ -83,6 +85,9 @@ class PidDeltaTuningEnv(gym.Env):
         self._stability_weight = stability_weight
         self._action_weight = action_weight
         
+        self._base_logger = ProcessFileLogger(log_dir=log_dir, log_file=log_file)
+        self._env_logger = PrefixedLogger(self._base_logger, PidDeltaTuningEnv.LOG_PREFIX)
+        
         connection = create_connection(
             port=port,
             timeout=timeout,
@@ -93,8 +98,7 @@ class PidDeltaTuningEnv(gym.Env):
         if log_connection:
             pid_connection = LoggingConnectionToPid(
                 connection_to_pid=pid_connection,
-                log_dir=connection_log_dir,
-                log_file=connection_log_file,
+                logger=self._base_logger,
             )
         
         self.plant = Plant(
@@ -119,8 +123,6 @@ class PidDeltaTuningEnv(gym.Env):
             kd_max=kd_max,
             kd_start=kd_start,
         )
-        
-        self.logger = AsyncFileLogger(log_dir=log_dir, log_file=log_file)
       
         self._step = 0
         
@@ -217,7 +219,7 @@ class PidDeltaTuningEnv(gym.Env):
             f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
             f"reward={reward} should_reset={should_reset}"
         )
-        self.logger.log(log_line)   
+        self._env_logger.log(log_line)   
 
         terminated = should_reset
         truncated = False
@@ -242,14 +244,14 @@ class PidDeltaTuningEnv(gym.Env):
             f"kd={self.plant.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
             f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
         )
-        self.logger.log(log_line) 
+        self._env_logger.log(log_line) 
 
         info = {}
         return observation, info
 
     def close(self) -> None:
         self.plant.close()
-        self.logger.close()
+        self._base_logger.close()
 
 
 class PendulumNoVelEnv(gym.Env):

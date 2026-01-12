@@ -1,8 +1,8 @@
-from typing import Protocol
+from typing import Protocol, Optional
 from pathlib import Path
 
 from nn_laser_stabilizer.connection import BaseConnection
-from nn_laser_stabilizer.logger import AsyncFileLogger
+from nn_laser_stabilizer.logger import Logger, PrefixedLogger
 from nn_laser_stabilizer.pid_protocol import PidProtocol
 
 
@@ -79,22 +79,22 @@ class ConnectionToPid(BaseConnectionToPid):
         return self.read_response()
     
 
-class LoggingConnectionToPid(BaseConnectionToPid):  
+class LoggingConnectionToPid(BaseConnectionToPid):
+    LOG_PREFIX = "PID"
+    
     def __init__(
         self,
         connection_to_pid: ConnectionToPid,
-        log_dir: str | Path,
-        log_file: str,
+        logger: Logger,
     ):
         self._pid = connection_to_pid
-        self._logger = AsyncFileLogger(log_dir=log_dir, log_file=log_file)
+        self._logger = PrefixedLogger(logger, LoggingConnectionToPid.LOG_PREFIX)
     
     def open(self) -> None:
         self._pid.open()
     
     def close(self) -> None:
         self._pid.close()
-        self._logger.close()
     
     def send_command(
         self,

@@ -8,9 +8,10 @@ env:
     timeout: 0.1
     baudrate: 115200
 
+    log_dir: "env_logs"
+    log_file: env.log
+
     log_connection: true
-    connection_log_dir: "connection_logs"
-    connection_log_file: connection.log
 
     setpoint: 1200.0
     warmup_steps: 1000
@@ -44,9 +45,6 @@ env:
     precision_weight: 0.45
     stability_weight: 0.45
     action_weight: 0.1
-
-    log_dir: "env_logs"
-    log_file: env.log
 
 training:
   initial_collect_steps: 2000
