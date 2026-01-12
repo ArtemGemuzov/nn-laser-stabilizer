@@ -34,9 +34,9 @@ env:
     ki_delta_scale: 0.01
 
     kd_min: 0.0
-    kd_max: 0.01
-    kd_start: 0.005
-    kd_delta_scale: 0.01
+    kd_max: 0.05
+    kd_start: 0.002
+    kd_delta_scale: 0.001
 
     error_mean_normalization_factor: 200.0
     error_std_normalization_factor: 300.0
