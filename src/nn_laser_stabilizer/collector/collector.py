@@ -3,14 +3,13 @@ from functools import partial
 import time
 
 import torch
-import torch.multiprocessing as mp
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
-from nn_laser_stabilizer.collector_worker import CollectorWorker
-from nn_laser_stabilizer.collector_connection import CollectorConnection
-from nn_laser_stabilizer.collector_utils import _collect_step, CollectorWorkerError
+from nn_laser_stabilizer.collector.worker import CollectorWorker
+from nn_laser_stabilizer.collector.connection import CollectorConnection
+from nn_laser_stabilizer.collector.utils import _collect_step, CollectorWorkerError
 
 
 def _policy_factory(policy : Policy):

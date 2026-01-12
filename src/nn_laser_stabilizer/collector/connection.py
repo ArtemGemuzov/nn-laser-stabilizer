@@ -3,7 +3,7 @@ from typing import Optional, Tuple, TypeVar
 import torch.multiprocessing as mp
 from multiprocessing.connection import Connection
 
-from nn_laser_stabilizer.collector_utils import CollectorCommand, CollectorWorkerErrorInfo
+from nn_laser_stabilizer.collector.utils import CollectorCommand, CollectorWorkerErrorInfo
 
 T = TypeVar('T')
 

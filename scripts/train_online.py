@@ -6,7 +6,7 @@ import numpy as np
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.sampler import make_sampler_from_config
-from nn_laser_stabilizer.collector import AsyncCollector, SyncCollector
+from nn_laser_stabilizer.collector.collector import AsyncCollector, SyncCollector
 from nn_laser_stabilizer.env_wrapper import make_env_from_config, make_spaces_from_config
 from nn_laser_stabilizer.policy import Policy
 from nn_laser_stabilizer.policy import make_policy

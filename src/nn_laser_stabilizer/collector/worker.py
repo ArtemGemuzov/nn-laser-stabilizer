@@ -5,8 +5,8 @@ import torch.multiprocessing as mp
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
-from nn_laser_stabilizer.collector_connection import CollectorConnection
-from nn_laser_stabilizer.collector_utils import CollectorCommand, CollectorWorkerErrorInfo, _collect_step
+from nn_laser_stabilizer.collector.connection import CollectorConnection
+from nn_laser_stabilizer.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, _collect_step
 
 
 class CollectorWorker: 
