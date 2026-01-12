@@ -3,6 +3,7 @@ from typing import Tuple
 import numpy as np
 
 from nn_laser_stabilizer.pid import BaseConnectionToPid
+from nn_laser_stabilizer.pid_protocol import PidProtocol
 
 
 class Plant:
@@ -85,6 +86,10 @@ class Plant:
         self._kp = np.clip(self._kp + delta_kp, self._kp_min, self._kp_max)
         self._ki = np.clip(self._ki + delta_ki, self._ki_min, self._ki_max)
         self._kd = np.clip(self._kd + delta_kd, self._kd_min, self._kd_max)
+        
+        self._kp = round(self._kp, PidProtocol.KP_DECIMAL_PLACES)
+        self._ki = round(self._ki, PidProtocol.KI_DECIMAL_PLACES)
+        self._kd = round(self._kd, PidProtocol.KD_DECIMAL_PLACES)
     
     def reset_pid(self) -> None:
         self._kp = self._kp_start

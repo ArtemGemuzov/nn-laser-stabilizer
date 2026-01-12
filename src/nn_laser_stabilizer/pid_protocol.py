@@ -1,4 +1,8 @@
 class PidProtocol:
+    KP_DECIMAL_PLACES = 4
+    KI_DECIMAL_PLACES = 4
+    KD_DECIMAL_PLACES = 6
+    
     @staticmethod
     def format_command(
         kp: float,
@@ -7,7 +11,12 @@ class PidProtocol:
         control_min: int,
         control_max: int,
     ) -> str:
-        return f"{kp:.3f} {ki:.3f} {kd:.6f} {control_min:.1f} {control_max:.1f}\n"
+        return (
+            f"{kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
+            f"{ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
+            f"{kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
+            f"{control_min} {control_max}\n"
+        )
 
     @staticmethod
     def parse_command(command: str) -> tuple[float, float, float, float, float]:
