@@ -8,9 +8,6 @@ from datetime import datetime
 import time
 
 
-POLL_INTERVAL_SEC = 0.1
-
-
 class Logger(Protocol):
     def log(self, message: str) -> None: ...
     def close(self) -> None: ...
@@ -73,6 +70,8 @@ class ConsoleLogger:
 
 
 class AsyncFileLogger:
+    POLL_INTERVAL_SEC = 0.1
+
     def __init__(self, log_dir: str | Path, log_file: str):
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -98,14 +97,15 @@ class AsyncFileLogger:
 
     def _worker(self) -> None:
         while True:
+            if self._stop and not self._queue:
+                break
+
             try:
                 line = self._queue.popleft()
+                self._write_line(line)
             except IndexError:
-                if self._stop:
-                    break
-                time.sleep(POLL_INTERVAL_SEC)
-                continue
-            self._write_line(line)
+                time.sleep(self.POLL_INTERVAL_SEC)
+
     
     def close(self) -> None:
         if self._stop:
@@ -127,7 +127,7 @@ class ProcessFileLogger:
         
         self.log_file = self.log_dir / log_file
         
-        self._queue: Queue[str] = Queue(maxsize=1000) 
+        self._queue: Queue[str] = Queue(maxsize=10_000) 
 
         self._stop_event = Event()
         self._stop = False
@@ -163,10 +163,8 @@ class ProcessFileLogger:
 
                 if not message.endswith("\n"):
                     message += "\n"
+            
                 file.write(message)
-
-                if queue.empty():
-                    file.flush()
                   
     
     def close(self) -> None:
