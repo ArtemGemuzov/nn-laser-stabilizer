@@ -1,7 +1,7 @@
 class PidProtocol:
     KP_DECIMAL_PLACES = 4
     KI_DECIMAL_PLACES = 4
-    KD_DECIMAL_PLACES = 6
+    KD_DECIMAL_PLACES = 7
     
     @staticmethod
     def format_command(
