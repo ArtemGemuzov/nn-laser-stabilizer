@@ -1,3 +1,4 @@
+from typing import cast
 from functools import partial
 from pathlib import Path
 import time
@@ -187,7 +188,7 @@ def main(context: ExperimentContext):
                 )
                 
                 if is_async and step % sync_frequency == 0:
-                    collector.sync()
+                    cast(AsyncCollector, collector).sync()
                     
                 if logging_enabled and step % log_frequency == 0:
                     timestamp = time.time()

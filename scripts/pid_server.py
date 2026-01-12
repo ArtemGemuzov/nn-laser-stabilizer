@@ -5,7 +5,7 @@ import random
 import signal
 import math
 import time
-from typing import Optional
+from typing import Optional, cast
 
 from nn_laser_stabilizer.experiment.config import load_config, find_config_path
 from nn_laser_stabilizer.pid_protocol import PidProtocol
@@ -126,6 +126,7 @@ class PidServer:
     
     
     def _handle_client(self):
+        assert self.client_socket is not None
         connection = SocketConnection(self.client_socket)
         
         try:
