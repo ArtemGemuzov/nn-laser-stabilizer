@@ -1,11 +1,9 @@
-from typing import Optional, Tuple, TypeVar
+from typing import Optional, Tuple, Any, cast
 
 import torch.multiprocessing as mp
-from multiprocessing.connection import Connection
+from multiprocessing.connection import PipeConnection
 
 from nn_laser_stabilizer.collector.utils import CollectorCommand, CollectorWorkerErrorInfo
-
-T = TypeVar('T')
 
 
 class CollectorConnection:
@@ -14,13 +12,13 @@ class CollectorConnection:
         parent_conn, child_conn = mp.Pipe()
         return CollectorConnection(parent_conn), CollectorConnection(child_conn)
     
-    def __init__(self, connection: Connection):
+    def __init__(self, connection: PipeConnection):
         self._connection = connection
     
-    def send_command(self, command: CollectorCommand, data: Optional[T] = None) -> None:
+    def send_command(self, command: CollectorCommand, data: Optional[Any] = None) -> None:
         self._connection.send((command.value, data))
     
-    def recv_command(self) -> Tuple[CollectorCommand, Optional[T]]:
+    def recv_command(self) -> Tuple[CollectorCommand, Optional[Any]]:
         command_str, data = self._connection.recv()
         
         try:
@@ -67,7 +65,7 @@ class CollectorConnection:
         if command == CollectorCommand.WORKER_READY:
             return
         elif command == CollectorCommand.WORKER_ERROR:
-            error: CollectorWorkerErrorInfo = data
+            error = cast(CollectorWorkerErrorInfo, data)
             error.raise_exception()
         else:
             self._raise_unexpected_command_error(command, CollectorCommand.WORKER_READY, CollectorCommand.WORKER_ERROR)
@@ -79,7 +77,7 @@ class CollectorConnection:
         if command == CollectorCommand.WEIGHT_UPDATE_DONE:
             return
         elif command == CollectorCommand.WORKER_ERROR:
-            error: CollectorWorkerErrorInfo = data
+            error = cast(CollectorWorkerErrorInfo, data)
             error.raise_exception()
         else:
             self._raise_unexpected_command_error(command, CollectorCommand.WEIGHT_UPDATE_DONE, CollectorCommand.WORKER_ERROR)
@@ -91,7 +89,7 @@ class CollectorConnection:
         if command == CollectorCommand.SHUTDOWN_COMPLETE:
             return
         elif command == CollectorCommand.WORKER_ERROR:
-            error: CollectorWorkerErrorInfo = data
+            error = cast(CollectorWorkerErrorInfo, data)
             error.raise_exception()
         else:
             self._raise_unexpected_command_error(command, CollectorCommand.SHUTDOWN_COMPLETE, CollectorCommand.WORKER_ERROR)
@@ -109,7 +107,7 @@ class CollectorConnection:
         if self.poll(timeout):
             command, data = self.recv_command()
             if command == CollectorCommand.WORKER_ERROR:
-                error: CollectorWorkerErrorInfo = data
+                error = cast(CollectorWorkerErrorInfo, data)
                 error.raise_exception()
 
     def _check_timeout(self, timeout: Optional[float], expected_command: CollectorCommand) -> None:

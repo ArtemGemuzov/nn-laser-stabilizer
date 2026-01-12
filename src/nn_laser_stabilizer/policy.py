@@ -21,7 +21,7 @@ class Policy(ABC):
         pass
     
     @abstractmethod
-    def state_dict(self):
+    def state_dict(self) -> dict[str, torch.Tensor]:
         pass
     
     @abstractmethod
@@ -57,7 +57,7 @@ class DeterministicPolicy(Policy):
         self._actor.share_memory()
         return self
     
-    def state_dict(self):
+    def state_dict(self) -> dict[str, torch.Tensor]:
         return self._actor.state_dict()
     
     def load_state_dict(self, state_dict):
@@ -111,7 +111,7 @@ class RandomExplorationPolicy(Policy):
         self._actor.share_memory()
         return self
     
-    def state_dict(self):
+    def state_dict(self) -> dict[str, torch.Tensor]:
         return self._actor.state_dict()
     
     def load_state_dict(self, state_dict):

@@ -23,11 +23,11 @@ class SyncCollector:
         env: TorchEnvWrapper,
         policy: Policy,
     ):
-        self.buffer = buffer
-        self._env = env
-        self._policy = policy
+        self.buffer : ReplayBuffer = buffer
+        self._env : TorchEnvWrapper = env
+        self._policy : Policy = policy
         
-        self._cur_obs: Optional[torch.Tensor] = None
+        self._current_observation: Optional[torch.Tensor] = None
         self._options: Dict[str, Any] = {}
         self._running = False
     
@@ -38,18 +38,20 @@ class SyncCollector:
         self._policy.eval()
         self._policy.warmup(self._env.observation_space)
         
-        self._cur_obs, _ = self._env.reset()
-        self._options = {}
+        self._current_observation, self._options = self._env.reset()
+        assert self._current_observation is not None
+       
         self._running = True
     
     def collect(self, num_steps: int) -> None:
         self._check_running()
         
+        assert self._current_observation is not None
         for _ in range(num_steps):
-            self._cur_obs, self._options = _collect_step(
+            self._current_observation, self._options = _collect_step(
                 self._policy,
                 self._env,
-                self._cur_obs,
+                self._current_observation,
                 self.buffer,
                 self._options,
             )
@@ -60,10 +62,7 @@ class SyncCollector:
         
         if self._env is not None:
             self._env.close()
-            self._env = None
-        
-        self._policy = None
-        self._cur_obs = None
+          
         self._running = False
     
     def __enter__(self):
