@@ -40,7 +40,7 @@ class CollectorWorker:
         env = None
         try:
             if self.seed is not None:
-                from nn_laser_stabilizer.seed import set_seeds
+                from nn_laser_stabilizer.experiment.seed import set_seeds
                 set_seeds(self.seed)
 
             env = self.env_factory()
