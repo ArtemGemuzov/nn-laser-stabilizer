@@ -155,6 +155,9 @@ class Plant:
             f"setpoint determined: setpoint={self._setpoint} "
             f"min_pv={min_pv_int} max_pv={max_pv_int}"
         )
+        
+        # TODO: Заменить print на ConsoleLogger для унифицированного вывода в консоль
+        print(f"Setpoint determined: {self._setpoint} (min_pv={min_pv_int}, max_pv={max_pv_int})")
     
     def step(self) -> Tuple[np.ndarray, np.ndarray, int, bool]:
         self._reset_buffer()
