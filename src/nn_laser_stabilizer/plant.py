@@ -7,6 +7,41 @@ from nn_laser_stabilizer.pid_protocol import PidProtocol
 from nn_laser_stabilizer.logger import Logger, PrefixedLogger
 
 
+def determine_setpoint(
+    pid_connection: BaseConnectionToPid,
+    steps: int,
+    max_value: int,
+) -> tuple[int, int, int]:
+    if steps <= 1:
+        raise ValueError(f"steps ({steps}) must be greater than 1")
+    
+    min_pv = float('inf')
+    max_pv = float('-inf')
+    
+    for step in range(steps):
+        progress = step / (steps - 1)
+        control_min = int(progress * max_value)
+        control_max = int(progress * max_value)
+        
+        process_variable, _ = pid_connection.exchange(
+            kp=0.0,
+            ki=0.0,
+            kd=0.0,
+            control_min=control_min,
+            control_max=control_max,
+            setpoint=0,
+        )
+        
+        min_pv = min(min_pv, process_variable)
+        max_pv = max(max_pv, process_variable)
+    
+    min_pv_int = int(min_pv)
+    max_pv_int = int(max_pv)
+    setpoint = int(round(min_pv + 0.1 * (max_pv - min_pv)))
+    
+    return setpoint, min_pv_int, max_pv_int
+
+
 class Plant:
     LOG_PREFIX = "PLANT"
     
@@ -126,29 +161,13 @@ class Plant:
                 mean_control_output > self._control_output_max_threshold)
     
     def _determine_setpoint(self) -> None:
-        min_pv = float('inf')
-        max_pv = float('-inf')
+        setpoint, min_pv_int, max_pv_int = determine_setpoint(
+            pid_connection=self.pid_connection,
+            steps=self._setpoint_determination_steps,
+            max_value=self._setpoint_determination_max_value,
+        )
         
-        for step in range(self._setpoint_determination_steps):
-            progress = step / (self._setpoint_determination_steps - 1)
-            control_min = int(progress * self._setpoint_determination_max_value)
-            control_max = int(progress * self._setpoint_determination_max_value)
-            
-            process_variable, _ = self.pid_connection.exchange(
-                kp=0.0,
-                ki=0.0,
-                kd=0.0,
-                control_min=control_min,
-                control_max=control_max,
-                setpoint=0,
-            )
-            
-            min_pv = min(min_pv, process_variable)
-            max_pv = max(max_pv, process_variable)
-        
-        min_pv_int = int(min_pv)
-        max_pv_int = int(max_pv)
-        self._setpoint = int(round(min_pv + 0.1 * (max_pv - min_pv)))
+        self._setpoint = setpoint
         self._setpoint_determined = True
         
         self._logger.log(
