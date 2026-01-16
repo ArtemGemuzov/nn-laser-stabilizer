@@ -1,0 +1,14 @@
+experiment_name: setpoint_determination
+seed: 1
+
+env:
+  name: PidDeltaTuningEnv
+  args:
+    port: COM3
+    timeout: 0.1
+    baudrate: 115200
+
+    auto_determine_setpoint: false
+    setpoint_determination_steps: 6000
+    setpoint_determination_max_value: 2000
+    setpoint_determination_factor: 0.1
