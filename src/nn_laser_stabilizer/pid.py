@@ -1,5 +1,4 @@
-from typing import Protocol, Optional
-from pathlib import Path
+from typing import Protocol
 
 from nn_laser_stabilizer.connection import BaseConnection
 from nn_laser_stabilizer.logger import Logger, PrefixedLogger
@@ -19,6 +18,7 @@ class BaseConnectionToPid(Protocol):
         kd: float,
         control_min: int,
         control_max: int,
+        setpoint: int,
     ) -> None: pass
     
     def read_response(self) -> tuple[float, float]: pass
@@ -31,6 +31,7 @@ class BaseConnectionToPid(Protocol):
         kd: float,
         control_min: int,
         control_max: int,
+        setpoint: int,
     ) -> tuple[float, float]: pass
 
 
@@ -52,8 +53,13 @@ class ConnectionToPid(BaseConnectionToPid):
         kd: float,
         control_min: int,
         control_max: int,
+        setpoint: int,
     ) -> None:
-        command = PidProtocol.format_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
+        command = PidProtocol.format_command(
+            kp=kp, ki=ki, kd=kd, 
+            control_min=control_min, control_max=control_max,
+            setpoint=setpoint
+        )
         self._connection.send(command)
 
     def read_response(self) -> tuple[float, float]:
@@ -68,6 +74,7 @@ class ConnectionToPid(BaseConnectionToPid):
         kd: float,
         control_min: int,
         control_max: int,
+        setpoint: int,
     ) -> tuple[float, float]:
         self.send_command(
             kp=kp,
@@ -75,6 +82,7 @@ class ConnectionToPid(BaseConnectionToPid):
             kd=kd,
             control_min=control_min,
             control_max=control_max,
+            setpoint=setpoint,
         )
         return self.read_response()
     
@@ -104,12 +112,17 @@ class LoggingConnectionToPid(BaseConnectionToPid):
         kd: float,
         control_min: int,
         control_max: int,
+        setpoint: int,
     ) -> None:
         self._logger.log(
             f"SEND: kp={kp} ki={ki} kd={kd} "
-            f"control_min={control_min} control_max={control_max}"
+            f"control_min={control_min} control_max={control_max} setpoint={setpoint}"
         )
-        self._pid.send_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
+        self._pid.send_command(
+            kp=kp, ki=ki, kd=kd, 
+            control_min=control_min, control_max=control_max,
+            setpoint=setpoint
+        )
     
     def read_response(self) -> tuple[float, float]:
         process_variable, control_output = self._pid.read_response()
@@ -126,7 +139,12 @@ class LoggingConnectionToPid(BaseConnectionToPid):
         kd: float,
         control_min: int,
         control_max: int,
+        setpoint: int,
     ) -> tuple[float, float]:
-        self.send_command(kp=kp, ki=ki, kd=kd, control_min=control_min, control_max=control_max)
+        self.send_command(
+            kp=kp, ki=ki, kd=kd, 
+            control_min=control_min, control_max=control_max,
+            setpoint=setpoint
+        )
         return self.read_response()
 

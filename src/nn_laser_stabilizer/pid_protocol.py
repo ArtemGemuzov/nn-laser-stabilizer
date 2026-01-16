@@ -10,22 +10,30 @@ class PidProtocol:
         kd: float,
         control_min: int,
         control_max: int,
+        setpoint: int,
     ) -> str:
         return (
             f"{kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
             f"{ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
             f"{kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
-            f"{control_min} {control_max}\n"
+            f"{control_min} {control_max} {setpoint}\n"
         )
 
     @staticmethod
-    def parse_command(command: str) -> tuple[float, float, float, float, float]:
+    def parse_command(command: str) -> tuple[float, float, float, int, int, int]:
         parts = command.strip().split()
-        if len(parts) != 5:
-            raise ValueError(f"Invalid command format: expected 5 values, got {len(parts)}")
+        if len(parts) != 6:
+            raise ValueError(f"Invalid command format: expected 6 values, got {len(parts)}")
         
         try:
-            return float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
+            return (
+                float(parts[0]),  
+                float(parts[1]),  
+                float(parts[2]),  
+                int(parts[3]),   
+                int(parts[4]),    
+                int(parts[5]),    
+            )
         except ValueError as e:
             raise ValueError(f"Error parsing command values: {e}")
 

@@ -5,7 +5,7 @@ import random
 import signal
 import math
 import time
-from typing import Optional, cast
+from typing import Optional
 
 from nn_laser_stabilizer.experiment.config import load_config, find_config_path
 from nn_laser_stabilizer.pid_protocol import PidProtocol
@@ -18,7 +18,6 @@ class PidSimulator:
     
     def __init__(
         self,
-        setpoint: float,
         kp_min: float,
         kp_max: float,
         ki_min: float,
@@ -26,7 +25,6 @@ class PidSimulator:
         kd_min: float,
         kd_max: float,
     ):
-        self._setpoint = setpoint
         self._kp_min = kp_min
         self._kp_max = kp_max
         self._ki_min = ki_min
@@ -45,6 +43,7 @@ class PidSimulator:
         kd: float,
         control_min: float,
         control_max: float,
+        setpoint: int,
     ) -> tuple[int, int]:
         distance = math.sqrt(
             (kp - self._optimal_kp) ** 2 + 
@@ -57,7 +56,7 @@ class PidSimulator:
         random_component = random.randint(0, 2000)
         noise = random.gauss(0, self.NOISE_STD)
         process_variable = (
-            closeness * self._setpoint + 
+            closeness * setpoint + 
             (1.0 - closeness) * random_component + 
             noise
         )
@@ -65,10 +64,6 @@ class PidSimulator:
         process_variable = int(max(0, min(2000, round(process_variable))))
         control_output = random.randint(int(control_min), int(control_max))
         return process_variable, control_output
-    
-    @property
-    def setpoint(self) -> float:
-        return self._setpoint
     
     @property
     def optimal_kp(self) -> float:
@@ -108,7 +103,6 @@ class PidServer:
             self.socket.listen(1)
 
             print(f"Mock PID server listening on {self.host}:{self.port}")
-            print(f"Setpoint: {self._pid_simulator.setpoint}")
             print(
                 f"Optimal PID: "
                 f"kp={self._pid_simulator.optimal_kp:.{PidProtocol.KP_DECIMAL_PLACES}f}, "
@@ -136,7 +130,7 @@ class PidServer:
                     if not command:
                         continue
                     
-                    kp, ki, kd, control_min, control_max = PidProtocol.parse_command(command)
+                    kp, ki, kd, control_min, control_max, setpoint = PidProtocol.parse_command(command)
             
                     process_variable, control_output = self._pid_simulator.step(
                         kp=kp,
@@ -144,6 +138,7 @@ class PidServer:
                         kd=kd,
                         control_min=control_min,
                         control_max=control_max,
+                        setpoint=setpoint,
                     )
                     
                     response = PidProtocol.format_response(process_variable, control_output)
@@ -202,7 +197,6 @@ def main():
     host, port = parse_tcp_port(str(env_args.port))
     
     pid_simulator = PidSimulator(
-        setpoint=env_args.setpoint,
         kp_min=env_args.kp_min,
         kp_max=env_args.kp_max,
         ki_min=env_args.ki_min,

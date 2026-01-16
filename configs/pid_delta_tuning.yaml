@@ -13,7 +13,11 @@ env:
 
     log_connection: true
 
-    setpoint: 1200.0
+    setpoint: 1200
+    auto_determine_setpoint: false
+    setpoint_determination_steps: 6000
+    setpoint_determination_max_value: 2000
+    
     warmup_steps: 1000
     block_size: 200
     burn_in_steps: 100

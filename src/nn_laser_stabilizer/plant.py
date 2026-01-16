@@ -10,7 +10,7 @@ class Plant:
     def __init__(
         self,
         pid_connection: BaseConnectionToPid,
-        setpoint: float,
+        setpoint: int = 1200,
         warmup_steps: int = 1000,
         block_size: int = 100,
         burn_in_steps: int = 20,
@@ -29,9 +29,11 @@ class Plant:
         kd_min: float = 0.0,
         kd_max: float = 0.0,
         kd_start: float = 0.0,
+        auto_determine_setpoint: bool = False,
+        setpoint_determination_steps: int = 6000,
+        setpoint_determination_max_value: int = 2000,
     ):
         self.pid_connection = pid_connection
-        self._setpoint = setpoint
 
         self._kp_min = kp_min
         self._kp_max = kp_max
@@ -69,6 +71,22 @@ class Plant:
         self._process_variables = np.zeros(block_size, dtype=np.float32)
         self._control_outputs = np.zeros(block_size, dtype=np.float32)
         self._current_index = 0
+        
+        self._setpoint = setpoint
+        self._auto_determine_setpoint = auto_determine_setpoint
+        self._setpoint_determination_steps = setpoint_determination_steps
+        self._setpoint_determination_max_value = setpoint_determination_max_value
+        self._setpoint_determined = False
+        
+        if auto_determine_setpoint and setpoint_determination_steps <= 1:
+            raise ValueError(
+                f"setpoint_determination_steps ({setpoint_determination_steps}) must be greater than 1 "
+                f"when auto_determine_setpoint is True"
+            )
+    
+    @property
+    def setpoint(self) -> int:
+        return self._setpoint
     
     @property
     def kp(self) -> float:
@@ -101,7 +119,31 @@ class Plant:
         return (mean_control_output < self._control_output_min_threshold or 
                 mean_control_output > self._control_output_max_threshold)
     
-    def step(self) -> Tuple[np.ndarray, np.ndarray, float, bool]:
+    def _determine_setpoint(self) -> None:
+        min_pv = float('inf')
+        max_pv = float('-inf')
+        
+        for step in range(self._setpoint_determination_steps):
+            progress = step / (self._setpoint_determination_steps - 1)
+            control_min = int(progress * self._setpoint_determination_max_value)
+            control_max = int(progress * self._setpoint_determination_max_value)
+            
+            process_variable, _ = self.pid_connection.exchange(
+                kp=0.0,
+                ki=0.0,
+                kd=0.0,
+                control_min=control_min,
+                control_max=control_max,
+                setpoint=0,
+            )
+            
+            min_pv = min(min_pv, process_variable)
+            max_pv = max(max_pv, process_variable)
+        
+        self._setpoint = int(round(min_pv + 0.1 * (max_pv - min_pv)))
+        self._setpoint_determined = True
+    
+    def step(self) -> Tuple[np.ndarray, np.ndarray, int, bool]:
         self._reset_buffer()
         
         for _ in range(self._block_size):
@@ -111,6 +153,7 @@ class Plant:
                 kd=self._kd,
                 control_min=self._default_min,
                 control_max=self._default_max,
+                setpoint=self._setpoint,
             )
             
             self._process_variables[self._current_index] = process_variable
@@ -131,8 +174,11 @@ class Plant:
     def _reset_buffer(self) -> None:
         self._current_index = 0
     
-    def reset(self) -> Tuple[np.ndarray, np.ndarray, float, bool]:
+    def reset(self) -> Tuple[np.ndarray, np.ndarray, int, bool]:
         self.pid_connection.open()
+        
+        if self._auto_determine_setpoint and not self._setpoint_determined:
+            self._determine_setpoint()
         
         for _ in range(self._warmup_steps):
             self.pid_connection.exchange(
@@ -141,6 +187,7 @@ class Plant:
                 kd=self._kd,
                 control_min=self._force_min_value,
                 control_max=self._force_max_value,
+                setpoint=self._setpoint,
             )
         
         return self.step()

@@ -26,7 +26,10 @@ class PidDeltaTuningEnv(gym.Env):
         # Параметры для логирования соединения
         log_connection: bool,
         # Параметры для Plant
-        setpoint: float,
+        setpoint: int,
+        auto_determine_setpoint: bool,
+        setpoint_determination_steps: int,
+        setpoint_determination_max_value: int,
         warmup_steps: int,
         block_size: int,
         burn_in_steps: int,
@@ -120,6 +123,9 @@ class PidDeltaTuningEnv(gym.Env):
             kd_min=kd_min,
             kd_max=kd_max,
             kd_start=kd_start,
+            auto_determine_setpoint=auto_determine_setpoint,
+            setpoint_determination_steps=setpoint_determination_steps,
+            setpoint_determination_max_value=setpoint_determination_max_value,
         )
       
         self._step = 0
