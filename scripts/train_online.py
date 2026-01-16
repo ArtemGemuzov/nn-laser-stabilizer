@@ -15,7 +15,7 @@ from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.experiment.decorator import experiment, ExperimentContext
-from nn_laser_stabilizer.logger import SyncFileLogger
+from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.actor import make_actor_from_config
 from nn_laser_stabilizer.critic import make_critic_from_config
 
@@ -50,10 +50,15 @@ def validate(
 
 @experiment("pid_delta_tuning")
 def main(context: ExperimentContext):
+    TRAIN_LOG_PREFIX = "TRAIN"
+    
     context.logger.log("Creating components...")
 
     train_log_dir = Path(context.config.training.log_dir)
-    train_logger = SyncFileLogger(log_dir=train_log_dir, log_file=context.config.training.log_file)
+    train_logger = PrefixedLogger(
+        logger=SyncFileLogger(log_dir=train_log_dir, log_file=context.config.training.log_file),
+        prefix=TRAIN_LOG_PREFIX
+    )
     
     is_async = context.config.collector.is_async
     
@@ -194,15 +199,13 @@ def main(context: ExperimentContext):
                     timestamp = time.time()
                     if actor_loss is not None:
                         train_logger.log(
-                            f"step={step} time={timestamp:.6f} "
-                            f"loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} "
-                            f"actor_loss={actor_loss:.4f} buffer_size={len(buffer)}"
+                            f"step: actor_loss={actor_loss} buffer_size={len(buffer)} "
+                            f"loss_q1={loss_q1} loss_q2={loss_q2} step={step} time={timestamp}"
                         )
                     else:
                         train_logger.log(
-                            f"step={step} time={timestamp:.6f} "
-                            f"loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} "
-                            f"buffer_size={len(buffer)}"
+                            f"step: buffer_size={len(buffer)} "
+                            f"loss_q1={loss_q1} loss_q2={loss_q2} step={step} time={timestamp}"
                         )
                 
                 if validation_enabled and step % validation_frequency == 0:
@@ -212,16 +215,17 @@ def main(context: ExperimentContext):
                         num_steps=validation_num_steps,
                     )
                     train_logger.log(
-                        f"validation step={step} time={time.time():.6f} "
-                        f"reward_sum={rewards.sum():.4f} "
-                        f"reward_mean={rewards.mean():.4f} "
-                        f"episodes={rewards.size}"
+                        f"validation: episodes={rewards.size} reward_mean={rewards.mean()} "
+                        f"reward_sum={rewards.sum()} step={step} time={time.time()}"
                     )
             
             if testing_enabled:
                 context.logger.log("Testing...")
                 test_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=testing_num_steps)
-                train_logger.log(f"testing time={time.time():.6f} reward_sum={test_rewards.sum():.4f} reward_mean={test_rewards.mean():.4f} episodes={test_rewards.size}")
+                train_logger.log(
+                    f"testing: episodes={test_rewards.size} reward_mean={test_rewards.mean()} "
+                    f"reward_sum={test_rewards.sum()} time={time.time()}"
+                )
             
             context.logger.log("Training completed.")
             context.logger.log(f"Final buffer size: {len(buffer)}")

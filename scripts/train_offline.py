@@ -9,7 +9,7 @@ from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.experiment.workdir_context import WorkingDirectoryContext
-from nn_laser_stabilizer.logger import SyncFileLogger
+from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.actor import make_actor_from_config
 from nn_laser_stabilizer.critic import make_critic_from_config
 from nn_laser_stabilizer.env_wrapper import make_spaces_from_config
@@ -26,6 +26,8 @@ def offline_train(
     buffer_path = buffer_path.resolve()
 
     with ExperimentContext(config) as context, WorkingDirectoryContext(context.experiment_dir):
+        TRAIN_LOG_PREFIX = "TRAIN"
+        
         context.logger.log(f"Loading replay buffer from: {buffer_path}")
         buffer = ReplayBuffer.load(buffer_path)
         context.logger.log(f"Replay buffer loaded. Size: {len(buffer)} / capacity={buffer.capacity}")
@@ -74,9 +76,12 @@ def offline_train(
         )
 
         train_log_dir = Path(context.config.training.log_dir)
-        train_logger = SyncFileLogger(
-            log_dir=train_log_dir,
-            log_file=context.config.training.log_file,
+        train_logger = PrefixedLogger(
+            logger=SyncFileLogger(
+                log_dir=train_log_dir,
+                log_file=context.config.training.log_file,
+            ),
+            prefix=TRAIN_LOG_PREFIX
         )
 
         try:
@@ -112,15 +117,13 @@ def offline_train(
                     timestamp = time.time()
                     if actor_loss is not None:
                         train_logger.log(
-                            f"step={step} time={timestamp:.6f} "
-                            f"loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} "
-                            f"actor_loss={actor_loss:.4f} buffer_size={len(buffer)}"
+                            f"step: actor_loss={actor_loss} buffer_size={len(buffer)} "
+                            f"loss_q1={loss_q1} loss_q2={loss_q2} step={step} time={timestamp}"
                         )
                     else:
                         train_logger.log(
-                            f"step={step} time={timestamp:.6f} "
-                            f"loss_q1={loss_q1:.4f} loss_q2={loss_q2:.4f} "
-                            f"buffer_size={len(buffer)}"
+                            f"step: buffer_size={len(buffer)} "
+                            f"loss_q1={loss_q1} loss_q2={loss_q2} step={step} time={timestamp}"
                         )
 
             context.logger.log("Offline training completed.")
