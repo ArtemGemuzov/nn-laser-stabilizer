@@ -4,12 +4,16 @@ import numpy as np
 
 from nn_laser_stabilizer.pid import BaseConnectionToPid
 from nn_laser_stabilizer.pid_protocol import PidProtocol
+from nn_laser_stabilizer.logger import Logger, PrefixedLogger
 
 
 class Plant:
+    LOG_PREFIX = "PLANT"
+    
     def __init__(
         self,
         pid_connection: BaseConnectionToPid,
+        logger: Logger,
         setpoint: int = 1200,
         warmup_steps: int = 1000,
         block_size: int = 100,
@@ -34,6 +38,8 @@ class Plant:
         setpoint_determination_max_value: int = 2000,
     ):
         self.pid_connection = pid_connection
+        
+        self._logger = PrefixedLogger(logger, Plant.LOG_PREFIX)
 
         self._kp_min = kp_min
         self._kp_max = kp_max
@@ -140,8 +146,15 @@ class Plant:
             min_pv = min(min_pv, process_variable)
             max_pv = max(max_pv, process_variable)
         
+        min_pv_int = int(min_pv)
+        max_pv_int = int(max_pv)
         self._setpoint = int(round(min_pv + 0.1 * (max_pv - min_pv)))
         self._setpoint_determined = True
+        
+        self._logger.log(
+            f"setpoint determined: setpoint={self._setpoint} "
+            f"min_pv={min_pv_int} max_pv={max_pv_int}"
+        )
     
     def step(self) -> Tuple[np.ndarray, np.ndarray, int, bool]:
         self._reset_buffer()
@@ -194,4 +207,3 @@ class Plant:
     
     def close(self) -> None:
         self.pid_connection.close()
-

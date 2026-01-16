@@ -104,6 +104,7 @@ class PidDeltaTuningEnv(gym.Env):
         
         self.plant = Plant(
             pid_connection=pid_connection,
+            logger=self._base_logger,
             setpoint=setpoint,
             warmup_steps=warmup_steps,
             block_size=block_size,
