@@ -1,11 +1,12 @@
 from pathlib import Path
-from typing import Protocol, Deque
+from typing import Protocol, Deque, Any
 from collections import deque
 from threading import Thread
 from multiprocessing import Process, Queue, Event
 from queue import Empty, Full
 from datetime import datetime
 import time
+import re
 
 
 class Logger(Protocol):
@@ -181,3 +182,35 @@ class ProcessFileLogger:
     
     def __del__(self):
         self.close()
+
+
+def format_log_entry(prefix: str, event_type: str, **kwargs: Any) -> str:
+    if not kwargs:
+        return f"[{prefix}] {event_type}:"
+    parts = [f"{k}={v}" for k, v in kwargs.items()]
+    return f"[{prefix}] {event_type}: {' '.join(parts)}"
+
+
+def parse_log_entry(line: str) -> tuple[str, str, dict[str, str]]:
+    pattern = re.compile(
+        r"\[(?P<prefix>[^\]]+)\]\s+"
+        r"(?P<event_type>\w+):\s+"
+        r"(?P<params>.*)"
+    )
+    
+    match = pattern.match(line.strip())
+    if not match:
+        raise ValueError(f"Invalid log format: {line!r}")
+    
+    prefix = match.group('prefix')
+    event_type = match.group('event_type')
+    params_str = match.group('params')
+    
+    params = {}
+    param_pattern = re.compile(r"(\w+)=([^\s]+)")
+    for param_match in param_pattern.finditer(params_str):
+        key = param_match.group(1)
+        value = param_match.group(2)
+        params[key] = value
+    
+    return prefix, event_type, params
