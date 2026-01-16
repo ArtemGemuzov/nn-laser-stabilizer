@@ -22,6 +22,7 @@ env:
     auto_determine_setpoint: false
     setpoint_determination_steps: 6000
     setpoint_determination_max_value: 2000
+    setpoint_determination_factor: 0.1
     
     warmup_steps: 1000
     block_size: 200

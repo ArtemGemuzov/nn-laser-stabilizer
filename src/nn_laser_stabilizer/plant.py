@@ -11,6 +11,7 @@ def determine_setpoint(
     pid_connection: BaseConnectionToPid,
     steps: int,
     max_value: int,
+    factor: float,
 ) -> tuple[int, int, int]:
     if steps <= 1:
         raise ValueError(f"steps ({steps}) must be greater than 1")
@@ -37,8 +38,7 @@ def determine_setpoint(
     
     min_pv_int = int(min_pv)
     max_pv_int = int(max_pv)
-    setpoint = int(round(min_pv + 0.1 * (max_pv - min_pv)))
-    
+    setpoint = int(round(min_pv + factor * (max_pv - min_pv)))
     return setpoint, min_pv_int, max_pv_int
 
 
@@ -71,6 +71,7 @@ class Plant:
         auto_determine_setpoint: bool = False,
         setpoint_determination_steps: int = 6000,
         setpoint_determination_max_value: int = 2000,
+        setpoint_determination_factor: float = 0.1,
     ):
         self.pid_connection = pid_connection
         
@@ -117,6 +118,7 @@ class Plant:
         self._auto_determine_setpoint = auto_determine_setpoint
         self._setpoint_determination_steps = setpoint_determination_steps
         self._setpoint_determination_max_value = setpoint_determination_max_value
+        self._setpoint_determination_factor = setpoint_determination_factor
         self._setpoint_determined = False
         
         if auto_determine_setpoint and setpoint_determination_steps <= 1:
@@ -165,6 +167,7 @@ class Plant:
             pid_connection=self.pid_connection,
             steps=self._setpoint_determination_steps,
             max_value=self._setpoint_determination_max_value,
+            factor=self._setpoint_determination_factor,
         )
         
         self._setpoint = setpoint

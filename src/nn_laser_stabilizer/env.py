@@ -30,6 +30,7 @@ class PidDeltaTuningEnv(gym.Env):
         auto_determine_setpoint: bool,
         setpoint_determination_steps: int,
         setpoint_determination_max_value: int,
+        setpoint_determination_factor: float,
         warmup_steps: int,
         block_size: int,
         burn_in_steps: int,
@@ -127,6 +128,7 @@ class PidDeltaTuningEnv(gym.Env):
             auto_determine_setpoint=auto_determine_setpoint,
             setpoint_determination_steps=setpoint_determination_steps,
             setpoint_determination_max_value=setpoint_determination_max_value,
+            setpoint_determination_factor=setpoint_determination_factor,
         )
       
         self._step = 0

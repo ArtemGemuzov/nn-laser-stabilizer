@@ -13,6 +13,7 @@ def main(
     baudrate: int,
     steps: int,
     max_value: int,
+    factor: float,
 ) -> None:
     connection = create_connection(
         port=port,
@@ -31,6 +32,7 @@ def main(
             pid_connection=pid_connection,
             steps=steps,
             max_value=max_value,
+            factor=factor,
         )
         
         print(f"\nРезультат:")
@@ -68,6 +70,7 @@ if __name__ == "__main__":
     baudrate = env_args.baudrate
     steps = env_args.setpoint_determination_steps
     max_value = env_args.setpoint_determination_max_value
+    factor = env_args.setpoint_determination_factor
     
     main(
         port=port,
@@ -75,4 +78,5 @@ if __name__ == "__main__":
         baudrate=baudrate,
         steps=steps,
         max_value=max_value,
+        factor=factor,
     )
