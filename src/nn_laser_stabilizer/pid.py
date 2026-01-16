@@ -115,7 +115,7 @@ class LoggingConnectionToPid(BaseConnectionToPid):
         setpoint: int,
     ) -> None:
         self._logger.log(
-            f"SEND: kp={kp} ki={ki} kd={kd} "
+            f"send: kp={kp} ki={ki} kd={kd} "
             f"control_min={control_min} control_max={control_max} setpoint={setpoint}"
         )
         self._pid.send_command(
@@ -127,7 +127,7 @@ class LoggingConnectionToPid(BaseConnectionToPid):
     def read_response(self) -> tuple[float, float]:
         process_variable, control_output = self._pid.read_response()
         self._logger.log(
-            f"READ: process_variable={process_variable} control_output={control_output}"
+            f"read: process_variable={process_variable} control_output={control_output}"
         )
         return process_variable, control_output
     

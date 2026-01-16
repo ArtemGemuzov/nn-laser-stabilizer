@@ -216,7 +216,7 @@ class PidDeltaTuningEnv(gym.Env):
         reward = self._compute_reward(observation, action_array)
         
         log_line = (
-            f"step={self._step} time={time.time()} "
+            f"step: step={self._step} time={time.time()} "
             f"kp={self.plant.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
             f"ki={self.plant.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
             f"kd={self.plant.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
@@ -243,7 +243,7 @@ class PidDeltaTuningEnv(gym.Env):
         )
         
         log_line = (
-            f"reset time={time.time()} "
+            f"reset: time={time.time()} "
             f"kp={self.plant.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
             f"ki={self.plant.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
             f"kd={self.plant.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
