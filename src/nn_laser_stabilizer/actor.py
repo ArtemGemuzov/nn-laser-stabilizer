@@ -1,4 +1,4 @@
-from typing import Sequence, Optional, Any, cast
+from typing import Sequence, Any, cast
 from pathlib import Path
 
 import torch
@@ -14,7 +14,7 @@ from nn_laser_stabilizer.types import NetworkType
 
 class Actor(Model):
     @torch.no_grad()
-    def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+    def act(self, observation: torch.Tensor, options: dict[str, Any] = {}) -> tuple[torch.Tensor, dict[str, Any]]:
         return self(observation, options)
     
     def clone(self, reinitialize_weights: bool = False) -> "Actor":
@@ -37,7 +37,7 @@ class MLPActor(Actor):
         self.net_body = build_mlp(obs_dim, action_dim, hidden_sizes)
         self.scaler = Scaler(action_space)
     
-    def forward(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+    def forward(self, observation: torch.Tensor, options: dict[str, Any] = {}) -> tuple[torch.Tensor, dict[str, Any]]:
         action = self.scaler(self.net_body(observation))
         return action, options
 
@@ -67,7 +67,7 @@ class LSTMActor(Actor):
     def forward(
         self,
         observation: torch.Tensor,
-        options: dict[str, Any]
+        options: dict[str, Any] = {}
     ) -> tuple[torch.Tensor, dict[str, Any]]:
         hidden_state = options.get('hidden_state')
         

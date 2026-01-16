@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from typing import Sequence, Any, Optional
+from typing import Sequence, Any
 
 import torch
 import torch.nn as nn
@@ -16,11 +16,11 @@ class Critic(Model, ABC):
         super().__init__(**kwargs)
     
     @abstractmethod
-    def forward(self, observation: torch.Tensor, action: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+    def forward(self, observation: torch.Tensor, action: torch.Tensor, options: dict[str, Any] = {}) -> tuple[torch.Tensor, dict[str, Any]]:
         ...
 
     @torch.no_grad()
-    def value(self, observation: torch.Tensor, action: torch.Tensor, options: Optional[dict[str, Any]] = None) -> tuple[torch.Tensor, dict[str, Any]]:
+    def value(self, observation: torch.Tensor, action: torch.Tensor, options: dict[str, Any] = {}) -> tuple[torch.Tensor, dict[str, Any]]:
         return self(observation, action, options)
     
 
@@ -38,7 +38,7 @@ class MLPCritic(Critic):
             hidden_sizes,
         )
     
-    def forward(self, observation: torch.Tensor, action: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+    def forward(self, observation: torch.Tensor, action: torch.Tensor, options: dict[str, Any] = {}) -> tuple[torch.Tensor, dict[str, Any]]:
         if observation.shape[:-1] != action.shape[:-1]:
             raise ValueError(
                 f"Observation and action must have matching leading dimensions, "
@@ -75,7 +75,7 @@ class LSTMCritic(Critic):
         self,
         observation: torch.Tensor,
         action: torch.Tensor,
-        options: dict[str, Any]
+        options: dict[str, Any] = {}
     ) -> tuple[torch.Tensor, dict[str, Any]]:
         if observation.shape[:-1] != action.shape[:-1]:
             raise ValueError(
