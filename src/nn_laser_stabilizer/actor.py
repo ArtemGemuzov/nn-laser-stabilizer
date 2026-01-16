@@ -1,4 +1,4 @@
-from typing import Sequence, Optional, Tuple, Dict, Any
+from typing import Sequence, Optional, Any, cast
 from pathlib import Path
 
 import torch
@@ -14,8 +14,15 @@ from nn_laser_stabilizer.types import NetworkType
 
 class Actor(Model):
     @torch.no_grad()
-    def act(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
         return self(observation, options)
+    
+    def clone(self, reinitialize_weights: bool = False) -> "Actor":
+        return cast(Actor, super().clone(reinitialize_weights))
+    
+    @classmethod
+    def load(cls, path: Path) -> "Actor":
+        return cast(Actor, super().load(path))
 
 
 class MLPActor(Actor):
@@ -30,7 +37,7 @@ class MLPActor(Actor):
         self.net_body = build_mlp(obs_dim, action_dim, hidden_sizes)
         self.scaler = Scaler(action_space)
     
-    def forward(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def forward(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
         action = self.scaler(self.net_body(observation))
         return action, options
 
@@ -60,10 +67,8 @@ class LSTMActor(Actor):
     def forward(
         self,
         observation: torch.Tensor,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        if options is None:
-            options = {}
+        options: dict[str, Any]
+    ) -> tuple[torch.Tensor, dict[str, Any]]:
         hidden_state = options.get('hidden_state')
         
         was_1d = observation.dim() == 1

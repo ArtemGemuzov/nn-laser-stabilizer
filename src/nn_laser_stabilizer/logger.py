@@ -69,6 +69,7 @@ class ConsoleLogger:
         self.close()
 
 
+# TODO: сейчас класс непотокобезопасный: возможно закрытие файла во время записи
 class AsyncFileLogger:
     POLL_INTERVAL_SEC = 0.1
 
@@ -111,10 +112,9 @@ class AsyncFileLogger:
         if self._stop:
             return
         self._stop = True
+
         self._thread.join()
-        if self._file_handle is not None:
-            self._file_handle.close()
-            self._file_handle = None
+        self._file_handle.close()
     
     def __del__(self):
         self.close()

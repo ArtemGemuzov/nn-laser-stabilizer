@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional
 
 import torch
 import numpy as np
@@ -41,7 +41,7 @@ class TorchEnvWrapper:
     def _to_numpy(self, tensor: torch.Tensor) -> np.ndarray:
         return tensor.numpy()
     
-    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict]:
+    def step(self, action: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         action_np = self._to_numpy(action)
         
         observation, reward, terminated, truncated, info = self._env.step(action_np)
@@ -56,7 +56,7 @@ class TorchEnvWrapper:
     def reset(
         self,
         options: Optional[dict] = None
-    ) -> Tuple[torch.Tensor, dict]:
+    ) -> tuple[torch.Tensor, dict]:
         observation, info = self._env.reset(seed=self._seed, options=options)
         observation = self._to_tensor(observation)
         return observation, info
@@ -105,7 +105,7 @@ def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> Torc
 def make_spaces_from_config(
     env_config: Config,
     seed: Optional[int] = None,
-) -> Tuple[Box, Box]:
+) -> tuple[Box, Box]:
     env = make_env_from_config(env_config, seed=seed)
     observation_space = env.observation_space
     action_space = env.action_space

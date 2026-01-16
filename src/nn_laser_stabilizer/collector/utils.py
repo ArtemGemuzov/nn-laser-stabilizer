@@ -1,4 +1,4 @@
-from typing import Optional, Any, Dict, Tuple
+from typing import Any
 from dataclasses import dataclass
 import traceback
 
@@ -51,8 +51,8 @@ def _collect_step(
     env: TorchEnvWrapper,
     obs: torch.Tensor,
     buffer: ReplayBuffer,
-    options: Optional[Dict[str, Any]] = None,
-) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    options: dict[str, Any] = {},
+) -> tuple[torch.Tensor, dict[str, Any]]:
     action, options = policy.act(obs, options)
     
     next_obs, reward, terminated, truncated, _ = env.step(action)

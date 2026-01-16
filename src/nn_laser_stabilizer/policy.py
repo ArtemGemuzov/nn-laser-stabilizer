@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple, Any, Optional, Dict
+from typing import Any, Optional
 
 import torch
 
@@ -9,44 +9,44 @@ from nn_laser_stabilizer.box import Box
 
 class Policy(ABC):
     @abstractmethod
-    def act(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        pass
+    def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+        ...
     
     @abstractmethod
     def clone(self) -> "Policy":
-        pass
+        ...
     
     @abstractmethod
     def share_memory(self) -> "Policy":
-        pass
+        ...
     
     @abstractmethod
     def state_dict(self) -> dict[str, torch.Tensor]:
-        pass
+        ...
     
     @abstractmethod
     def load_state_dict(self, state_dict):
-        pass
+        ...
     
     @abstractmethod
     def eval(self) -> "Policy":
-        pass
+        ...
     
     @abstractmethod
     def train(self, mode: bool = True) -> "Policy":
-        pass
+        ...
     
     @abstractmethod
     def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
         """Run light inference-only warmup without affecting exploration counters."""
-        pass
+        ...
 
 
 class DeterministicPolicy(Policy):
     def __init__(self, actor: Actor):
         self._actor = actor
     
-    def act(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
         return self._actor.act(observation, options)
     
     def clone(self) -> "DeterministicPolicy":
@@ -75,7 +75,7 @@ class DeterministicPolicy(Policy):
         self._actor.eval()
         for _ in range(num_steps):
             fake_obs = observation_space.sample()
-            self._actor.act(fake_obs)
+            self._actor.act(fake_obs, {})
 
 
 class RandomExplorationPolicy(Policy):
@@ -91,7 +91,7 @@ class RandomExplorationPolicy(Policy):
         
         self._exploration_step_count = 0
     
-    def act(self, observation: torch.Tensor, options: Optional[Dict[str, Any]] = None) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
         if self._exploration_step_count < self.exploration_steps:
             self._exploration_step_count += 1
             action = self.action_space.sample()
@@ -129,7 +129,7 @@ class RandomExplorationPolicy(Policy):
         self._actor.eval()
         for _ in range(num_steps):
             fake_obs = observation_space.sample()
-            self._actor.act(fake_obs)
+            self._actor.act(fake_obs, {})
 
 
 def make_policy(

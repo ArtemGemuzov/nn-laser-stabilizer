@@ -157,7 +157,7 @@ class Plant:
     
     def _should_reset(self, control_outputs: np.ndarray) -> bool:
         mean_control_output = np.mean(control_outputs)
-        return (mean_control_output < self._control_output_min_threshold or 
+        return bool(mean_control_output < self._control_output_min_threshold or 
                 mean_control_output > self._control_output_max_threshold)
     
     def _determine_setpoint(self) -> None:

@@ -6,9 +6,9 @@ from nn_laser_stabilizer.pid_protocol import PidProtocol
 
 
 class BaseConnectionToPid(Protocol):  
-    def open(self) -> None: pass
+    def open(self) -> None: ...
     
-    def close(self) -> None: pass
+    def close(self) -> None: ...
     
     def send_command(
         self,
@@ -21,7 +21,7 @@ class BaseConnectionToPid(Protocol):
         setpoint: int,
     ) -> None: pass
     
-    def read_response(self) -> tuple[float, float]: pass
+    def read_response(self) -> tuple[float, float]: ...
     
     def exchange(
         self,
@@ -32,7 +32,7 @@ class BaseConnectionToPid(Protocol):
         control_min: int,
         control_max: int,
         setpoint: int,
-    ) -> tuple[float, float]: pass
+    ) -> tuple[float, float]: ...
 
 
 class ConnectionToPid(BaseConnectionToPid):

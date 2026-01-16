@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, cast
 from pathlib import Path
 import time
 
@@ -197,7 +197,7 @@ class PidDeltaTuningEnv(gym.Env):
         
         return 2 * total_reward + 1
 
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         delta_kp_norm, delta_ki_norm, delta_kd_norm = action[0], action[1], action[2]
 
         delta_kp = delta_kp_norm * self._kp_delta_max
@@ -235,7 +235,7 @@ class PidDeltaTuningEnv(gym.Env):
         self, 
         seed: Optional[int] = None, 
         options: Optional[dict] = None
-    ) -> Tuple[np.ndarray, dict]:
+    ) -> tuple[np.ndarray, dict]:
         process_variables, control_outputs, setpoint, _ = self.plant.reset()
 
         observation = self._build_observation(
@@ -265,12 +265,15 @@ class PendulumNoVelEnv(gym.Env):
     def __init__(self):
         super().__init__()
         
-        self.env = gym.make("Pendulum-v1")
+        original_env = gym.make("Pendulum-v1")
+        self.env = original_env
     
         self.action_space = self.env.action_space
-        
-        low = np.delete(self.env.observation_space.low, 2)
-        high = np.delete(self.env.observation_space.high, 2)
+    
+        original_observation_space = original_env.observation_space
+        original_observation_space_box : gym.spaces.Box = cast(gym.spaces.Box, original_observation_space)
+        low = np.delete(original_observation_space_box.low, 2)
+        high = np.delete(original_observation_space_box.high, 2)
         self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
 
     def step(self, action):
@@ -345,7 +348,7 @@ class PidProcessEnv(gym.Env):
         error, d_error_dt, integral_error = obs
         return float(-abs(error))
 
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         u = float(action[0])
 
         noise = np.random.normal(0.0, self.process_noise_std) if self.process_noise_std > 0 else 0.0
@@ -362,7 +365,7 @@ class PidProcessEnv(gym.Env):
         info = {"state": self._x, "action": u}
         return obs, reward, terminated, truncated, info
 
-    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, dict]:
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None) -> tuple[np.ndarray, dict]:
         super().reset(seed=seed)
         self._step = 0
         self._x = 0.0

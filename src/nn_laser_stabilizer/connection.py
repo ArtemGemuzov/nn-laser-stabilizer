@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, Optional, TypeGuard
 import warnings
 import socket as net
 
@@ -27,10 +27,10 @@ class COMConnection(BaseConnection):
         self.parity = parity
         self.stopbits = stopbits
         
-        self._serial_connection : serial.Serial = None
+        self._serial_connection : Optional[serial.Serial] = None
 
     def open(self):
-        if self._is_open():
+        if self._check_connected(self._serial_connection):
             return
         
         try:
@@ -48,12 +48,13 @@ class COMConnection(BaseConnection):
             raise ConnectionError("Error initializing serial connection") from ex
 
     def close(self):
-        if self._is_open():
-            self._serial_connection.close()
+        if self._check_connected(self._serial_connection):
+           self._serial_connection.close()
         self._serial_connection = None
 
     def read(self) -> str:
-        self._check_connected()
+        if not self._check_connected(self._serial_connection):
+            raise ConnectionError("Serial connection is not open.")
         
         while True:
             try:
@@ -82,16 +83,14 @@ class COMConnection(BaseConnection):
                 continue
     
     def send(self, data : str):
-        self._check_connected()
+        if not self._check_connected(self._serial_connection):
+            raise ConnectionError("Serial connection is not open.")
     
         self._serial_connection.write(data.encode('utf-8'))
 
-    def _check_connected(self) -> None:
-        if not self._is_open():
-            raise ConnectionError("Serial connection is not open.")
-
-    def _is_open(self) -> bool:
-        return self._serial_connection is not None and self._serial_connection.is_open
+    @staticmethod
+    def _check_connected(value: Optional[serial.Serial]) -> TypeGuard[serial.Serial]:
+        return value is not None and value.is_open
 
 
 class SocketConnection(BaseConnection):
@@ -103,17 +102,17 @@ class SocketConnection(BaseConnection):
     
     def open(self) -> None:
         """Сокет уже открыт, ничего не делаем."""
-        pass
+        ...
     
     def close(self) -> None:
-        if self._is_open():
+        if self._check_connected(self._socket):
             self._socket.close()
-
         self._socket = None
         self._buffer = b""
     
     def read(self) -> str:
-        self._check_connected()
+        if not self._check_connected(self._socket):
+            raise ConnectionError("Socket connection is not open.")
         
         while True:
             try:
@@ -156,21 +155,18 @@ class SocketConnection(BaseConnection):
                 continue
     
     def send(self, data: str) -> None:
-        self._check_connected()
+        if not self._check_connected(self._socket):
+            raise ConnectionError("Socket connection is not open.")
         
         encoded_data = data.encode('utf-8')
         self._socket.sendall(encoded_data)
     
-    def _check_connected(self) -> None:
-        if not self._is_open():
-            raise ConnectionError("Socket connection is not open.")
-    
-    def _is_open(self) -> bool:
-        if self._socket is None:
+    @staticmethod
+    def _check_connected(value: Optional[net.socket]) -> TypeGuard[net.socket]:
+        if value is None:
             return False
-        
         try:
-            return self._socket.fileno() != -1
+            return value.fileno() != -1
         except (net.error, OSError):
             return False
         
@@ -187,7 +183,7 @@ class TCPConnection(BaseConnection):
         self._socket_connection: SocketConnection | None = None
 
     def open(self):
-        if self._is_open():
+        if self._check_connected(self._socket_connection):
             return
         
         try:
@@ -202,24 +198,23 @@ class TCPConnection(BaseConnection):
             raise ConnectionError(f"Error initializing TCP connection") from ex
 
     def close(self):
-        if self._socket_connection is not None:
+        if self._check_connected(self._socket_connection):
             self._socket_connection.close()
         self._socket_connection = None
 
     def read(self) -> str:
-        self._check_connected()
+        if not self._check_connected(self._socket_connection):
+            raise ConnectionError("TCP connection is not open.")
         return self._socket_connection.read()
     
     def send(self, data: str):
-        self._check_connected()
+        if not self._check_connected(self._socket_connection):
+            raise ConnectionError("TCP connection is not open.")
         self._socket_connection.send(data)
 
-    def _check_connected(self) -> None:
-        if self._socket_connection is None:
-            raise ConnectionError("TCP connection is not open.")
-
-    def _is_open(self) -> bool:
-        return self._socket_connection is not None
+    @staticmethod
+    def _check_connected(value: Optional[SocketConnection]) -> TypeGuard[SocketConnection]:
+        return value is not None
 
 
 def parse_tcp_port(port_str: str) -> tuple[str, int]:

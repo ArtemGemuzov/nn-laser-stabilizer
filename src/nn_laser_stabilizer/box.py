@@ -44,7 +44,7 @@ class Box:
         if x.shape[-1] != self.dim:
             return False
         
-        return (x >= self.low).all() and (x <= self.high).all()
+        return bool((x >= self.low).all() and (x <= self.high).all())
     
     def clip(self, x: torch.Tensor) -> torch.Tensor:  
         return torch.clamp(x, self.low, self.high)
