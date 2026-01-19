@@ -1,4 +1,4 @@
-from typing import Any, Dict, Set
+from typing import Any, Optional
 from pathlib import Path
 import yaml
 
@@ -6,7 +6,7 @@ import yaml
 CONFIGS_DIR = Path("configs")
 
 
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     result = base.copy()
     
     for key, value in override.items():
@@ -21,7 +21,7 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return result
 
 
-def _substitute_placeholders(data: Any, variables: Dict[str, Any]) -> Any:
+def _substitute_placeholders(data: Any, variables: dict[str, Any]) -> Any:
     if isinstance(data, str):
         result = data
         for var_name, var_value in variables.items():
@@ -44,7 +44,7 @@ class Config:
     """
     __slots__ = ('_data',)
     
-    def __init__(self, data: Dict[str, Any]):
+    def __init__(self, data: dict[str, Any]):
         object.__setattr__(self, '_data', data)
     
     def __setattr__(self, name: str, value: Any) -> None:
@@ -53,10 +53,10 @@ class Config:
     def __delattr__(self, name: str) -> None:
         raise AttributeError(f"Config is immutable. Cannot delete attribute '{name}'")
     
-    def __getstate__(self) -> Dict[str, Any]:
+    def __getstate__(self) -> dict[str, Any]:
         return {'_data': self._data}
     
-    def __setstate__(self, state: Dict[str, Any]) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         object.__setattr__(self, '_data', state['_data'])
     
     def get(self, key: str, default: Any = None) -> Any:
@@ -80,8 +80,8 @@ class Config:
             return Config(value)
         return value
     
-    def to_dict(self) -> Dict[str, Any]:
-        def convert(value):
+    def to_dict(self) -> dict[str, Any]:
+        def convert(value) -> dict[str, Any] | list[Any]:
             if isinstance(value, Config):
                 return {k: convert(v) for k, v in value._data.items()}
             elif isinstance(value, dict):
@@ -91,7 +91,7 @@ class Config:
             return value
         return convert(self._data)
     
-    def substitute_placeholders(self, variables: Dict[str, Any]) -> "Config":
+    def substitute_placeholders(self, variables: dict[str, Any]) -> "Config":
         substituted_data = _substitute_placeholders(self._data, variables)
         return Config(substituted_data)
     
@@ -108,7 +108,7 @@ def find_config_path(relative_config_path: str | Path) -> Path:
     return CONFIGS_DIR / rel_path
 
 
-def load_config(config_path: Path, configs_dir: Path = None, visited: Set[Path] = None) -> Config:
+def load_config(config_path: Path, configs_dir: Optional[Path] = None, visited: Optional[set[Path]] = None) -> Config:
     config_path = Path(config_path)
     
     if not config_path.suffix:
