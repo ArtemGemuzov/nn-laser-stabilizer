@@ -5,7 +5,7 @@ import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.box import Box
-from nn_laser_stabilizer.env import _CUSTOM_ENV_MAP
+from nn_laser_stabilizer.envs.envs import CUSTOM_ENV_MAP
 from nn_laser_stabilizer.experiment.config import Config
 
 
@@ -80,8 +80,8 @@ def make_env(
     seed: Optional[int] = None,
     **env_kwargs,
 ) -> TorchEnvWrapper: 
-    if env_name in _CUSTOM_ENV_MAP:
-        env_class = _CUSTOM_ENV_MAP[env_name]
+    if env_name in CUSTOM_ENV_MAP:
+        env_class = CUSTOM_ENV_MAP[env_name]
         env = env_class(**env_kwargs)
         return TorchEnvWrapper.wrap(env, seed=seed)
    
@@ -91,7 +91,7 @@ def make_env(
     except gym.error.UnregisteredEnv:
         raise ValueError(
             f"Unknown environment: '{env_name}'. "
-            f"Custom environments: {list(_CUSTOM_ENV_MAP.keys())}"
+            f"Custom environments: {list(CUSTOM_ENV_MAP.keys())}"
         )
     
 
