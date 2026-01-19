@@ -2,7 +2,12 @@ from typing import Tuple
 
 import numpy as np
 
-from nn_laser_stabilizer.connection.pid_connection import ConnectionToPidProtocol
+from nn_laser_stabilizer.hardware.connection import create_connection
+from nn_laser_stabilizer.connection.pid_connection import (
+    ConnectionToPid,
+    LoggingConnectionToPid,
+    ConnectionToPidProtocol,
+)
 from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 from nn_laser_stabilizer.logger import Logger, PrefixedLogger
 
@@ -42,40 +47,63 @@ def determine_setpoint(
     return setpoint, min_pv_int, max_pv_int
 
 
-class Plant:
+class PidDeltaTuningPhys:
     LOG_PREFIX = "PLANT"
     
     def __init__(
         self,
-        pid_connection: ConnectionToPidProtocol,
+        *,
+        # Логгер верхнего уровня
         logger: Logger,
-        setpoint: int = 1200,
-        warmup_steps: int = 1000,
-        block_size: int = 100,
-        burn_in_steps: int = 20,
-        control_output_min_threshold: float = 200.0,
-        control_output_max_threshold: float = 4096.0,
-        force_min_value: int = 2000,
-        force_max_value: int = 2500,
-        default_min: int = 0,
-        default_max: int = 4095,
-        kp_min: float = 2.5,
-        kp_max: float = 12.5,
-        kp_start: float = 7.5,
-        ki_min: float = 0.0,
-        ki_max: float = 20.0,
-        ki_start: float = 10.0,
-        kd_min: float = 0.0,
-        kd_max: float = 0.0,
-        kd_start: float = 0.0,
-        auto_determine_setpoint: bool = False,
-        setpoint_determination_steps: int = 6000,
-        setpoint_determination_max_value: int = 2000,
-        setpoint_determination_factor: float = 0.1,
+        # Параметры для соединения
+        port: str,
+        timeout: float,
+        baudrate: int,
+        # Параметры для логирования соединения
+        log_connection: bool,
+        # Параметры для работы с установкой
+        setpoint: int,
+        warmup_steps: int,
+        block_size: int,
+        burn_in_steps: int,
+        control_output_min_threshold: float,
+        control_output_max_threshold: float,
+        force_min_value: int,
+        force_max_value: int,
+        default_min: int,
+        default_max: int,
+        kp_min: float,
+        kp_max: float,
+        kp_start: float,
+        ki_min: float,
+        ki_max: float,
+        ki_start: float,
+        kd_min: float,
+        kd_max: float,
+        kd_start: float,
+        auto_determine_setpoint: bool,
+        setpoint_determination_steps: int,
+        setpoint_determination_max_value: int,
+        setpoint_determination_factor: float,
     ):
+        connection = create_connection(
+            port=port,
+            timeout=timeout,
+            baudrate=baudrate,
+        )
+        pid_connection: ConnectionToPid | LoggingConnectionToPid = ConnectionToPid(
+            connection=connection
+        )
+
+        if log_connection:
+            pid_connection = LoggingConnectionToPid(
+                connection_to_pid=pid_connection,
+                logger=logger,
+            )
+
         self.pid_connection = pid_connection
         
-        self._logger = PrefixedLogger(logger, Plant.LOG_PREFIX)
+        self._logger = PrefixedLogger(logger, PidDeltaTuningPhys.LOG_PREFIX)
 
         self._kp_min = kp_min
         self._kp_max = kp_max

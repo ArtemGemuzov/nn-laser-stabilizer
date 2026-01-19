@@ -5,10 +5,8 @@ import time
 import numpy as np
 import gymnasium as gym
 
-from nn_laser_stabilizer.envs.pid_delta_tuning_phys import Plant
+from nn_laser_stabilizer.envs.pid_delta_tuning_phys import PidDeltaTuningPhys
 from nn_laser_stabilizer.logger import AsyncFileLogger, PrefixedLogger
-from nn_laser_stabilizer.hardware.connection import create_connection
-from nn_laser_stabilizer.connection.pid_connection import ConnectionToPid, LoggingConnectionToPid
 from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 
 
@@ -90,22 +88,12 @@ class PidDeltaTuningEnv(gym.Env):
         self._base_logger = AsyncFileLogger(log_dir=log_dir, log_file=log_file)
         self._env_logger = PrefixedLogger(self._base_logger, PidDeltaTuningEnv.LOG_PREFIX)
         
-        connection = create_connection(
+        self.plant = PidDeltaTuningPhys(
+            logger=self._base_logger,
             port=port,
             timeout=timeout,
             baudrate=baudrate,
-        )
-        pid_connection = ConnectionToPid(connection=connection)
-        
-        if log_connection:
-            pid_connection = LoggingConnectionToPid(
-                connection_to_pid=pid_connection,
-                logger=self._base_logger,
-            )
-        
-        self.plant = Plant(
-            pid_connection=pid_connection,
-            logger=self._base_logger,
+            log_connection=log_connection,
             setpoint=setpoint,
             warmup_steps=warmup_steps,
             block_size=block_size,
