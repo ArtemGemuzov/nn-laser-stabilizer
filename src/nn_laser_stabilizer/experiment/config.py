@@ -81,7 +81,7 @@ class Config:
         return value
     
     def to_dict(self) -> dict[str, Any]:
-        def convert(value) -> dict[str, Any] | list[Any]:
+        def convert(value) -> Any:
             if isinstance(value, Config):
                 return {k: convert(v) for k, v in value._data.items()}
             elif isinstance(value, dict):

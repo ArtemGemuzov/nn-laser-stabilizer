@@ -1,4 +1,3 @@
-from typing import Optional
 from pathlib import Path
 from datetime import datetime
 import traceback
@@ -20,8 +19,6 @@ class ExperimentContext:
         self.config: Config = config
 
         self._seed: int = 0
-        self._logger: Optional[ConsoleLogger] = None
-        self._experiment_dir: Optional[Path] = None
 
     def __enter__(self):
         start_time = datetime.now()
