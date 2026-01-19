@@ -4,7 +4,7 @@ import numpy as np
 import gymnasium as gym
 
 
-class NNPid(gym.Env):
+class NeuralPIDEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(
