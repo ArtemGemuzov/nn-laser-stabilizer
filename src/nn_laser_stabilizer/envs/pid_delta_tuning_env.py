@@ -5,7 +5,7 @@ import time
 import numpy as np
 import gymnasium as gym
 
-from nn_laser_stabilizer.plant import Plant
+from nn_laser_stabilizer.envs.pid_delta_tuning_phys import Plant
 from nn_laser_stabilizer.logger import AsyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.hardware.connection import create_connection
 from nn_laser_stabilizer.connection.pid_connection import ConnectionToPid, LoggingConnectionToPid
