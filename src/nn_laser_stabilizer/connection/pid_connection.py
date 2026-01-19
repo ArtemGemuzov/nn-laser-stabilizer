@@ -1,11 +1,11 @@
 from typing import Protocol
 
-from nn_laser_stabilizer.connection import BaseConnection
+from nn_laser_stabilizer.hardware.connection import BaseConnection
+from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 from nn_laser_stabilizer.logger import Logger, PrefixedLogger
-from nn_laser_stabilizer.pid_protocol import PidProtocol
 
 
-class BaseConnectionToPid(Protocol):  
+class ConnectionToPidProtocol(Protocol):  
     def open(self) -> None: ...
     
     def close(self) -> None: ...
@@ -19,7 +19,7 @@ class BaseConnectionToPid(Protocol):
         control_min: int,
         control_max: int,
         setpoint: int,
-    ) -> None: pass
+    ) -> None: ...
     
     def read_response(self) -> tuple[float, float]: ...
     
@@ -35,7 +35,7 @@ class BaseConnectionToPid(Protocol):
     ) -> tuple[float, float]: ...
 
 
-class ConnectionToPid(BaseConnectionToPid):
+class ConnectionToPid:
     def __init__(self, connection: BaseConnection):
         self._connection = connection
     
@@ -87,7 +87,7 @@ class ConnectionToPid(BaseConnectionToPid):
         return self.read_response()
     
 
-class LoggingConnectionToPid(BaseConnectionToPid):
+class LoggingConnectionToPid(ConnectionToPid):
     LOG_PREFIX = "PID"
     
     def __init__(

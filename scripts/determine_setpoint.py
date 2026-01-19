@@ -1,5 +1,5 @@
-from nn_laser_stabilizer.connection import create_connection
-from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
+from nn_laser_stabilizer.hardware.connection import create_connection
+from nn_laser_stabilizer.connection.pid_connection import ConnectionToPid, LoggingConnectionToPid
 from nn_laser_stabilizer.plant import determine_setpoint
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext

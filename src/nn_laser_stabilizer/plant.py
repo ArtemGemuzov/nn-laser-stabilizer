@@ -2,13 +2,13 @@ from typing import Tuple
 
 import numpy as np
 
-from nn_laser_stabilizer.pid import BaseConnectionToPid
-from nn_laser_stabilizer.pid_protocol import PidProtocol
+from nn_laser_stabilizer.connection.pid_connection import ConnectionToPidProtocol
+from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 from nn_laser_stabilizer.logger import Logger, PrefixedLogger
 
 
 def determine_setpoint(
-    pid_connection: BaseConnectionToPid,
+    pid_connection: ConnectionToPidProtocol,
     steps: int,
     max_value: int,
     factor: float,
@@ -47,7 +47,7 @@ class Plant:
     
     def __init__(
         self,
-        pid_connection: BaseConnectionToPid,
+        pid_connection: ConnectionToPidProtocol,
         logger: Logger,
         setpoint: int = 1200,
         warmup_steps: int = 1000,

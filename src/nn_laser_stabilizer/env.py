@@ -7,9 +7,9 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.plant import Plant
 from nn_laser_stabilizer.logger import AsyncFileLogger, PrefixedLogger
-from nn_laser_stabilizer.connection import create_connection
-from nn_laser_stabilizer.pid import ConnectionToPid, LoggingConnectionToPid
-from nn_laser_stabilizer.pid_protocol import PidProtocol
+from nn_laser_stabilizer.hardware.connection import create_connection
+from nn_laser_stabilizer.connection.pid_connection import ConnectionToPid, LoggingConnectionToPid
+from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 
 
 class PidDeltaTuningEnv(gym.Env):

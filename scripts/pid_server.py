@@ -8,8 +8,8 @@ import time
 from typing import Optional
 
 from nn_laser_stabilizer.experiment.config import load_config, find_config_path
-from nn_laser_stabilizer.pid_protocol import PidProtocol
-from nn_laser_stabilizer.connection import parse_tcp_port, SocketConnection
+from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
+from nn_laser_stabilizer.hardware.socket import parse_socket_port, SocketAdapter
 
 
 class PidSimulator:
@@ -121,7 +121,7 @@ class PidServer:
     
     def _handle_client(self):
         assert self.client_socket is not None
-        connection = SocketConnection(self.client_socket)
+        connection = SocketAdapter(self.client_socket)
         
         try:
             while self.running:
@@ -194,7 +194,7 @@ def main():
     config = load_config(config_path)
     
     env_args = config.env.args
-    host, port = parse_tcp_port(str(env_args.port))
+    host, port = parse_socket_port(str(env_args.port))
     
     pid_simulator = PidSimulator(
         kp_min=env_args.kp_min,
