@@ -48,7 +48,7 @@ def validate(
     return np.array(rewards)
 
 
-@experiment("pid_delta_tuning")
+@experiment("neural_controller")
 def main(context: ExperimentContext):
     TRAIN_LOG_PREFIX = "TRAIN"
     
