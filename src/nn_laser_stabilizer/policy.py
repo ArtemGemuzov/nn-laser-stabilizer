@@ -134,28 +134,70 @@ class RandomExplorationPolicy(Policy):
             self._actor.act(fake_obs, {})
 
 
-def make_policy(
-    actor: Actor,
-    action_space: Box,
-    exploration_type: ExplorationType,
-    exploration_steps: int,
-) -> Policy:
-    if exploration_type == ExplorationType.NONE:
-        if exploration_steps != 0:
-            raise ValueError(
-                f"exploration_steps must be 0 when exploration_type is {ExplorationType.NONE}, "
-                f"got exploration_steps={exploration_steps}"
-            )
-        return DeterministicPolicy(actor=actor)
+class NoisyExplorationPolicy(Policy):
+    def __init__(
+        self,
+        actor: Actor,
+        exploration_steps: int,
+        action_space: Box,
+        policy_noise: float,
+        noise_clip: float,
+    ):
+        self._actor = actor
+        self.exploration_steps = exploration_steps
+        self.action_space = action_space
+        self.policy_noise = policy_noise
+        self.noise_clip = noise_clip
+        
+        self.min_action = action_space.low
+        self.max_action = action_space.high
+        
+        self._exploration_step_count = 0
     
-    if exploration_type == ExplorationType.RANDOM:
-        return RandomExplorationPolicy(
-            actor=actor,
-            exploration_steps=exploration_steps,
-            action_space=action_space
+    def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+        action, actor_options = self._actor.act(observation, options)
+        
+        if self._exploration_step_count < self.exploration_steps:
+            self._exploration_step_count += 1
+            noise = (torch.randn_like(action) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
+            noisy_action = (action + noise).clamp(self.min_action, self.max_action)
+            return noisy_action, actor_options
+        else:
+            return action, actor_options
+    
+    def clone(self) -> "NoisyExplorationPolicy":
+        cloned_actor = self._actor.clone()
+        return NoisyExplorationPolicy(
+            actor=cloned_actor,
+            exploration_steps=self.exploration_steps,
+            action_space=self.action_space,
+            policy_noise=self.policy_noise,
+            noise_clip=self.noise_clip,
         )
-    else:
-        raise ValueError(f"Unknown exploration type: {exploration_type}")
+    
+    def share_memory(self) -> "NoisyExplorationPolicy":
+        self._actor.share_memory()
+        return self
+    
+    def state_dict(self) -> dict[str, torch.Tensor]:
+        return self._actor.state_dict()
+    
+    def load_state_dict(self, state_dict):
+        return self._actor.load_state_dict(state_dict)
+    
+    def train(self, mode: bool = True) -> "NoisyExplorationPolicy":
+        self._actor.train(mode)
+        return self
+    
+    def eval(self) -> "NoisyExplorationPolicy":
+        self._actor.eval()
+        return self
+    
+    def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
+        self._actor.eval()
+        for _ in range(num_steps):
+            fake_obs = observation_space.sample()
+            self._actor.act(fake_obs, {})
 
 
 def make_policy_from_config(
@@ -163,9 +205,43 @@ def make_policy_from_config(
     action_space: Box,
     exploration_config: Config,
 ) -> Policy:
-    return make_policy(
-        actor=actor,
-        action_space=action_space,
-        exploration_type= ExplorationType.from_str(exploration_config.type),
-        exploration_steps=exploration_config.steps,
-    )
+    exploration_type = ExplorationType.from_str(exploration_config.type)
+    exploration_steps = exploration_config.steps
+    
+    if exploration_type == ExplorationType.NONE:
+        if exploration_steps != 0:
+            raise ValueError(
+                f"exploration_steps must be 0 when exploration_type is {ExplorationType.NONE}, "
+                f"got exploration_steps={exploration_steps}"
+            )
+        return DeterministicPolicy(actor=actor)
+    elif exploration_type == ExplorationType.RANDOM:
+        return RandomExplorationPolicy(
+            actor=actor,
+            exploration_steps=exploration_steps,
+            action_space=action_space
+        )
+    elif exploration_type == ExplorationType.NOISY:
+        policy_noise = exploration_config.policy_noise
+        noise_clip = exploration_config.noise_clip
+        
+        if policy_noise <= 0.0:
+            raise ValueError(
+                f"policy_noise must be greater than 0 when exploration_type is {ExplorationType.NOISY}, "
+                f"got policy_noise={policy_noise}"
+            )
+        if noise_clip <= 0.0:
+            raise ValueError(
+                f"noise_clip must be greater than 0 when exploration_type is {ExplorationType.NOISY}, "
+                f"got noise_clip={noise_clip}"
+            )
+        
+        return NoisyExplorationPolicy(
+            actor=actor,
+            exploration_steps=exploration_steps,
+            action_space=action_space,
+            policy_noise=policy_noise,
+            noise_clip=noise_clip,
+        )
+    else:
+        raise ValueError(f"Unknown exploration type: {exploration_type}")
