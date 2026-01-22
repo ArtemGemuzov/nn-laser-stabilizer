@@ -2,7 +2,7 @@ experiment_name: neural_pid
 seed: 1
 
 env:
-  name: NNPid
+  name: NeuralPIDEnv
   args:
     port: COM3
     timeout: 0.1
@@ -20,10 +20,7 @@ env:
     setpoint_determination_factor: 0.1
 
     control_min: 0
-    control_max: 4000
-
-    action_low: -1.0
-    action_high: 1.0
+    control_max: 4095
 
 training:
   initial_collect_steps: 2500
@@ -54,7 +51,7 @@ sampler:
 
 network:
   type: mlp
-  mlp_hidden_sizes: [256, 256]
+  mlp_hidden_sizes: [3]
 
 loss:
   gamma: 0.95
