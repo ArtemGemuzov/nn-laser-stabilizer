@@ -100,7 +100,7 @@ class NeuralPIDEnv(gym.Env):
         )
 
     def _compute_reward(self) -> float:
-        return float(-abs(self._error))
+        return 1.0 - 2.0 * abs(self._error)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         action_value = float(action[0])
