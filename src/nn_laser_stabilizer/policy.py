@@ -5,8 +5,8 @@ import torch
 
 from nn_laser_stabilizer.actor import Actor
 from nn_laser_stabilizer.box import Box
-from nn_laser_stabilizer.experiment.config import Config
-from nn_laser_stabilizer.types import ExplorationType
+from nn_laser_stabilizer.config.config import Config
+from nn_laser_stabilizer.config.types import ExplorationType
 
 
 class Policy(ABC):

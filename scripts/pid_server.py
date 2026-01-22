@@ -7,7 +7,7 @@ import math
 import time
 from typing import Optional
 
-from nn_laser_stabilizer.experiment.config import load_config, find_config_path
+from nn_laser_stabilizer.config.config import load_config, find_config_path
 from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 from nn_laser_stabilizer.hardware.socket import parse_socket_port, SocketAdapter
 
