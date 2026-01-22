@@ -10,3 +10,8 @@ class SamplerType(BaseEnum):
     SINGLE = "single"
     SEQUENCE = "sequence"
 
+
+class ExplorationType(BaseEnum):
+    NONE = "none"
+    RANDOM = "random"
+

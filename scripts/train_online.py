@@ -10,7 +10,7 @@ from nn_laser_stabilizer.sampler import make_sampler_from_config
 from nn_laser_stabilizer.collector.collector import AsyncCollector, SyncCollector
 from nn_laser_stabilizer.env_wrapper import make_env_from_config, make_spaces_from_config
 from nn_laser_stabilizer.policy import Policy
-from nn_laser_stabilizer.policy import make_policy
+from nn_laser_stabilizer.policy import make_policy_from_config
 from nn_laser_stabilizer.loss import TD3Loss
 from nn_laser_stabilizer.training import td3_train_step
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
@@ -86,20 +86,16 @@ def main(context: ExperimentContext):
         network_config=network_config,
     ).train()
     
-    exploration_steps = context.config.training.exploration_steps
-    policy_factory = partial(
-        make_policy,
-        actor=actor,
-        action_space=action_space,
-        exploration_steps=exploration_steps
-    )
-
-    policy = policy_factory().train()
-    
     critic = make_critic_from_config(
         obs_dim=observation_dim,
         action_dim=action_dim,
         network_config=network_config,
+    ).train()
+
+    policy = make_policy_from_config(
+        actor=actor,
+        action_space=action_space,
+        exploration_config=context.config.exploration,
     ).train()
     
     loss_module = TD3Loss(

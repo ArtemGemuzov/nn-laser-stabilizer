@@ -5,6 +5,8 @@ import torch
 
 from nn_laser_stabilizer.actor import Actor
 from nn_laser_stabilizer.box import Box
+from nn_laser_stabilizer.experiment.config import Config
+from nn_laser_stabilizer.types import ExplorationType
 
 
 class Policy(ABC):
@@ -135,12 +137,35 @@ class RandomExplorationPolicy(Policy):
 def make_policy(
     actor: Actor,
     action_space: Box,
-    exploration_steps: int = 0,
+    exploration_type: ExplorationType,
+    exploration_steps: int,
 ) -> Policy:
-    if exploration_steps > 0:
+    if exploration_type == ExplorationType.NONE:
+        if exploration_steps != 0:
+            raise ValueError(
+                f"exploration_steps must be 0 when exploration_type is {ExplorationType.NONE}, "
+                f"got exploration_steps={exploration_steps}"
+            )
+        return DeterministicPolicy(actor=actor)
+    
+    if exploration_type == ExplorationType.RANDOM:
         return RandomExplorationPolicy(
             actor=actor,
             exploration_steps=exploration_steps,
             action_space=action_space
         )
-    return DeterministicPolicy(actor=actor)
+    else:
+        raise ValueError(f"Unknown exploration type: {exploration_type}")
+
+
+def make_policy_from_config(
+    actor: Actor,
+    action_space: Box,
+    exploration_config: Config,
+) -> Policy:
+    return make_policy(
+        actor=actor,
+        action_space=action_space,
+        exploration_type= ExplorationType.from_str(exploration_config.type),
+        exploration_steps=exploration_config.steps,
+    )

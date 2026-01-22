@@ -27,11 +27,14 @@ env:
 training:
   initial_collect_steps: 2500
   num_steps: -1
-  exploration_steps: 2650
   log_frequency: 1
   policy_freq: 2
   log_dir: "train_logs"
   log_file: train.log
+
+exploration:
+  type: random
+  steps: 2650
 
 collector:
   is_async: true
@@ -53,7 +56,7 @@ sampler:
 
 network:
   type: mlp
-  mlp_hidden_sizes: [1]
+  mlp_hidden_sizes: [256, 256]
 
 loss:
   gamma: 0.95
