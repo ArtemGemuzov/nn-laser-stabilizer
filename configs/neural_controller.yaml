@@ -2,7 +2,7 @@ experiment_name: neural_controller
 seed: 1
 
 env:
-  name: NeuralController
+  name: NeuralControllerEnv
   args:
     port: COM3
     timeout: 0.1
