@@ -1,98 +1,152 @@
 from typing import Optional
+from pathlib import Path
 
 import numpy as np
 import gymnasium as gym
 
+from nn_laser_stabilizer.logger import AsyncFileLogger, PrefixedLogger
+from nn_laser_stabilizer.envs.neural_pid_phys import NeuralPIDPhysics
+
 
 class NeuralPIDEnv(gym.Env):
+    LOG_PREFIX = "ENV"
+
     metadata = {"render_modes": []}
 
     def __init__(
         self,
-        *,
-        setpoint: float = 0.0,
-        dt: float = 0.1,
-        k: float = 1.0,
-        u_gain: float = 1.0,
-        max_steps: int = 1000,
-        action_low: float = -5.0,
-        action_high: float = 5.0,
-        process_noise_std: float = 0.0,
-        integral_clip: float = 10.0,
+        # Параметры для соединения
+        port: str,
+        timeout: float,
+        baudrate: int,
+        # Параметры для логирования соединения
+        log_connection: bool,
+        # Параметры для работы с установкой
+        setpoint: int,
+        # Параметры автоматического определения setpoint
+        auto_determine_setpoint: bool,
+        setpoint_determination_steps: int,
+        setpoint_determination_max_value: int,
+        setpoint_determination_factor: float,
+        # Параметры диапазона управления
+        control_min: int,
+        control_max: int,
+        # Параметры для логирования окружения
+        log_dir: str | Path,
+        log_file: str,
     ):
         super().__init__()
-        self.setpoint = float(setpoint)
-        self.dt = float(dt)
-        self.k = float(k)
-        self.u_gain = float(u_gain)
-        self.max_steps = int(max_steps)
-        self.process_noise_std = float(process_noise_std)
-        self.integral_clip = float(integral_clip)
 
-        self.action_space = gym.spaces.Box(
-            low=np.array([action_low], dtype=np.float32),
-            high=np.array([action_high], dtype=np.float32),
-            dtype=np.float32,
-        )
-        self.observation_space = gym.spaces.Box(
-            low=np.array([-np.inf, -np.inf, -integral_clip], dtype=np.float32),
-            high=np.array([np.inf, np.inf, integral_clip], dtype=np.float32),
-            dtype=np.float32,
+        self._control_min = int(control_min)
+        self._control_max = int(control_max)
+
+        self._base_logger = AsyncFileLogger(log_dir=log_dir, log_file=log_file)
+        self._env_logger = PrefixedLogger(self._base_logger, NeuralPIDEnv.LOG_PREFIX)
+
+        self._physics = NeuralPIDPhysics(
+            port=port,
+            timeout=timeout,
+            baudrate=baudrate,
+            log_connection=log_connection,
+            setpoint=setpoint,
+            auto_determine_setpoint=auto_determine_setpoint,
+            setpoint_determination_steps=setpoint_determination_steps,
+            setpoint_determination_max_value=setpoint_determination_max_value,
+            setpoint_determination_factor=setpoint_determination_factor,
+            control_min=control_min,
+            control_max=control_max,
+            base_logger=self._base_logger,
         )
 
-        self._x: float = 0.0
         self._error: float = 0.0
         self._prev_error: float = 0.0
         self._integral_error: float = 0.0
-        self._step = 0
+        self._step: int = 0
 
-    def _compute_error(self) -> None:
+        self.action_space = gym.spaces.Box(
+            low=np.array([-1.0], dtype=np.float32),
+            high=np.array([1.0], dtype=np.float32),
+            dtype=np.float32,
+        )
+        self.observation_space = gym.spaces.Box(
+            low=np.array([-np.inf, -np.inf, -np.inf], dtype=np.float32),
+            high=np.array([np.inf, np.inf, np.inf], dtype=np.float32),
+            dtype=np.float32,
+        )
+
+    def _map_action_to_control(self, action: float) -> int:
+        """Линейное отображение действия из [-1, 1] в [control_min, control_max]."""
+        norm = (action + 1.0) / 2.0
+        control = self._control_min + norm * (self._control_max - self._control_min)
+        return int(round(control))
+
+    def _compute_error(self, process_variable: float) -> None:
         self._prev_error = self._error
-        self._error = self.setpoint - self._x
+        self._error = self._physics.setpoint - process_variable
+        self._integral_error += self._error
 
-    def _get_observation(self) -> np.ndarray:
-        d_error_dt = (self._error - self._prev_error) / self.dt
-        integral_clipped = np.clip(self._integral_error, -self.integral_clip, self.integral_clip)
-        return np.array([self._error, d_error_dt, integral_clipped], dtype=np.float32)
+    def _build_observation(self) -> np.ndarray:
+        d_error_dt = self._error - self._prev_error
+        return np.array(
+            [self._error, d_error_dt, self._integral_error],
+            dtype=np.float32,
+        )
 
-    def _compute_reward(self, obs: np.ndarray) -> float:
-        error, d_error_dt, integral_error = obs
-        return float(-abs(error))
+    def _compute_reward(self) -> float:
+        return float(-abs(self._error))
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        u = float(action[0])
+        action_value = float(action[0])
+        control_output = self._map_action_to_control(action_value)
+        process_variable = self._physics.step(control_output)
 
-        noise = np.random.normal(0.0, self.process_noise_std) if self.process_noise_std > 0 else 0.0
-        self._x = self._x + self.dt * (-self.k * self._x + self.u_gain * u + noise)
-
-        self._compute_error()
-        self._integral_error += self._error * self.dt
-        obs = self._get_observation()
-        reward = self._compute_reward(obs)
+        self._compute_error(process_variable)
+        obs = self._build_observation()
+        reward = self._compute_reward()
 
         self._step += 1
-        terminated = False
-        truncated = self._step >= self.max_steps
-        info = {"state": self._x, "action": u}
-        return obs, reward, terminated, truncated, info
 
-    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None) -> tuple[np.ndarray, dict]:
+        log_line = (
+            "step: "
+            f"step={self._step} "
+            f"process_variable={process_variable} setpoint={self._physics.setpoint} "
+            f"error={self._error:.3f} "
+            f"action={action_value:.3f} control_output={control_output} "
+            f"reward={reward:.6f}"
+        )
+        self._env_logger.log(log_line)
+
+        terminated = truncated = False
+        return obs, reward, terminated, truncated, {}
+
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None,
+    ) -> tuple[np.ndarray, dict]:
         super().reset(seed=seed)
+
         self._step = 0
-        self._x = 0.0
         self._error = 0.0
         self._prev_error = 0.0
         self._integral_error = 0.0
-        self._compute_error()
-        obs = self._get_observation()
-        return obs, {}
 
-    def render(self):
-        return {
-            "state": self._x,
-            "error": self._error,
-            "integral_error": self._integral_error,
-        }
+        self._physics.open_and_warmup()
 
-    def close(self):
-        pass
+        process_variable, neutral_control_output = self._physics.neutral_measure()
+        self._compute_error(process_variable)
+        observation = self._build_observation()
+
+        log_line = (
+            "reset: "
+            f"process_variable={process_variable} setpoint={self._physics.setpoint} "
+            f"error={self._error:.3f} "
+            f"neutral_control_output={neutral_control_output}"
+        )
+        self._env_logger.log(log_line)
+
+        return observation, {}
+
+    def close(self) -> None:
+        self._physics.close()
+        self._base_logger.close()
