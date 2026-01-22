@@ -31,6 +31,8 @@ class NeuralPIDEnv(gym.Env):
         # Параметры диапазона управления
         control_min: int,
         control_max: int,
+        # Параметры нормализации наблюдений
+        process_variable_max: int,
         # Параметры для логирования окружения
         log_dir: str | Path,
         log_file: str,
@@ -39,6 +41,8 @@ class NeuralPIDEnv(gym.Env):
 
         self._control_min = int(control_min)
         self._control_max = int(control_max)
+        
+        self._process_variable_max = float(process_variable_max)
 
         self._base_logger = AsyncFileLogger(log_dir=log_dir, log_file=log_file)
         self._env_logger = PrefixedLogger(self._base_logger, NeuralPIDEnv.LOG_PREFIX)
@@ -58,6 +62,8 @@ class NeuralPIDEnv(gym.Env):
             base_logger=self._base_logger,
         )
 
+        self._setpoint_norm = float(setpoint) / self._process_variable_max
+
         self._error: float = 0.0
         self._prev_error: float = 0.0
         self._integral_error: float = 0.0
@@ -69,8 +75,8 @@ class NeuralPIDEnv(gym.Env):
             dtype=np.float32,
         )
         self.observation_space = gym.spaces.Box(
-            low=np.array([-np.inf, -np.inf, -np.inf], dtype=np.float32),
-            high=np.array([np.inf, np.inf, np.inf], dtype=np.float32),
+            low=np.array([-1.0, -np.inf, -np.inf], dtype=np.float32),
+            high=np.array([1.0, np.inf, np.inf], dtype=np.float32),
             dtype=np.float32,
         )
 
@@ -80,13 +86,14 @@ class NeuralPIDEnv(gym.Env):
         control = self._control_min + norm * (self._control_max - self._control_min)
         return int(round(control))
 
-    def _compute_error(self, process_variable: float) -> None:
+    def _compute_error(self, process_variable_norm: float) -> None:
         self._prev_error = self._error
-        self._error = self._physics.setpoint - process_variable
+        self._error = self._setpoint_norm - process_variable_norm
         self._integral_error += self._error
 
     def _build_observation(self) -> np.ndarray:
         d_error_dt = self._error - self._prev_error
+        
         return np.array(
             [self._error, d_error_dt, self._integral_error],
             dtype=np.float32,
@@ -99,8 +106,9 @@ class NeuralPIDEnv(gym.Env):
         action_value = float(action[0])
         control_output = self._map_action_to_control(action_value)
         process_variable = self._physics.step(control_output)
+        process_variable_norm = float(process_variable) / self._process_variable_max
 
-        self._compute_error(process_variable)
+        self._compute_error(process_variable_norm)
         obs = self._build_observation()
         reward = self._compute_reward()
 
@@ -134,7 +142,9 @@ class NeuralPIDEnv(gym.Env):
         self._physics.open_and_warmup()
 
         process_variable, neutral_control_output = self._physics.neutral_measure()
-        self._compute_error(process_variable)
+      
+        process_variable_norm = float(process_variable) / self._process_variable_max
+        self._compute_error(process_variable_norm)
         observation = self._build_observation()
 
         log_line = (

@@ -20,11 +20,13 @@ class PhaseShifterSimulator:
         control_min: int,
         control_max: int,
         setpoint: int,
+        process_variable_max: int,
         noise_std: float = 10.0,
     ):
         self._control_min = control_min
         self._control_max = control_max
         self._setpoint = setpoint
+        self._process_variable_max = process_variable_max
         self._noise_std = noise_std
         
         self._current_pv = setpoint
@@ -42,7 +44,7 @@ class PhaseShifterSimulator:
         noise = random.gauss(0, self._noise_std)
         
         self._current_pv = 0.8 * self._current_pv + 0.2 * (base_pv + noise)
-        process_variable = round(self._current_pv)
+        process_variable = int(max(0, min(self._process_variable_max, round(self._current_pv))))
         return process_variable
 
 
@@ -73,6 +75,8 @@ class PhaseShifterServer:
             print(f"Phase shifter server listening on {self.host}:{self.port}")
             print(f"Setpoint: {self._simulator._setpoint}")
             print(f"Control range: [{self._simulator._control_min}, {self._simulator._control_max}]")
+            print(f"Process variable max: {self._simulator._process_variable_max}")
+            print(f"Optimal control signal: {self._simulator._optimal_control}")
             print("Waiting for connection...")
             
             self.running = True
@@ -162,6 +166,7 @@ def main():
         control_min=env_args.control_min,
         control_max=env_args.control_max,
         setpoint=env_args.setpoint,
+        process_variable_max=env_args.process_variable_max,
         noise_std=args.noise_std,
     )
     
