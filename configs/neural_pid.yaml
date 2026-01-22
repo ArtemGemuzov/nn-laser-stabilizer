@@ -22,7 +22,7 @@ env:
     control_min: 0
     control_max: 4095
 
-    process_variable_max: 10230
+    process_variable_max: 2000
 
 training:
   initial_collect_steps: 2500
