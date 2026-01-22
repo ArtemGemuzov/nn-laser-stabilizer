@@ -5,7 +5,7 @@ import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.logger import AsyncFileLogger, PrefixedLogger
-from nn_laser_stabilizer.envs.neural_pid_phys import NeuralPIDPhysics
+from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
 
 
 class NeuralPIDEnv(gym.Env):
@@ -47,7 +47,7 @@ class NeuralPIDEnv(gym.Env):
         self._base_logger = AsyncFileLogger(log_dir=log_dir, log_file=log_file)
         self._env_logger = PrefixedLogger(self._base_logger, NeuralPIDEnv.LOG_PREFIX)
 
-        self._physics = NeuralPIDPhysics(
+        self._physics = NeuralControllerPhys(
             port=port,
             timeout=timeout,
             baudrate=baudrate,

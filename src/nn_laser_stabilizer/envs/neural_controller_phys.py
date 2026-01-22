@@ -6,8 +6,8 @@ from nn_laser_stabilizer.connection.phase_shifter_connection import (
 from nn_laser_stabilizer.logger import Logger, PrefixedLogger
 
 
-class NeuralPIDPhysics:
-    LOG_PREFIX = "NEURAL_PID_PHYS"
+class NeuralControllerPhys:
+    LOG_PREFIX = "NEURAL_CONTROLLER_PHYS"
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class NeuralPIDPhysics:
             )
 
         self._base_logger = base_logger
-        self._logger = PrefixedLogger(base_logger, NeuralPIDPhysics.LOG_PREFIX)
+        self._logger = PrefixedLogger(base_logger, NeuralControllerPhys.LOG_PREFIX)
 
         connection = create_connection(
             port=port,
