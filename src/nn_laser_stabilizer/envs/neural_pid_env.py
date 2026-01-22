@@ -19,8 +19,6 @@ class NeuralPIDEnv(gym.Env):
         port: str,
         timeout: float,
         baudrate: int,
-        # Параметры для логирования соединения
-        log_connection: bool,
         # Параметры для работы с установкой
         setpoint: int,
         # Параметры автоматического определения setpoint
@@ -51,7 +49,6 @@ class NeuralPIDEnv(gym.Env):
             port=port,
             timeout=timeout,
             baudrate=baudrate,
-            log_connection=log_connection,
             setpoint=setpoint,
             auto_determine_setpoint=auto_determine_setpoint,
             setpoint_determination_steps=setpoint_determination_steps,

@@ -16,7 +16,6 @@ class NeuralControllerPhys:
         port: str,
         timeout: float,
         baudrate: int,
-        log_connection: bool,
         # Параметры для работы с установкой
         setpoint: int,
         # Параметры автоматического определения setpoint
@@ -54,15 +53,7 @@ class NeuralControllerPhys:
             timeout=timeout,
             baudrate=baudrate,
         )
-        pid_connection = ConnectionToPhaseShifter(connection=connection)
-
-        if log_connection:
-            pid_connection = LoggingConnectionToPhaseShifter(
-                connection_to_phase_shifter=pid_connection,
-                logger=self._base_logger,
-            )
-
-        self._pid_connection = pid_connection
+        self._pid_connection =  ConnectionToPhaseShifter(connection=connection)
 
     @property
     def setpoint(self) -> int:

@@ -11,8 +11,6 @@ env:
     log_dir: "env_logs"
     log_file: env.log
 
-    log_connection: false
-
     setpoint: 1200
     auto_determine_setpoint: false
     setpoint_determination_steps: 6000
