@@ -100,7 +100,7 @@ class NeuralControllerEnv(gym.Env):
         action_value = float(action[0])
         control_output = self._map_action_to_control(action_value)
         process_variable = self._physics.step(control_output)
-        process_variable_norm = float(process_variable) / self._process_variable_max
+        process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
 
         self._compute_error(process_variable_norm)
         observation = self._build_observation()
@@ -111,8 +111,7 @@ class NeuralControllerEnv(gym.Env):
         log_line = (
             "step: "
             f"step={self._step} "
-            f"process_variable={process_variable} setpoint={self._physics.setpoint} "
-            f"error={self._error} "
+            f"process_variable={process_variable} setpoint={self._physics.setpoint} error={self._error} "
             f"action={action_value} control_output={control_output} "
             f"reward={reward}"
         )
@@ -135,15 +134,14 @@ class NeuralControllerEnv(gym.Env):
 
         process_variable, neutral_control_output = self._physics.neutral_measure()
       
-        process_variable_norm = float(process_variable) / self._process_variable_max
+        process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
         self._compute_error(process_variable_norm)
         observation = self._build_observation()
 
         log_line = (
             "reset: "
-            f"process_variable={process_variable} setpoint={self._physics.setpoint} "
-            f"error={self._error} "
-            f"neutral_control_output={neutral_control_output}"
+            f"process_variable={process_variable} setpoint={self._physics.setpoint} error={self._error} "
+            f"control_output={neutral_control_output}"
         )
         self._env_logger.log(log_line)
 
