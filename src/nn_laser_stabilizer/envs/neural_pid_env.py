@@ -114,13 +114,16 @@ class NeuralPIDEnv(gym.Env):
 
         self._step += 1
 
+        d_error_dt = self._error - self._prev_error
+
         log_line = (
             "step: "
             f"step={self._step} "
             f"process_variable={process_variable} setpoint={self._physics.setpoint} "
-            f"error={self._error:.3f} "
-            f"action={action_value:.3f} control_output={control_output} "
-            f"reward={reward:.6f}"
+            f"error={self._error} prev_error={self._prev_error} "
+            f"d_error_dt={d_error_dt} integral_error={self._integral_error} "
+            f"action={action_value} control_output={control_output} "
+            f"reward={reward}"
         )
         self._env_logger.log(log_line)
 
@@ -147,10 +150,13 @@ class NeuralPIDEnv(gym.Env):
         self._compute_error(process_variable_norm)
         observation = self._build_observation()
 
+        d_error_dt = self._error - self._prev_error
+
         log_line = (
             "reset: "
             f"process_variable={process_variable} setpoint={self._physics.setpoint} "
-            f"error={self._error:.3f} "
+            f"error={self._error} prev_error={self._prev_error} "
+            f"d_error_dt={d_error_dt} integral_error={self._integral_error} "
             f"neutral_control_output={neutral_control_output}"
         )
         self._env_logger.log(log_line)
