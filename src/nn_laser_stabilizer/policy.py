@@ -1,5 +1,6 @@
-from abc import ABC, abstractmethod
 from typing import Any, Optional
+from abc import ABC, abstractmethod
+import math
 
 import torch
 
@@ -202,8 +203,8 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
     Политика исследования на основе процесса Орнштейна–Уленбека.
     Используется для добавления коррелированного во времени шума к действиям актора.
 
-    Дискретизированный OU-процесс (dt=1):
-        x_{t+1} = x_t + θ(μ - x_t) + σ * N(0, 1)
+    Дискретизированный OU-процесс:
+        x_{t+1} = x_t + θ(μ - x_t) * dt + σ * sqrt(dt) * N(0, 1)
     """
 
     def __init__(
@@ -214,6 +215,7 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
         theta: float,
         sigma: float,
         mu: float,
+        dt: float,
     ):
         self._actor = actor
         self.exploration_steps = exploration_steps
@@ -221,6 +223,10 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
         self.theta = theta
         self.sigma = sigma
         self.mu = mu
+        self.dt = dt
+
+        self._drift_coef = self.theta * self.dt
+        self._diffusion_coef = self.sigma * math.sqrt(self.dt)
 
         self._exploration_step_count = 0
         self._ou_state: Optional[torch.Tensor] = None
@@ -238,7 +244,7 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
 
             state = self._reset_or_get_state(action)
             noise = torch.randn_like(action)
-            dx = self.theta * (self.mu - state) + self.sigma * noise
+            dx = self._drift_coef * (self.mu - state) + self._diffusion_coef * noise
             state = state + dx
             self._ou_state = state
 
@@ -256,7 +262,8 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
             action_space=self.action_space,
             theta=self.theta,
             sigma=self.sigma,
-            mu=self.mu
+            mu=self.mu,
+            dt=self.dt,
         )
 
     def share_memory(self) -> "OrnsteinUhlenbeckExplorationPolicy":
@@ -331,6 +338,7 @@ def make_policy_from_config(
         sigma = exploration_config.sigma
         theta = exploration_config.theta
         mu = exploration_config.mu
+        dt = exploration_config.dt
 
         if sigma <= 0.0:
             raise ValueError(
@@ -344,13 +352,20 @@ def make_policy_from_config(
                 f"got theta={theta}"
             )
 
+        if dt <= 0.0:
+            raise ValueError(
+                f"dt must be greater than 0 when exploration_type is {ExplorationType.OU}, "
+                f"got dt={dt}"
+            )
+
         return OrnsteinUhlenbeckExplorationPolicy(
             actor=actor,
             exploration_steps=exploration_steps,
             action_space=action_space,
             theta=theta,
             sigma=sigma,
-            mu=mu
+            mu=mu,
+            dt=dt,
         )
     else:
         raise ValueError(f"Unknown exploration type: {exploration_type}")
