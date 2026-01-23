@@ -23,7 +23,7 @@ env:
     process_variable_max: 2000
 
 training:
-  initial_collect_steps: 2500
+  initial_collect_steps: 10_000
   num_steps: -1
   log_frequency: 1
   policy_freq: 2
@@ -31,8 +31,10 @@ training:
   log_file: train.log
 
 exploration:
-  type: random
-  steps: 2650
+  type: noisy
+  steps: 25_000
+  policy_noise: 0.2
+  noise_clip: 0.5
 
 collector:
   is_async: true
@@ -46,7 +48,7 @@ testing:
   num_steps: 0
 
 buffer:
-  capacity: 10000
+  capacity: 100_000
 
 sampler:
   type: single
