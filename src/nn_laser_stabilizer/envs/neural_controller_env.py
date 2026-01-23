@@ -65,7 +65,7 @@ class NeuralControllerEnv(gym.Env):
         self._error: float = 0.0
         self._step: int = 0
 
-        self._step_interval_tracker = CallIntervalTracker()
+        self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
@@ -116,7 +116,7 @@ class NeuralControllerEnv(gym.Env):
             f"process_variable={process_variable} setpoint={self._physics.setpoint} error={self._error} "
             f"action={action_value} control_output={control_output} "
             f"reward={reward} "
-            f"step_interval={step_interval:.3f}us"
+            f"step_interval={step_interval}us"
         )
         self._env_logger.log(log_line)
 
