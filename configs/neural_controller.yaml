@@ -32,10 +32,12 @@ training:
   log_file: train.log
 
 exploration:
-  type: noisy
-  steps: 25_000
-  policy_noise: 0.2
-  noise_clip: 0.5
+  type: ou          
+  steps: 25_000    
+  sigma: 0.2        
+  theta: 0.15      
+  mu: 0.0      
+  dt: 0.01
 
 collector:
   is_async: true
