@@ -1,0 +1,11 @@
+experiment_name: connection_test
+seed: 1
+
+connection:
+  port: localhost:8080
+  timeout: 0.1
+  baudrate: 115200
+
+test:
+  control_value: 2000
+  num_iterations: 100_000
