@@ -149,9 +149,6 @@ class NoisyExplorationPolicy(Policy):
         self.policy_noise = policy_noise
         self.noise_clip = noise_clip
         
-        self.min_action = action_space.low
-        self.max_action = action_space.high
-        
         self._exploration_step_count = 0
     
     def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
@@ -160,7 +157,7 @@ class NoisyExplorationPolicy(Policy):
         if self._exploration_step_count < self.exploration_steps:
             self._exploration_step_count += 1
             noise = (torch.randn_like(action) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
-            noisy_action = (action + noise).clamp(self.min_action, self.max_action)
+            noisy_action = self.action_space.clip(action + noise)
             return noisy_action, actor_options
         else:
             return action, actor_options
@@ -216,7 +213,7 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
         action_space: Box,
         theta: float,
         sigma: float,
-        mu: float = 0.0,
+        mu: float,
     ):
         self._actor = actor
         self.exploration_steps = exploration_steps
@@ -224,9 +221,6 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
         self.theta = theta
         self.sigma = sigma
         self.mu = mu
-
-        self.min_action = action_space.low
-        self.max_action = action_space.high
 
         self._exploration_step_count = 0
         self._ou_state: Optional[torch.Tensor] = None
@@ -248,7 +242,7 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
             state = state + dx
             self._ou_state = state
 
-            noisy_action = (action + state).clamp(self.min_action, self.max_action)
+            noisy_action = self.action_space.clip(action + state)
             return noisy_action, actor_options
         else:
             return action, actor_options
@@ -262,7 +256,7 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
             action_space=self.action_space,
             theta=self.theta,
             sigma=self.sigma,
-            mu=self.mu,
+            mu=self.mu
         )
 
     def share_memory(self) -> "OrnsteinUhlenbeckExplorationPolicy":
@@ -356,7 +350,7 @@ def make_policy_from_config(
             action_space=action_space,
             theta=theta,
             sigma=sigma,
-            mu=mu,
+            mu=mu
         )
     else:
         raise ValueError(f"Unknown exploration type: {exploration_type}")
