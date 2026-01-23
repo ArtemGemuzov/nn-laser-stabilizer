@@ -73,8 +73,8 @@ class NeuralControllerEnv(gym.Env):
             dtype=np.float32,
         )
         self.observation_space = gym.spaces.Box(
-            low=np.array([-1.0], dtype=np.float32),
-            high=np.array([1.0], dtype=np.float32),
+            low=np.array([-1.0, -1.0], dtype=np.float32),
+            high=np.array([1.0, 1.0], dtype=np.float32),
             dtype=np.float32,
         )
 
@@ -87,9 +87,15 @@ class NeuralControllerEnv(gym.Env):
     def _compute_error(self, process_variable_norm: float) -> None:
         self._error = self._setpoint_norm - process_variable_norm
 
-    def _build_observation(self) -> np.ndarray:
+    def _normalize_control_output(self, control_output: int) -> float:
+        span = float(self._control_max - self._control_min)
+        norm_01 = float(control_output - self._control_min) / span
+        return 2.0 * norm_01 - 1.0
+
+    def _build_observation(self, control_output: int) -> np.ndarray:
+        control_output_norm = self._normalize_control_output(control_output)
         return np.array(
-            [self._error],
+            [self._error, control_output_norm],
             dtype=np.float32,
         )
 
@@ -105,7 +111,7 @@ class NeuralControllerEnv(gym.Env):
         process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
 
         self._compute_error(process_variable_norm)
-        observation = self._build_observation()
+        observation = self._build_observation(control_output)
         reward = self._compute_reward()
 
         self._step += 1
@@ -137,10 +143,10 @@ class NeuralControllerEnv(gym.Env):
         self._physics.open_and_warmup()
 
         process_variable, neutral_control_output = self._physics.neutral_measure()
-      
+
         process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
         self._compute_error(process_variable_norm)
-        observation = self._build_observation()
+        observation = self._build_observation(neutral_control_output)
 
         log_line = (
             "reset: "
