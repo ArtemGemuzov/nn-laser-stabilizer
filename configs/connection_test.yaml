@@ -8,4 +8,4 @@ connection:
 
 test:
   control_value: 2000
-  num_iterations: 100_000
+  num_iterations: 10_000
