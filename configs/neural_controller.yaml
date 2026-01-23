@@ -17,8 +17,8 @@ env:
     setpoint_determination_max_value: 2000
     setpoint_determination_factor: 0.1
 
-    control_min: 0
-    control_max: 4095
+    control_min: 500
+    control_max: 3500
 
     process_variable_max: 2000
 
