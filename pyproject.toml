@@ -1,6 +1,6 @@
 [project]
 name = "nn-laser-stabilizer"
-version = "5.1.1"
+version = "5.1.2"
 description = "Neural network based laser stabilizer"
 authors = [
     { name = "Artem Gemuzov", email = "a.gemuzov@g.nsu.ru" }
