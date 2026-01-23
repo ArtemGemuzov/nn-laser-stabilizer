@@ -15,4 +15,5 @@ class ExplorationType(BaseEnum):
     NONE = "none"
     RANDOM = "random"
     NOISY = "noisy"
+    OU = "ou"
 

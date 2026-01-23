@@ -200,6 +200,96 @@ class NoisyExplorationPolicy(Policy):
             self._actor.act(fake_obs, {})
 
 
+class OrnsteinUhlenbeckExplorationPolicy(Policy):
+    """
+    Политика исследования на основе процесса Орнштейна–Уленбека.
+    Используется для добавления коррелированного во времени шума к действиям актора.
+
+    Дискретизированный OU-процесс (dt=1):
+        x_{t+1} = x_t + θ(μ - x_t) + σ * N(0, 1)
+    """
+
+    def __init__(
+        self,
+        actor: Actor,
+        exploration_steps: int,
+        action_space: Box,
+        theta: float,
+        sigma: float,
+        mu: float = 0.0,
+    ):
+        self._actor = actor
+        self.exploration_steps = exploration_steps
+        self.action_space = action_space
+        self.theta = theta
+        self.sigma = sigma
+        self.mu = mu
+
+        self.min_action = action_space.low
+        self.max_action = action_space.high
+
+        self._exploration_step_count = 0
+        self._ou_state: Optional[torch.Tensor] = None
+    
+    def _reset_or_get_state(self, action: torch.Tensor) -> torch.Tensor:
+        if self._ou_state is None:
+            self._ou_state = torch.zeros_like(action)
+        return self._ou_state
+
+    def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+        action, actor_options = self._actor.act(observation, options)
+
+        if self._exploration_step_count < self.exploration_steps:
+            self._exploration_step_count += 1
+
+            state = self._reset_or_get_state(action)
+            noise = torch.randn_like(action)
+            dx = self.theta * (self.mu - state) + self.sigma * noise
+            state = state + dx
+            self._ou_state = state
+
+            noisy_action = (action + state).clamp(self.min_action, self.max_action)
+            return noisy_action, actor_options
+        else:
+            return action, actor_options
+
+    def clone(self) -> "OrnsteinUhlenbeckExplorationPolicy":
+        cloned_actor = self._actor.clone()
+        # OU-состояние при клонировании не копируем, оно будет инициализировано заново
+        return OrnsteinUhlenbeckExplorationPolicy(
+            actor=cloned_actor,
+            exploration_steps=self.exploration_steps,
+            action_space=self.action_space,
+            theta=self.theta,
+            sigma=self.sigma,
+            mu=self.mu,
+        )
+
+    def share_memory(self) -> "OrnsteinUhlenbeckExplorationPolicy":
+        self._actor.share_memory()
+        return self
+
+    def state_dict(self) -> dict[str, torch.Tensor]:
+        return self._actor.state_dict()
+
+    def load_state_dict(self, state_dict):
+        return self._actor.load_state_dict(state_dict)
+
+    def train(self, mode: bool = True) -> "OrnsteinUhlenbeckExplorationPolicy":
+        self._actor.train(mode)
+        return self
+
+    def eval(self) -> "OrnsteinUhlenbeckExplorationPolicy":
+        self._actor.eval()
+        return self
+
+    def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
+        self._actor.eval()
+        for _ in range(num_steps):
+            fake_obs = observation_space.sample()
+            self._actor.act(fake_obs, {})
+
+
 def make_policy_from_config(
     actor: Actor,
     action_space: Box,
@@ -242,6 +332,31 @@ def make_policy_from_config(
             action_space=action_space,
             policy_noise=policy_noise,
             noise_clip=noise_clip,
+        )
+    elif exploration_type == ExplorationType.OU:
+        sigma = exploration_config.sigma
+        theta = exploration_config.theta
+        mu = exploration_config.mu
+
+        if sigma <= 0.0:
+            raise ValueError(
+                f"sigma must be greater than 0 when exploration_type is {ExplorationType.OU}, "
+                f"got sigma={sigma}"
+            )
+
+        if theta <= 0.0:
+            raise ValueError(
+                f"theta must be greater than 0 when exploration_type is {ExplorationType.OU}, "
+                f"got theta={theta}"
+            )
+
+        return OrnsteinUhlenbeckExplorationPolicy(
+            actor=actor,
+            exploration_steps=exploration_steps,
+            action_space=action_space,
+            theta=theta,
+            sigma=sigma,
+            mu=mu,
         )
     else:
         raise ValueError(f"Unknown exploration type: {exploration_type}")
