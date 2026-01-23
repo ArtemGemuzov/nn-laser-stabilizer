@@ -52,7 +52,8 @@ env:
     action_weight: 0.1
 
 training:
-  initial_collect_steps: 2500
+  train_start_step: 2500
+  sync_start_step: 2500
   num_steps: -1
   log_frequency: 1
   policy_freq: 2

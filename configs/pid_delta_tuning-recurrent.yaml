@@ -54,7 +54,8 @@ env:
     log_file: env.log
 
 training:
-  initial_collect_steps: 2500
+  train_start_step: 2500
+  sync_start_step: 2500
   num_steps: -1
   exploration_steps: 3000
   log_frequency: 1

@@ -152,7 +152,8 @@ def main(context: ExperimentContext):
     else:
         collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
 
-    initial_collect_steps = context.config.training.initial_collect_steps
+    train_start_step = context.config.training.train_start_step
+    sync_start_step = context.config.training.sync_start_step
     
     with collector:
         try:
@@ -161,7 +162,7 @@ def main(context: ExperimentContext):
             else:
                 context.logger.log("Collector started. Initial data collection...")
             
-            collector.collect(initial_collect_steps)
+            collector.collect(train_start_step)
             
             if not is_async:
                 context.logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
@@ -188,7 +189,7 @@ def main(context: ExperimentContext):
                     update_actor_and_target=update_actor_and_target,
                 )
                 
-                if is_async and step % sync_frequency == 0:
+                if is_async and step >= sync_start_step and step % sync_frequency == 0:
                     cast(AsyncCollector, collector).sync()
                     
                 if logging_enabled and step % log_frequency == 0:
