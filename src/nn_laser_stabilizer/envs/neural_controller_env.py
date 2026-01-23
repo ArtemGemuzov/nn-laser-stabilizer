@@ -81,8 +81,8 @@ class NeuralControllerEnv(gym.Env):
     def _map_action_to_control(self, action: float) -> int:
         """Линейное отображение действия из [-1, 1] в [control_min, control_max]."""
         norm = (action + 1.0) / 2.0
-        control = self._control_min + norm * (self._control_max - self._control_min)
-        return int(round(control))
+        control_output = self._control_min + norm * (self._control_max - self._control_min)
+        return int(round(control_output))
 
     def _compute_error(self, process_variable_norm: float) -> None:
         self._error = self._setpoint_norm - process_variable_norm

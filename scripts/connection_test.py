@@ -58,7 +58,7 @@ def main(context: ExperimentContext):
         
         for i in range(num_iterations):
             start = time.perf_counter()
-            phase_shifter.exchange(control=control_value)
+            phase_shifter.exchange(control_output=control_value)
             end = time.perf_counter()
             exchange_times[i] = (end - start) * 1e6  # в микросекундах
     

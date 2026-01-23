@@ -13,16 +13,16 @@ class ConnectionToPhaseShifter:
     def close(self) -> None:
         self._connection.close()
 
-    def send_command(self, *, control: int) -> None:
-        command = PhaseShifterProtocol.format_command(control)
+    def send_command(self, *, control_output: int) -> None:
+        command = PhaseShifterProtocol.format_command(control_output)
         self._connection.send(command)
 
     def read_response(self) -> int:
         raw = self._connection.read()
         return PhaseShifterProtocol.parse_response(raw)
 
-    def exchange(self, *, control: int) -> int:
-        self.send_command(control=control)
+    def exchange(self, *, control_output: int) -> int:
+        self.send_command(control_output=control_output)
         return self.read_response()
 
 
@@ -43,16 +43,16 @@ class LoggingConnectionToPhaseShifter(ConnectionToPhaseShifter):
     def close(self) -> None:
         self._phase_shifter.close()
 
-    def send_command(self, *, control: int) -> None:
-        self._logger.log(f"send: control={control}")
-        self._phase_shifter.send_command(control=control)
+    def send_command(self, *, control_output: int) -> None:
+        self._logger.log(f"send: control_output={control_output}")
+        self._phase_shifter.send_command(control_output=control_output)
 
     def read_response(self) -> int:
         process_variable = self._phase_shifter.read_response()
         self._logger.log(f"read: process_variable={process_variable}")
         return process_variable
 
-    def exchange(self, *, control: int) -> int:
-        self.send_command(control=control)
+    def exchange(self, *, control_output: int) -> int:
+        self.send_command(control_output=control_output)
         return self.read_response()
 

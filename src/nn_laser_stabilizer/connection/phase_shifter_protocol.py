@@ -1,7 +1,7 @@
 class PhaseShifterProtocol:
     @staticmethod
-    def format_command(control: int) -> str:
-        return f"{int(control)}\n"
+    def format_command(control_output: int) -> str:
+        return f"{int(control_output)}\n"
 
     @staticmethod
     def parse_command(command: str) -> int:

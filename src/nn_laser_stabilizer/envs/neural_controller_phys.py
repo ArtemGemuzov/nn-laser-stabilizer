@@ -65,9 +65,9 @@ class NeuralControllerPhys:
 
         for step in range(self._setpoint_determination_steps):
             progress = step / (self._setpoint_determination_steps - 1)
-            control = int(progress * self._setpoint_determination_max_value)
+            control_output = int(progress * self._setpoint_determination_max_value)
 
-            process_variable = self._pid_connection.exchange(control=control)
+            process_variable = self._pid_connection.exchange(control_output=control_output)
 
             min_pv = min(min_pv, process_variable)
             max_pv = max(max_pv, process_variable)
@@ -97,11 +97,11 @@ class NeuralControllerPhys:
 
     def neutral_measure(self) -> tuple[int, int]:
         neutral_control_output = (self._control_min + self._control_max) // 2
-        process_variable = self._pid_connection.exchange(control=neutral_control_output)
+        process_variable = self._pid_connection.exchange(control_output=neutral_control_output)
         return process_variable, neutral_control_output
 
-    def step(self, control: int) -> int:
-        return self._pid_connection.exchange(control=control)
+    def step(self, control_output: int) -> int:
+        return self._pid_connection.exchange(control_output=control_output)
 
     def close(self) -> None:
         self._pid_connection.close()
