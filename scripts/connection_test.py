@@ -23,21 +23,12 @@ from nn_laser_stabilizer.logger import SyncFileLogger
 
 @experiment("connection_test")
 def main(context: ExperimentContext):
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument(
-        "-l", "--enable-logging",
-        action="store_true",
-        help="Включить логирование соединения"
-    )
-    args, _ = parser.parse_known_args()
-    
-    enable_logging = args.enable_logging
     connection_config = context.config.connection
-    test_config = context.config.test
-    
     port = connection_config.port
     timeout = connection_config.timeout
     baudrate = connection_config.baudrate
+
+    test_config = context.config.test
     control_value = test_config.control_value
     num_iterations = test_config.num_iterations
   
@@ -47,21 +38,15 @@ def main(context: ExperimentContext):
         baudrate=baudrate,
     )
     
-    if enable_logging:
-        connection_logger = SyncFileLogger(
-            log_dir='.',
-            log_file="connection.log",
-        )
-        phase_shifter = LoggingConnectionToPhaseShifter(
-            connection_to_phase_shifter=ConnectionToPhaseShifter(connection=base_connection),
-            logger=connection_logger,
-        )
-        context.logger.log("Логирование включено")
-    else:
-        phase_shifter = ConnectionToPhaseShifter(connection=base_connection)
-        connection_logger = None
-        context.logger.log("Логирование выключено")
-    
+    connection_logger = SyncFileLogger(
+        log_dir='.',
+        log_file="connection.log",
+    )
+    phase_shifter = LoggingConnectionToPhaseShifter(
+        connection_to_phase_shifter=ConnectionToPhaseShifter(connection=base_connection),
+        logger=connection_logger,
+    )
+       
     context.logger.log(f"Подключение к порту: {port}")
     context.logger.log(f"Отправка постоянного напряжения: {control_value}")
     context.logger.log(f"Количество итераций: {num_iterations}")
