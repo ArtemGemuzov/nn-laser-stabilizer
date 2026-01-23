@@ -68,6 +68,12 @@ def update_pyproject_version(pyproject_path: Path, new_version: str) -> None:
         check=True
     )
     print(f"✓ Изменения закоммичены")
+    
+    subprocess.run(
+        ["git", "push", "origin", "HEAD"],
+        check=True
+    )
+    print(f"✓ Изменения отправлены в удаленный репозиторий")
 
 
 def get_release_message(version: str) -> str:
