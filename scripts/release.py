@@ -58,6 +58,16 @@ def update_pyproject_version(pyproject_path: Path, new_version: str) -> None:
     )
     pyproject_path.write_text(content, encoding='utf-8')
     print(f"✓ Версия в pyproject.toml обновлена до {new_version}")
+    
+    subprocess.run(
+        ["git", "add", str(pyproject_path)],
+        check=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", f"Поднял версию пакета до {new_version}"],
+        check=True
+    )
+    print(f"✓ Изменения закоммичены")
 
 
 def get_release_message(version: str) -> str:
