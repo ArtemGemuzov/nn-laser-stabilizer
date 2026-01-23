@@ -2,7 +2,7 @@ experiment_name: connection_test
 seed: 1
 
 connection:
-  port: localhost:8080
+  port: COM3
   timeout: 0.1
   baudrate: 115200
 
