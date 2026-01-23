@@ -6,6 +6,7 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.logger import AsyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
+from nn_laser_stabilizer.time import CallIntervalTracker
 
 
 class NeuralControllerEnv(gym.Env):
@@ -64,6 +65,8 @@ class NeuralControllerEnv(gym.Env):
         self._error: float = 0.0
         self._step: int = 0
 
+        self._step_interval_tracker = CallIntervalTracker()
+
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
             high=np.array([1.0], dtype=np.float32),
@@ -94,6 +97,8 @@ class NeuralControllerEnv(gym.Env):
         return 1.0 - 2.0 * abs(self._error)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+        step_interval = self._step_interval_tracker.tick()
+        
         action_value = float(action[0])
         control_output = self._map_action_to_control(action_value)
         process_variable = self._physics.step(control_output)
@@ -110,7 +115,8 @@ class NeuralControllerEnv(gym.Env):
             f"step={self._step} "
             f"process_variable={process_variable} setpoint={self._physics.setpoint} error={self._error} "
             f"action={action_value} control_output={control_output} "
-            f"reward={reward}"
+            f"reward={reward} "
+            f"step_interval={step_interval:.3f}us"
         )
         self._env_logger.log(log_line)
 
@@ -126,6 +132,7 @@ class NeuralControllerEnv(gym.Env):
 
         self._step = 0
         self._error = 0.0
+        self._step_interval_tracker.reset()
 
         self._physics.open_and_warmup()
 
