@@ -92,8 +92,7 @@ class NeuralControllerEnv(gym.Env):
         norm_01 = float(control_output - self._control_min) / span
         return 2.0 * norm_01 - 1.0
 
-    def _build_observation(self, control_output: int) -> np.ndarray:
-        control_output_norm = self._normalize_control_output(control_output)
+    def _build_observation(self, control_output_norm: float) -> np.ndarray:
         return np.array(
             [self._error, control_output_norm],
             dtype=np.float32,
@@ -111,7 +110,7 @@ class NeuralControllerEnv(gym.Env):
         process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
 
         self._compute_error(process_variable_norm)
-        observation = self._build_observation(control_output)
+        observation = self._build_observation(action_value)
         reward = self._compute_reward()
 
         self._step += 1
@@ -146,7 +145,8 @@ class NeuralControllerEnv(gym.Env):
 
         process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
         self._compute_error(process_variable_norm)
-        observation = self._build_observation(neutral_control_output)
+        neutral_control_output_norm = self._normalize_control_output(neutral_control_output)
+        observation = self._build_observation(neutral_control_output_norm)
 
         log_line = (
             "reset: "
