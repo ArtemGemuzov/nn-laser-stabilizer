@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -6,6 +6,8 @@ import torch.nn.functional as F
 from nn_laser_stabilizer.actor import Actor
 from nn_laser_stabilizer.critic import Critic
 from nn_laser_stabilizer.box import Box
+from nn_laser_stabilizer.config.config import Config
+from nn_laser_stabilizer.config.types import LossType
 
 
 class TD3Loss:
@@ -168,4 +170,37 @@ class TD3BCLoss:
         bc_term = self.alpha * F.mse_loss(actions, dataset_actions)
         actor_loss = -lambda_coef * q_value.mean() + bc_term
         return actor_loss
+
+
+def make_loss_from_config(
+    loss_config: Config,
+    actor: Actor,
+    critic: Critic,
+    action_space: Box
+) -> Union[TD3Loss, TD3BCLoss]:
+    loss_type_str = loss_config.type
+    loss_type = LossType.from_str(loss_type_str)
+    
+    if loss_type == LossType.TD3:
+        return TD3Loss(
+            actor=actor,
+            critic=critic,
+            action_space=action_space,
+            gamma=loss_config.gamma,
+            policy_noise=loss_config.policy_noise,
+            noise_clip=loss_config.noise_clip,
+        )
+    elif loss_type == LossType.TD3BC:
+        alpha = loss_config.alpha
+        return TD3BCLoss(
+            actor=actor,
+            critic=critic,
+            action_space=action_space,
+            gamma=loss_config.gamma,
+            policy_noise=loss_config.policy_noise,
+            noise_clip=loss_config.noise_clip,
+            alpha=alpha,
+        )
+    else:
+        raise ValueError(f"Unhandled loss type: {loss_type}")
     

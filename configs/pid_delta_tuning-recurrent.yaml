@@ -89,6 +89,7 @@ network:
   mlp_hidden_sizes: [256, 256]
 
 loss:
+  type: td3 
   gamma: 0.95
   policy_noise: 0.05
   noise_clip: 0.125

@@ -17,3 +17,8 @@ class ExplorationType(BaseEnum):
     NOISY = "noisy"
     OU = "ou"
 
+
+class LossType(BaseEnum):
+    TD3 = "td3"
+    TD3BC = "td3bc"
+
