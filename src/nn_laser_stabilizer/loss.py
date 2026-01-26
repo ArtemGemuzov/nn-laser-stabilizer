@@ -14,9 +14,9 @@ class TD3Loss:
         actor: Actor,
         critic: Critic,
         action_space: Box,
-        gamma: float = 0.99,
-        policy_noise: float = 0.2,
-        noise_clip: float = 0.5,
+        gamma: float,
+        policy_noise: float,
+        noise_clip: float,
     ):
         self.actor = actor
         # TODO: можно перейти к списку критиков
