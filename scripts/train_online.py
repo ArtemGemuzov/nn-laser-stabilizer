@@ -114,9 +114,21 @@ def main(context: ExperimentContext):
     
     # TODO: временный костыль - выбор функции train step по типу loss. Нужно переделать на правильную абстракцию.
     if isinstance(loss_module, TD3BCLoss):
-        train_step = td3bc_train_step
+        train_step = partial(
+            td3bc_train_step,
+            loss_module=loss_module,
+            critic_optimizer=critic_optimizer,
+            actor_optimizer=actor_optimizer,
+            soft_updater=soft_updater,
+        )
     else:
-        train_step = td3_train_step
+        train_step = partial(
+            td3_train_step,
+            loss_module=loss_module,
+            critic_optimizer=critic_optimizer,
+            actor_optimizer=actor_optimizer,
+            soft_updater=soft_updater,
+        )
     
     if is_async:
         context.logger.log("Starting async collector...")
@@ -186,10 +198,6 @@ def main(context: ExperimentContext):
                 
                 loss_q1, loss_q2, actor_loss = train_step(
                     batch,
-                    loss_module,  # type: ignore
-                    critic_optimizer=critic_optimizer,
-                    actor_optimizer=actor_optimizer,
-                    soft_updater=soft_updater,
                     update_actor_and_target=update_actor_and_target,
                 )
                 

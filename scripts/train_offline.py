@@ -1,6 +1,7 @@
 from pathlib import Path
 import argparse
 import time
+from functools import partial
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.sampler import make_sampler_from_config
@@ -69,10 +70,23 @@ def offline_train(
         soft_updater = SoftUpdater(loss_module, tau=context.config.optimizer.tau)
 
         # TODO: временный костыль - выбор функции train step по типу loss. Нужно переделать на правильную абстракцию.
+        # Фиксируем loss_module и оптимизаторы с помощью partial
         if isinstance(loss_module, TD3BCLoss):
-            train_step = td3bc_train_step
+            train_step = partial(
+                td3bc_train_step,
+                loss_module=loss_module,
+                critic_optimizer=critic_optimizer,
+                actor_optimizer=actor_optimizer,
+                soft_updater=soft_updater,
+            )
         else:
-            train_step = td3_train_step
+            train_step = partial(
+                td3_train_step,
+                loss_module=loss_module,
+                critic_optimizer=critic_optimizer,
+                actor_optimizer=actor_optimizer,
+                soft_updater=soft_updater,
+            )
 
         sampler = make_sampler_from_config(
             buffer=buffer,
@@ -110,10 +124,6 @@ def offline_train(
 
                 loss_q1, loss_q2, actor_loss = train_step(
                     batch,
-                    loss_module, # type: ignore
-                    critic_optimizer=critic_optimizer,
-                    actor_optimizer=actor_optimizer,
-                    soft_updater=soft_updater,
                     update_actor_and_target=update_actor_and_target,
                 )
 
