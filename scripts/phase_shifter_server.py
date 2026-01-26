@@ -1,15 +1,10 @@
-import socket
-import sys
 import argparse
 import random
-import signal
-import math
-import time
-from typing import Optional
 
 from nn_laser_stabilizer.config.config import load_config, find_config_path
 from nn_laser_stabilizer.connection.phase_shifter_protocol import PhaseShifterProtocol
 from nn_laser_stabilizer.hardware.socket import parse_socket_port, SocketAdapter
+from nn_laser_stabilizer.hardware.server import Server, run_server
 
 
 class PhaseShifterSimulator:
@@ -46,91 +41,6 @@ class PhaseShifterSimulator:
         self._current_pv = 0.8 * self._current_pv + 0.2 * (base_pv + noise)
         process_variable = int(max(0, min(self._process_variable_max, round(self._current_pv))))
         return process_variable
-
-
-class PhaseShifterServer:
-    def __init__(
-        self,
-        host: str,
-        port: int,
-        simulator: PhaseShifterSimulator,
-        delay: float = 0.0,
-    ):
-        self.host = host
-        self.port = port
-        self._simulator = simulator
-        self._delay = delay
-        self.socket: Optional[socket.socket] = None
-        self.client_socket: Optional[socket.socket] = None
-        self.running = False
-        
-    def start(self):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        
-        try:
-            self.socket.bind((self.host, self.port))
-            self.socket.listen(1)
-
-            print(f"Phase shifter server listening on {self.host}:{self.port}")
-            print(f"Setpoint: {self._simulator._setpoint}")
-            print(f"Control range: [{self._simulator._control_min}, {self._simulator._control_max}]")
-            print(f"Process variable max: {self._simulator._process_variable_max}")
-            print(f"Optimal control signal: {self._simulator._optimal_control}")
-            print("Waiting for connection...")
-            
-            self.running = True
-            self.client_socket, address = self.socket.accept()
-            print(f"Client connected from {address}")
-            self._handle_client()
-        finally:
-            self._cleanup()
-    
-    def _handle_client(self):
-        assert self.client_socket is not None
-        connection = SocketAdapter(self.client_socket)
-        
-        try:
-            while self.running:
-                try:
-                    command = connection.read()
-                    if not command:
-                        continue
-                    
-                    control = PhaseShifterProtocol.parse_command(command)
-            
-                    process_variable = self._simulator.step(control)
-                    
-                    response = PhaseShifterProtocol.format_response(process_variable)
-                    connection.send(response)
-                    
-                    if self._delay > 0:
-                        time.sleep(self._delay)
-                    
-                except ConnectionError as e:
-                    print("Client disconnected")
-                    break
-                except Exception as e:
-                    print(f"Error handling client: {e}")
-                    break
-                    
-        except Exception as e:
-            print(f"Error in client handler: {e}")
-        finally:
-            connection.close()
-            self.client_socket = None
-    
-    def stop(self):
-        self.running = False
-        if self.socket:
-            self.socket.close()
-    
-    def _cleanup(self):
-        if self.client_socket:
-            self.client_socket.close()
-        if self.socket:
-            self.socket.close()
-        print("Server stopped")
 
 
 def main():
@@ -170,28 +80,25 @@ def main():
         noise_std=args.noise_std,
     )
     
-    server = PhaseShifterServer(
+    print(f"Setpoint: {simulator._setpoint}")
+    print(f"Control range: [{simulator._control_min}, {simulator._control_max}]")
+    print(f"Process variable max: {simulator._process_variable_max}")
+    print(f"Optimal control signal: {simulator._optimal_control}")
+    
+    def handle_command(command: str, connection: SocketAdapter):
+        control = PhaseShifterProtocol.parse_command(command)
+        process_variable = simulator.step(control)
+        response = PhaseShifterProtocol.format_response(process_variable)
+        connection.send(response)
+    
+    server = Server(
         host=host,
         port=port,
-        simulator=simulator,
+        command_handler=handle_command,
         delay=args.delay,
     )
     
-    def signal_handler(sig, frame):
-        print("\nShutting down server...")
-        server.stop()
-        sys.exit()
-    
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    try:
-        server.start()
-    except KeyboardInterrupt:
-        signal_handler(None, None)
-    except Exception as e:
-        print(f"Server error: {e}")
-        server.stop()
+    run_server(server)
 
 
 if __name__ == "__main__":
