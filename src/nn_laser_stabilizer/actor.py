@@ -14,7 +14,9 @@ from nn_laser_stabilizer.config.types import NetworkType
 
 class Actor(Model):
     @torch.no_grad()
-    def act(self, observation: torch.Tensor, options: dict[str, Any] = {}) -> tuple[torch.Tensor, dict[str, Any]]:
+    def act(self, observation: torch.Tensor, options: dict[str, Any] | None = None) -> tuple[torch.Tensor, dict[str, Any]]:
+        if options is None:
+            options = {}
         return self(observation, options)
     
     def clone(self, reinitialize_weights: bool = False) -> "Actor":
@@ -37,7 +39,9 @@ class MLPActor(Actor):
         self.net_body = build_mlp(obs_dim, action_dim, hidden_sizes)
         self.scaler = Scaler(action_space)
     
-    def forward(self, observation: torch.Tensor, options: dict[str, Any] = {}) -> tuple[torch.Tensor, dict[str, Any]]:
+    def forward(self, observation: torch.Tensor, options: dict[str, Any] | None = None) -> tuple[torch.Tensor, dict[str, Any]]:
+        if options is None:
+            options = {}
         action = self.scaler(self.net_body(observation))
         return action, options
 
@@ -67,8 +71,10 @@ class LSTMActor(Actor):
     def forward(
         self,
         observation: torch.Tensor,
-        options: dict[str, Any] = {}
+        options: dict[str, Any] | None = None
     ) -> tuple[torch.Tensor, dict[str, Any]]:
+        if options is None:
+            options = {}
         hidden_state = options.get('hidden_state')
         
         was_1d = observation.dim() == 1

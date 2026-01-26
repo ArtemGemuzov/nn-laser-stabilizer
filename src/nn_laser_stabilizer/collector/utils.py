@@ -51,8 +51,10 @@ def _collect_step(
     env: TorchEnvWrapper,
     obs: torch.Tensor,
     buffer: ReplayBuffer,
-    options: dict[str, Any] = {},
+    options: dict[str, Any] | None = None,
 ) -> tuple[torch.Tensor, dict[str, Any]]:
+    if options is None:
+        options = {}
     action, options = policy.act(obs, options)
     
     next_obs, reward, terminated, truncated, _ = env.step(action)
