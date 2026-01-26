@@ -21,7 +21,6 @@ class TD3Loss:
         noise_clip: float,
     ):
         self._actor = actor
-        # TODO: можно перейти к списку критиков
         self._critic1 = critic
         self._critic2 = critic.clone(reinitialize_weights=True)
 
