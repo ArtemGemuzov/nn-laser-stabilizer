@@ -41,44 +41,26 @@ class SocketAdapter:
             raise ConnectionError("Socket connection is not open.")
         
         while True:
-            try:
-                if b"\n" in self._buffer:
-                    line, self._buffer = self._buffer.split(b"\n", 1)
-                    try:
-                        data = line.decode("utf-8")
-                        if data:
-                            return data
-                    except UnicodeDecodeError as e:
-                        warnings.warn(
-                            f"Failed to decode data from socket: {e}. "
-                            f"Raw data: {line!r}. Retrying...",
-                            RuntimeWarning,
-                            stacklevel=2
-                        )
-                        continue
-                
-                raw_data = self._socket.recv(self.RECV_BUFFER_SIZE)
-                if not raw_data:
-                    raise ConnectionError("Socket connection closed by peer")
-                
-                self._buffer += raw_data
-                
-            except net.timeout:
-                continue
-            except net.error as e:
-                warnings.warn(
-                    f"Error reading from socket: {e}. Retrying...",
-                    RuntimeWarning,
-                    stacklevel=2
-                )
-                continue
-            except Exception as e:
-                warnings.warn(
-                    f"Unexpected error reading from socket: {e}. Retrying...",
-                    RuntimeWarning,
-                    stacklevel=2
-                )
-                continue
+            if b"\n" in self._buffer:
+                line, self._buffer = self._buffer.split(b"\n", 1)
+                try:
+                    data = line.decode("utf-8")
+                    if data:
+                        return data
+                except UnicodeDecodeError as e:
+                    warnings.warn(
+                        f"Failed to decode data from socket: {e}. "
+                        f"Raw data: {line!r}. Retrying...",
+                        RuntimeWarning,
+                        stacklevel=2
+                    )
+                    continue
+            
+            raw_data = self._socket.recv(self.RECV_BUFFER_SIZE)
+            if not raw_data:
+                raise ConnectionError("Socket connection closed by peer")
+            
+            self._buffer += raw_data
     
     def send(self, data: str) -> None:
         if not self._check_connected(self._socket):
