@@ -4,8 +4,8 @@ import time
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.sampler import make_sampler_from_config
-from nn_laser_stabilizer.loss import TD3Loss
-from nn_laser_stabilizer.training import td3_train_step
+from nn_laser_stabilizer.loss import make_loss_from_config, TD3Loss, TD3BCLoss
+from nn_laser_stabilizer.training import td3_train_step, td3bc_train_step
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.experiment.workdir_context import WorkingDirectoryContext
@@ -51,13 +51,11 @@ def offline_train(
             action_dim=action_space.dim,
         ).train()
 
-        loss_module = TD3Loss(
+        loss_module = make_loss_from_config(
+            loss_config=context.config.loss,
             actor=actor,
             critic=critic,
             action_space=action_space,
-            gamma=context.config.loss.gamma,
-            policy_noise=context.config.loss.policy_noise,
-            noise_clip=context.config.loss.noise_clip,
         )
 
         actor_optimizer = Optimizer(
@@ -69,6 +67,12 @@ def offline_train(
             lr=context.config.optimizer.critic_lr,
         )
         soft_updater = SoftUpdater(loss_module, tau=context.config.optimizer.tau)
+
+        # TODO: временный костыль - выбор функции train step по типу loss. Нужно переделать на правильную абстракцию.
+        if isinstance(loss_module, TD3BCLoss):
+            train_step = td3bc_train_step
+        else:
+            train_step = td3_train_step
 
         sampler = make_sampler_from_config(
             buffer=buffer,
@@ -104,9 +108,9 @@ def offline_train(
 
                 update_actor_and_target = (step % policy_freq == 0)
 
-                loss_q1, loss_q2, actor_loss = td3_train_step(
+                loss_q1, loss_q2, actor_loss = train_step(
                     batch,
-                    loss_module,
+                    loss_module, # type: ignore
                     critic_optimizer=critic_optimizer,
                     actor_optimizer=actor_optimizer,
                     soft_updater=soft_updater,
