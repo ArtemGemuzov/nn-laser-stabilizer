@@ -242,6 +242,10 @@ def train_from_csv(
             loss_module.critic2_target.save(models_dir / "critic2_target.pth")
             context.logger.log(f"Models saved to {models_dir}")
 
+            buffer_dir = Path("data")
+            buffer.save(buffer_dir / "replay_buffer.pth")
+            context.logger.log(f"ReplayBuffer saved to {buffer_dir}")
+
             train_logger.close()
 
 
