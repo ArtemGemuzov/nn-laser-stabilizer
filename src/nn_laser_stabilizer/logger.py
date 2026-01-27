@@ -38,8 +38,7 @@ class SyncFileLogger:
     def log(self, message: str) -> None:
         if self._closed:
             return
-        if not message.endswith("\n"):
-            message += "\n"
+        message += "\n"
         self._file_handle.write(message)
         self._file_handle.flush()
     
@@ -93,8 +92,7 @@ class AsyncFileLogger:
         self._queue.append(message)
 
     def _write_line(self, line: str) -> None:
-        if not line.endswith("\n"):
-            line += "\n"
+        line += "\n"
         self._file_handle.write(line)
 
     def _worker(self) -> None:
@@ -162,9 +160,8 @@ class ProcessFileLogger:
                 except Empty:
                     continue
 
-                if not message.endswith("\n"):
-                    message += "\n"
-            
+                
+                message += "\n"
                 file.write(message)
                   
     
