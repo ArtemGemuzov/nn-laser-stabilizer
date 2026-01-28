@@ -49,13 +49,14 @@ def make_extract_transition(
         process_variable_norm = np.clip(process_variable / process_variable_max, 0.0, 1.0)
         error = setpoint_norm - process_variable_norm
 
-        control_output_t = int(current_row["control_output"])
-        control_output_t_norm = _normalize_control_output(control_output_t)
-
         control_output_prev = int(prev_row["control_output"])
         control_output_prev_norm = _normalize_control_output(control_output_prev)
 
         observation = np.array([error, control_output_prev_norm], dtype=np.float32)
+
+        control_output_t = int(current_row["control_output"])
+        control_output_t_norm = _normalize_control_output(control_output_t)
+
         action = np.array([control_output_t_norm], dtype=np.float32)
 
         next_process_variable = float(next_row["process_variable"])
