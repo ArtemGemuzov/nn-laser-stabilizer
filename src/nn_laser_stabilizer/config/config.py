@@ -2,8 +2,10 @@ from typing import Any, Optional
 from pathlib import Path
 import yaml
 
+from nn_laser_stabilizer.config.utils import get_configs_dir
 
-CONFIGS_DIR = Path("configs")
+
+CONFIGS_DIR = get_configs_dir()
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -158,4 +160,22 @@ def load_config(config_path: Path, configs_dir: Optional[Path] = None, visited: 
         return Config(config_data)
     finally:
         visited.remove(config_path)
+
+
+def find_and_load_config(relative_config_path: str | Path) -> Config:
+    """
+    Находит и загружает конфиг по относительному пути.
+    
+    Args:
+        relative_config_path: Относительный путь к конфигу (например, "train_from_csv" 
+                             или "neural_controller.yaml"). Может быть без расширения.
+    
+    Returns:
+        Config: Загруженный объект конфигурации.
+    
+    Raises:
+        FileNotFoundError: Если конфиг не найден.
+    """
+    config_path = find_config_path(relative_config_path)
+    return load_config(config_path)
 
