@@ -1,8 +1,8 @@
+from typing import Optional, Tuple
 from pathlib import Path
 import argparse
 import time
 from functools import partial
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -27,42 +27,49 @@ def make_extract_transition(
     control_max: int,
     setpoint: int,
 ):
-    def extract_transition(
-        current_row: pd.Series,
-        next_row: pd.Series,
-        df: pd.DataFrame,
-    ) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray, bool]:
-        process_variable = float(current_row['process_variable'])
-        control_output = int(current_row['control_output'])
-        
-        process_variable_norm = np.clip(process_variable / process_variable_max, 0.0, 1.0)
-        setpoint_norm = setpoint / process_variable_max
-        
-        error = setpoint_norm - process_variable_norm
-        
-        span = float(control_max - control_min)
+    span = float(control_max - control_min)
+    setpoint_norm = setpoint / process_variable_max
+
+    def _normalize_control_output(control_output: int) -> float:
         norm_01 = float(control_output - control_min) / span
-        control_output_norm = 2.0 * norm_01 - 1.0
-        
-        observation = np.array([error, control_output_norm], dtype=np.float32)
-        
-        action = np.array([control_output_norm], dtype=np.float32)
-        
-        reward = 1.0 - 2.0 * abs(error)
-        
-        next_process_variable = float(next_row['process_variable'])
+        return 2.0 * norm_01 - 1.0
+
+    def extract_transition(
+        df: pd.DataFrame,
+        idx: int,
+    ) -> Optional[Tuple[np.ndarray, np.ndarray, float, np.ndarray, bool]]:
+        if idx == 0 or idx >= len(df) - 1:
+            return None
+
+        current_row = df.iloc[idx]
+        next_row = df.iloc[idx + 1]
+        prev_row = df.iloc[idx - 1]
+
+        process_variable = float(current_row["process_variable"])
+        process_variable_norm = np.clip(process_variable / process_variable_max, 0.0, 1.0)
+        error = setpoint_norm - process_variable_norm
+
+        control_output_t = int(current_row["control_output"])
+        control_output_t_norm = _normalize_control_output(control_output_t)
+
+        control_output_prev = int(prev_row["control_output"])
+        control_output_prev_norm = _normalize_control_output(control_output_prev)
+
+        observation = np.array([error, control_output_prev_norm], dtype=np.float32)
+        action = np.array([control_output_t_norm], dtype=np.float32)
+
+        next_process_variable = float(next_row["process_variable"])
         next_process_variable_norm = np.clip(next_process_variable / process_variable_max, 0.0, 1.0)
         next_error = setpoint_norm - next_process_variable_norm
-        
-        next_control_output = int(next_row['control_output'])
-        next_norm_01 = float(next_control_output - control_min) / span
-        next_control_output_norm = 2.0 * next_norm_01 - 1.0
-        next_observation = np.array([next_error, next_control_output_norm], dtype=np.float32)
-        
+
+        next_observation = np.array([next_error, control_output_t_norm], dtype=np.float32)
+
+        reward = 1.0 - 2.0 * abs(next_error)
+
         done = False
-        
+
         return observation, action, float(reward), next_observation, done
-    
+
     return extract_transition
 
 

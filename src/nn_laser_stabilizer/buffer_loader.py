@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, Optional
 from pathlib import Path
 
 
@@ -28,45 +28,45 @@ def _array_to_tensor(array_like) -> torch.Tensor:
 def load_buffer_from_csv(
     csv_path: Path,
     extract_transition: Callable[
-        [pd.Series, pd.Series, pd.DataFrame],
-        Tuple[np.ndarray, np.ndarray, float, np.ndarray, bool]
+        [pd.DataFrame, int],
+        Optional[tuple[np.ndarray, np.ndarray, float, np.ndarray, bool]]
     ]
 ) -> ReplayBuffer:
     if not csv_path.exists():
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     
     df = pd.read_csv(csv_path)
+    num_rows = len(df)
     
-    if len(df) < 2:
+    if num_rows < 2:
         raise ValueError(f"CSV file must contain at least 2 rows, got {len(df)}")
-    
-    first_row = df.iloc[0]
-    second_row = df.iloc[1]
-    
-    observation, action, reward, next_observation, done = extract_transition(first_row, second_row, df)
-    
-    observation_dim = _get_array_dimension(np.asarray(observation))
-    action_dim = _get_array_dimension(np.asarray(action))
-    
-    num_transitions = len(df) - 1
-    buffer = ReplayBuffer(
-        capacity=num_transitions,
-        obs_dim=observation_dim,
-        action_dim=action_dim,
-    )
-    
-    for i in range(num_transitions):
-        current_row = df.iloc[i]
-        next_row = df.iloc[i + 1]
-        
-        observation, action, reward, next_observation, done = extract_transition(current_row, next_row, df)
-        
+
+    buffer: Optional[ReplayBuffer] = None
+    observation_dim: Optional[int] = None
+    action_dim: Optional[int] = None
+
+    for idx in range(num_rows):
+        transition = extract_transition(df, idx)
+        if transition is None:
+            continue
+        observation, action, reward, next_observation, done = transition
+
+        if buffer is None:
+            observation_dim = _get_array_dimension(np.asarray(observation))
+            action_dim = _get_array_dimension(np.asarray(action))
+
+            buffer = ReplayBuffer(
+                capacity=len(df),
+                obs_dim=observation_dim,
+                action_dim=action_dim,
+            )
+
         observation_tensor = _array_to_tensor(observation)
         action_tensor = _array_to_tensor(action)
         reward_tensor = torch.tensor(float(reward), dtype=torch.float32).unsqueeze(0)
         next_observation_tensor = _array_to_tensor(next_observation)
         done_tensor = torch.tensor(bool(done), dtype=torch.bool).unsqueeze(0)
-        
+
         buffer.add(
             observation=observation_tensor,
             action=action_tensor,
@@ -74,5 +74,11 @@ def load_buffer_from_csv(
             next_observation=next_observation_tensor,
             done=done_tensor,
         )
-    
+
+    if buffer is None:
+        raise ValueError(
+            "No valid transitions extracted from CSV. "
+            "extract_transition(df, idx) returned None for all indices."
+        )
+
     return buffer
