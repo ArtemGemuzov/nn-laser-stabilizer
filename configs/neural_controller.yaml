@@ -11,16 +11,16 @@ env:
     log_dir: "env_logs"
     log_file: env.log
 
-    setpoint: 1200
+    setpoint: 700
     auto_determine_setpoint: false
     setpoint_determination_steps: 6000
     setpoint_determination_max_value: 2000
     setpoint_determination_factor: 0.1
 
-    control_min: 500
-    control_max: 3500
+    control_min: 0
+    control_max: 3000
 
-    process_variable_max: 2000
+    process_variable_max: 1200
 
 training:
   train_start_step: 5_000        
