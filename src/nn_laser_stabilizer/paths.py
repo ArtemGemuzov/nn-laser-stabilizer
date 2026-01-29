@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 CONFIG_DIR_NAME = "configs"
+DATA_DIR_NAME = "data"
 EXPERIMENTS_DIR = Path("experiments")
 RESOURCES_DIR = Path("resources")
 
@@ -49,6 +50,18 @@ def get_configs_dir() -> Path:
         )
     
     return configs_dir
+
+
+def get_data_dir() -> Path:
+    project_root = find_project_root()
+    data_dir = (project_root / DATA_DIR_NAME).resolve()
+
+    if not data_dir.exists():
+        raise FileNotFoundError(
+            f"Data directory not found: {data_dir}. "
+            f"Project root detected as: {project_root}"
+        )
+    return data_dir
 
 
 class WorkingDirectoryContext:
