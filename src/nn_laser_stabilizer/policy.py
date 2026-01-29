@@ -5,7 +5,7 @@ import math
 import torch
 
 from nn_laser_stabilizer.model.actor import Actor
-from nn_laser_stabilizer.box import Box
+from nn_laser_stabilizer.envs.box import Box
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.config.types import ExplorationType
 

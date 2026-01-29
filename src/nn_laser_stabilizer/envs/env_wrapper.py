@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import gymnasium as gym
 
-from nn_laser_stabilizer.box import Box
+from nn_laser_stabilizer.envs.box import Box
 from nn_laser_stabilizer.envs.envs import CUSTOM_ENV_MAP
 from nn_laser_stabilizer.config.config import Config
 
