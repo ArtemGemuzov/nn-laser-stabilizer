@@ -1,0 +1,6 @@
+train_start_step: 2000
+sync_start_step: 2000
+num_steps: 20_000
+log_frequency: 100
+log_dir: "train_logs"
+log_file: train.log

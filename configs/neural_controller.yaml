@@ -2,71 +2,31 @@ experiment_name: neural_controller
 seed: 1
 
 env:
-  name: NeuralControllerEnv
-  args:
-    port: COM3
-    timeout: 0.1
-    baudrate: 115200
-
-    log_dir: "env_logs"
-    log_file: env.log
-
-    setpoint: 700
-    auto_determine_setpoint: false
-    setpoint_determination_steps: 6000
-    setpoint_determination_max_value: 2000
-    setpoint_determination_factor: 0.1
-
-    control_min: 0
-    control_max: 3000
-
-    process_variable_max: 1200
+  _include: {CONFIGS_DIR}/envs/neural_controller
 
 training:
-  train_start_step: 5_000        
-  sync_start_step: 15_000        
-  num_steps: -1
-  log_frequency: 1
-  policy_freq: 2
-  log_dir: "train_logs"
-  log_file: train.log
+  _include: {CONFIGS_DIR}/common/training_neural
 
 exploration:
-  type: ou          
-  steps: 25_000    
-  sigma: 0.2        
-  theta: 0.15      
-  mu: 0.0      
-  dt: 0.01
+  _include: {CONFIGS_DIR}/common/exploration_ou
 
 collector:
-  is_async: true
-  sync_frequency: 10
+  _include: {CONFIGS_DIR}/collectors/async
 
 validation:
-  frequency: 0
-  num_steps: 0
+  _include: {CONFIGS_DIR}/common/validation_none
 
 testing:
-  num_steps: 0
+  _include: {CONFIGS_DIR}/common/testing_none
 
 buffer:
-  capacity: 100_000
+  _include: {CONFIGS_DIR}/buffers/100k
 
 sampler:
-  type: single
-  batch_size: 64
+  _include: {CONFIGS_DIR}/samplers/single
 
 network:
-  type: mlp
-  mlp_hidden_sizes: [256, 256]
+  _include: {CONFIGS_DIR}/networks/mlp_256_256
 
 updater:
-  type: td3
-  gamma: 0.95
-  policy_noise: 0.05
-  noise_clip: 0.125
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.005
-  policy_freq: 2
+  _include: {CONFIGS_DIR}/updaters/td3_default

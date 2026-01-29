@@ -1,0 +1,4 @@
+type: lstm
+lstm_hidden_size: 64
+lstm_num_layers: 2
+mlp_hidden_sizes: [256, 256]

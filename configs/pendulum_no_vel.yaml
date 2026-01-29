@@ -2,52 +2,31 @@ experiment_name: pendulum_no_vel
 seed: 42
 
 env:
-  name: PendulumNoVelEnv
+  _include: {CONFIGS_DIR}/envs/pendulum_no_vel
 
 buffer:
-  capacity: 100000
+  _include: {CONFIGS_DIR}/buffers/100k
 
 sampler:
-  type: sequence
-  seq_len: 20
-  batch_size: 64
+  _include: {CONFIGS_DIR}/samplers/sequence
 
 collector:
-  is_async: false
-  collect_steps_per_iteration: 10
+  _include: {CONFIGS_DIR}/collectors/sync
 
 network:
-  type: lstm
-  lstm_hidden_size: 64
-  lstm_num_layers: 2
-  mlp_hidden_sizes: [256, 256]
+  _include: {CONFIGS_DIR}/networks/lstm_64_2
 
 updater:
-  type: td3
-  gamma: 0.98
-  policy_noise: 0.1
-  noise_clip: 0.25
-  actor_lr: 0.001
-  critic_lr: 0.001
-  tau: 0.005
-  policy_freq: 2
+  _include: {CONFIGS_DIR}/updaters/td3_pendulum
 
 training:
-  train_start_step: 2000
-  sync_start_step: 2000
-  num_steps: 20_000
-  log_frequency: 100
-  log_dir: "train_logs"
-  log_file: train.log
+  _include: {CONFIGS_DIR}/common/training_pendulum
 
 exploration:
-  type: random
-  steps: 2000
+  _include: {CONFIGS_DIR}/common/exploration_random_pendulum
 
 validation:
-  frequency: 500
-  num_steps: 200
+  _include: {CONFIGS_DIR}/common/validation_pendulum
 
 testing:
-  num_steps: 1000
-
+  _include: {CONFIGS_DIR}/common/testing_pendulum
