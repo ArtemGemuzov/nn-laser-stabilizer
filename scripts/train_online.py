@@ -16,7 +16,7 @@ from nn_laser_stabilizer.experiment.decorator import experiment, ExperimentConte
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.model.actor import make_actor_from_config
 from nn_laser_stabilizer.model.critic import make_critic_from_config
-from nn_laser_stabilizer.updater import make_updater_from_config
+from nn_laser_stabilizer.algorithm.utils import make_updater_from_config
 
 
 def validate(
