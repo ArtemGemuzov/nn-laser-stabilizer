@@ -8,7 +8,7 @@ from nn_laser_stabilizer.algorithm.td3_loss import TD3Loss
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.model.actor import Actor
 from nn_laser_stabilizer.model.critic import Critic
-from nn_laser_stabilizer.optimizer import SoftUpdater
+from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.algorithm.utils import OptimizerFactory, build_soft_update_pairs
 
 
@@ -57,6 +57,40 @@ class TD3Updater:
                 )
             ),
             tau=updater_config.tau,
+        )
+
+    @classmethod
+    def from_config(
+        cls,
+        updater_config: Config,
+        *,
+        actor: Actor,
+        critic: Critic,
+    ) -> "TD3Updater":
+        """
+        Создаёт TD3Updater из updater-секции конфига.
+
+        Ожидает в конфиге:
+          type: \"td3\"
+          gamma, policy_noise, noise_clip, actor_lr, critic_lr, tau, policy_freq.
+        """
+        actor_lr = float(updater_config.actor_lr)
+        critic_lr = float(updater_config.critic_lr)
+
+        if actor_lr <= 0.0:
+            raise ValueError("updater.actor_lr must be > 0 for TD3Updater")
+        if critic_lr <= 0.0:
+            raise ValueError("updater.critic_lr must be > 0 for TD3Updater")
+
+        actor_optimizer_factory: OptimizerFactory = lambda params: Optimizer(params, lr=actor_lr)
+        critic_optimizer_factory: OptimizerFactory = lambda params: Optimizer(params, lr=critic_lr)
+
+        return cls(
+            updater_config=updater_config,
+            actor=actor,
+            critic=critic,
+            actor_optimizer_factory=actor_optimizer_factory,
+            critic_optimizer_factory=critic_optimizer_factory,
         )
 
     @property

@@ -8,7 +8,7 @@ from nn_laser_stabilizer.algorithm.td3bc_loss import TD3BCLoss
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.model.actor import Actor
 from nn_laser_stabilizer.model.critic import Critic
-from nn_laser_stabilizer.optimizer import SoftUpdater
+from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.algorithm.utils import OptimizerFactory, build_soft_update_pairs
 
 
@@ -58,6 +58,33 @@ class TD3BCUpdater:
                 )
             ),
             tau=updater_config.tau,
+        )
+
+    @classmethod
+    def from_config(
+        cls,
+        updater_config: Config,
+        *,
+        actor: Actor,
+        critic: Critic,
+    ) -> "TD3BCUpdater":
+        actor_lr = float(updater_config.actor_lr)
+        critic_lr = float(updater_config.critic_lr)
+
+        if actor_lr <= 0.0:
+            raise ValueError("updater.actor_lr must be > 0 for TD3BCUpdater")
+        if critic_lr <= 0.0:
+            raise ValueError("updater.critic_lr must be > 0 for TD3BCUpdater")
+
+        actor_optimizer_factory: OptimizerFactory = lambda params: Optimizer(params, lr=actor_lr)
+        critic_optimizer_factory: OptimizerFactory = lambda params: Optimizer(params, lr=critic_lr)
+
+        return cls(
+            updater_config=updater_config,
+            actor=actor,
+            critic=critic,
+            actor_optimizer_factory=actor_optimizer_factory,
+            critic_optimizer_factory=critic_optimizer_factory,
         )
 
     @property

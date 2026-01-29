@@ -39,7 +39,7 @@ class MLPCritic(Critic):
         self,
         obs_dim: int,
         action_dim: int,
-        hidden_sizes: Sequence[int] = (256, 256)
+        hidden_sizes: Sequence[int] = (256, 256),
     ):
         super().__init__(obs_dim=obs_dim, action_dim=action_dim, hidden_sizes=hidden_sizes)
         self.net = build_mlp(
@@ -58,6 +58,36 @@ class MLPCritic(Critic):
             )
         q_value = self.net(torch.cat([observation, action], dim=-1))
         return q_value, options
+
+    @classmethod
+    def from_config(
+        cls,
+        network_config: Config,
+        *,
+        obs_dim: int,
+        action_dim: int,
+    ) -> "MLPCritic":
+        """
+        Создаёт MLPCritic из network-секции конфига.
+
+        Ожидает:
+          type: \"mlp\"
+          mlp_hidden_sizes: последовательность целых
+        """
+        hidden_sizes_raw = network_config.mlp_hidden_sizes
+        try:
+            hidden_sizes_seq = tuple(int(h) for h in hidden_sizes_raw)
+        except TypeError:
+            raise TypeError("network.mlp_hidden_sizes must be an iterable of integers")
+
+        if not hidden_sizes_seq:
+            raise ValueError("network.mlp_hidden_sizes must be non-empty for MLPCritic")
+
+        return cls(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            hidden_sizes=hidden_sizes_seq,
+        )
 
 
 class LSTMCritic(Critic):
@@ -131,32 +161,52 @@ class LSTMCritic(Critic):
         
         options['hidden_state'] = hidden_state
         return q_values, options
-    
+
+    @classmethod
+    def from_config(
+        cls,
+        network_config: Config,
+        *,
+        obs_dim: int,
+        action_dim: int,
+    ) -> "LSTMCritic":
+        lstm_hidden_size = int(network_config.lstm_hidden_size)
+        lstm_num_layers = int(network_config.lstm_num_layers)
+        if lstm_hidden_size <= 0:
+            raise ValueError("network.lstm_hidden_size must be > 0 for LSTMCritic")
+        if lstm_num_layers <= 0:
+            raise ValueError("network.lstm_num_layers must be > 0 for LSTMCritic")
+
+        hidden_sizes_raw = network_config.mlp_hidden_sizes
+        try:
+            mlp_hidden_sizes_seq = tuple(int(h) for h in hidden_sizes_raw)
+        except TypeError:
+            raise TypeError("network.mlp_hidden_sizes must be an iterable of integers")
+
+        if not mlp_hidden_sizes_seq:
+            raise ValueError("network.mlp_hidden_sizes must be non-empty for LSTMCritic")
+
+        return cls(
+            obs_dim=obs_dim,
+            action_dim=action_dim,
+            lstm_hidden_size=lstm_hidden_size,
+            lstm_num_layers=lstm_num_layers,
+            mlp_hidden_sizes=mlp_hidden_sizes_seq,
+        )
 
 def make_critic_from_config(network_config: Config, obs_dim: int, action_dim: int) -> Critic:
-    network_type_str = network_config.type
-    
-    try:
-        network_type = NetworkType(network_type_str)
-    except ValueError:
-        raise ValueError(
-            f"Unknown network type: '{network_type_str}'. "
-            f"Supported types: {[t.value for t in NetworkType]}"
-        )
-    
+    network_type = NetworkType.from_str(network_config.type)
     if network_type == NetworkType.MLP:
-        return MLPCritic(
+        return MLPCritic.from_config(
+            network_config=network_config,
             obs_dim=obs_dim,
             action_dim=action_dim,
-            hidden_sizes=tuple(network_config.mlp_hidden_sizes),
         )
     elif network_type == NetworkType.LSTM:
-        return LSTMCritic(
+        return LSTMCritic.from_config(
+            network_config=network_config,
             obs_dim=obs_dim,
             action_dim=action_dim,
-            lstm_hidden_size=network_config.lstm_hidden_size,
-            lstm_num_layers=network_config.lstm_num_layers,
-            mlp_hidden_sizes=tuple(network_config.mlp_hidden_sizes),
         )
     else:
         raise ValueError(f"Unhandled network type: {network_type}")

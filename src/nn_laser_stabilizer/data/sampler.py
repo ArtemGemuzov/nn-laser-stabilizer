@@ -26,6 +26,26 @@ class BatchSampler:
         torch.randint(0, current_size, (self.batch_size,), out=self._indices)
         return self.buffer.get_batch(self._indices)
 
+    @classmethod
+    def from_config(
+        cls,
+        sampler_config: Config,
+        *,
+        buffer: ReplayBuffer,
+    ) -> "BatchSampler":
+        """
+        Создаёт BatchSampler из sampler-секции конфига.
+
+        Ожидает:
+          type: \"single\"
+          batch_size: int
+        """
+        batch_size = int(sampler_config.batch_size)
+        if batch_size <= 0:
+            raise ValueError("sampler.batch_size must be > 0 for single sampler")
+
+        return cls(buffer=buffer, batch_size=batch_size)
+
 
 class BatchSequenceSampler:
     def __init__(self, buffer: ReplayBuffer, batch_size: int, seq_len: int):
@@ -55,20 +75,42 @@ class BatchSequenceSampler:
         torch.randint(0, max_start, (self.batch_size,), out=self._start_indices)
         indices = self._start_indices.unsqueeze(1) + self._seq_indices.unsqueeze(0)
         return self.buffer.get_batch(indices)
-    
+
+    @classmethod
+    def from_config(
+        cls,
+        sampler_config: Config,
+        *,
+        buffer: ReplayBuffer,
+    ) -> "BatchSequenceSampler":
+        """
+        Создаёт BatchSequenceSampler из sampler-секции конфига.
+
+        Ожидает:
+          type: \"sequence\"
+          batch_size: int
+          seq_len: int
+        """
+        batch_size = int(sampler_config.batch_size)
+        seq_len = int(sampler_config.seq_len)
+
+        if batch_size <= 0:
+            raise ValueError("sampler.batch_size must be > 0 for sequence sampler")
+        if seq_len <= 0:
+            raise ValueError("sampler.seq_len must be > 0 for sequence sampler")
+
+        return cls(buffer=buffer, batch_size=batch_size, seq_len=seq_len)
 
 def make_sampler_from_config(
     sampler_config: Config,
     buffer: ReplayBuffer, 
 ) -> Union[BatchSampler, BatchSequenceSampler]:
-    batch_size = sampler_config.batch_size
     sampler_type_str = sampler_config.type
     sampler_type = SamplerType.from_str(sampler_type_str)
     
     if sampler_type == SamplerType.SINGLE:
-        return BatchSampler(buffer=buffer, batch_size=batch_size)
+        return BatchSampler.from_config(sampler_config, buffer=buffer)
     elif sampler_type == SamplerType.SEQUENCE:
-        seq_len = sampler_config.seq_len
-        return BatchSequenceSampler(buffer=buffer, batch_size=batch_size, seq_len=seq_len)
+        return BatchSequenceSampler.from_config(sampler_config, buffer=buffer)
     else:
         raise ValueError(f"Unhandled sampler type: {sampler_type}")

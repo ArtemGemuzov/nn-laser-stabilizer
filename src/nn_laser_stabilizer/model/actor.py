@@ -41,7 +41,7 @@ class MLPActor(Actor):
         obs_dim: int,
         action_dim: int,
         action_space: Box,
-        hidden_sizes: Sequence[int] = (256, 256)
+        hidden_sizes: Sequence[int] = (256, 256),
     ):
         super().__init__(obs_dim=obs_dim, action_dim=action_dim, action_space=action_space, hidden_sizes=hidden_sizes)
         self.net_body = build_mlp(obs_dim, action_dim, hidden_sizes)
@@ -52,6 +52,37 @@ class MLPActor(Actor):
             options = {}
         action = self.scaler(self.net_body(observation))
         return action, options
+
+    @classmethod
+    def from_config(
+        cls,
+        network_config: Config,
+        *,
+        action_space: Box,
+        observation_space: Box,
+    ) -> "MLPActor":
+        """
+        Создаёт MLPActor из network-секции конфига.
+
+        Ожидает в конфиге:
+          type: "mlp"
+          mlp_hidden_sizes: последовательность целых
+        """
+        hidden_sizes_raw = network_config.mlp_hidden_sizes
+        try:
+            hidden_sizes_seq = tuple(int(h) for h in hidden_sizes_raw)
+        except TypeError:
+            raise TypeError("network.mlp_hidden_sizes must be an iterable of integers")
+
+        if not hidden_sizes_seq:
+            raise ValueError("network.mlp_hidden_sizes must be non-empty for MLPActor")
+
+        return cls(
+            obs_dim=observation_space.dim,
+            action_dim=action_space.dim,
+            action_space=action_space,
+            hidden_sizes=hidden_sizes_seq,
+        )
 
 
 class LSTMActor(Actor):
@@ -110,34 +141,64 @@ class LSTMActor(Actor):
         
         options['hidden_state'] = hidden_state
         return actions, options
+
+    @classmethod
+    def from_config(
+        cls,
+        network_config: Config,
+        *,
+        action_space: Box,
+        observation_space: Box,
+    ) -> "LSTMActor":
+        """
+        Создаёт LSTMActor из network-секции конфига.
+
+        Ожидает в конфиге:
+          type: \"lstm\"
+          lstm_hidden_size: int
+          lstm_num_layers: int
+          mlp_hidden_sizes: последовательность целых
+        """
+        lstm_hidden_size = int(network_config.lstm_hidden_size)
+        lstm_num_layers = int(network_config.lstm_num_layers)
+
+        if lstm_hidden_size <= 0:
+            raise ValueError("network.lstm_hidden_size must be > 0 for LSTMActor")
+        if lstm_num_layers <= 0:
+            raise ValueError("network.lstm_num_layers must be > 0 for LSTMActor")
+
+        hidden_sizes_raw = network_config.mlp_hidden_sizes
+        try:
+            mlp_hidden_sizes_seq = tuple(int(h) for h in hidden_sizes_raw)
+        except TypeError:
+            raise TypeError("network.mlp_hidden_sizes must be an iterable of integers")
+
+        if not mlp_hidden_sizes_seq:
+            raise ValueError("network.mlp_hidden_sizes must be non-empty for LSTMActor")
+
+        return cls(
+            obs_dim=observation_space.dim,
+            action_dim=action_space.dim,
+            action_space=action_space,
+            lstm_hidden_size=lstm_hidden_size,
+            lstm_num_layers=lstm_num_layers,
+            mlp_hidden_sizes=mlp_hidden_sizes_seq,
+        )
     
 
 def make_actor_from_config(network_config: Config, action_space: Box, observation_space: Box) -> "Actor":
-    network_type_str = network_config.type
-    
-    try:
-        network_type = NetworkType(network_type_str)
-    except ValueError:
-        raise ValueError(
-            f"Unknown network type: '{network_type_str}'. "
-            f"Supported types: {[t.value for t in NetworkType]}"
-        )
-    
+    network_type = NetworkType.from_str(network_config.type)
     if network_type == NetworkType.MLP:
-        return MLPActor(
-            obs_dim=observation_space.dim,
-            action_dim=action_space.dim,
+        return MLPActor.from_config(
+            network_config=network_config,
             action_space=action_space,
-            hidden_sizes=tuple(network_config.mlp_hidden_sizes),
+            observation_space=observation_space,
         )
     elif network_type == NetworkType.LSTM:
-        return LSTMActor(
-            obs_dim=observation_space.dim,
-            action_dim=action_space.dim,
+        return LSTMActor.from_config(
+            network_config=network_config,
             action_space=action_space,
-            lstm_hidden_size=network_config.lstm_hidden_size,
-            lstm_num_layers=network_config.lstm_num_layers,
-            mlp_hidden_sizes=tuple(network_config.mlp_hidden_sizes),
+            observation_space=observation_space,
         )
     else:
         raise ValueError(f"Unhandled network type: {network_type}")

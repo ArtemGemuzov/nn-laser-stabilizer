@@ -7,6 +7,7 @@ import torch
 from nn_laser_stabilizer.envs.box import Box
 from nn_laser_stabilizer.model.actor import Actor
 from nn_laser_stabilizer.policy.policy import Policy
+from nn_laser_stabilizer.config.config import Config
 
 
 class RandomExplorationPolicy(Policy):
@@ -59,6 +60,29 @@ class RandomExplorationPolicy(Policy):
         for _ in range(num_steps):
             fake_obs = observation_space.sample()
             self._actor.act(fake_obs, {})
+
+    @classmethod
+    def from_config(
+        cls,
+        exploration_config: Config,
+        *,
+        actor: Actor,
+    ) -> "RandomExplorationPolicy":
+        """
+        Создаёт RandomExplorationPolicy из exploration-секции конфига.
+
+        Ожидает:
+          type: \"random\"
+          steps: int
+        """
+        steps = int(exploration_config.steps)
+        if steps < 0:
+            raise ValueError("exploration.steps must be >= 0 for random exploration")
+
+        return cls(
+            actor=actor,
+            exploration_steps=steps,
+        )
 
 
 class NoisyExplorationPolicy(Policy):
@@ -120,6 +144,31 @@ class NoisyExplorationPolicy(Policy):
         for _ in range(num_steps):
             fake_obs = observation_space.sample()
             self._actor.act(fake_obs, {})
+
+    @classmethod
+    def from_config(
+        cls,
+        exploration_config: Config,
+        *,
+        actor: Actor,
+    ) -> "NoisyExplorationPolicy":
+        steps = int(exploration_config.steps)
+        policy_noise = float(exploration_config.policy_noise)
+        noise_clip = float(exploration_config.noise_clip)
+
+        if steps < 0:
+            raise ValueError("exploration.steps must be >= 0 for noisy exploration")
+        if policy_noise <= 0.0:
+            raise ValueError("exploration.policy_noise must be > 0 for noisy exploration")
+        if noise_clip <= 0.0:
+            raise ValueError("exploration.noise_clip must be > 0 for noisy exploration")
+
+        return cls(
+            actor=actor,
+            exploration_steps=steps,
+            policy_noise=policy_noise,
+            noise_clip=noise_clip,
+        )
 
 
 class OrnsteinUhlenbeckExplorationPolicy(Policy):
@@ -211,3 +260,41 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
         for _ in range(num_steps):
             fake_obs = observation_space.sample()
             self._actor.act(fake_obs, {})
+
+    @classmethod
+    def from_config(
+        cls,
+        exploration_config: Config,
+        *,
+        actor: Actor,
+    ) -> "OrnsteinUhlenbeckExplorationPolicy":
+        """
+        Создаёт OrnsteinUhlenbeckExplorationPolicy из exploration-секции конфига.
+
+        Ожидает:
+          type: \"ou\"
+          steps, sigma, theta, mu, dt
+        """
+        steps = int(exploration_config.steps)
+        sigma = float(exploration_config.sigma)
+        theta = float(exploration_config.theta)
+        mu = float(exploration_config.mu)
+        dt = float(exploration_config.dt)
+
+        if steps < 0:
+            raise ValueError("exploration.steps must be >= 0 for OU exploration")
+        if sigma <= 0.0:
+            raise ValueError("exploration.sigma must be > 0 for OU exploration")
+        if theta <= 0.0:
+            raise ValueError("exploration.theta must be > 0 for OU exploration")
+        if dt <= 0.0:
+            raise ValueError("exploration.dt must be > 0 for OU exploration")
+
+        return cls(
+            actor=actor,
+            exploration_steps=steps,
+            theta=theta,
+            sigma=sigma,
+            mu=mu,
+            dt=dt,
+        )

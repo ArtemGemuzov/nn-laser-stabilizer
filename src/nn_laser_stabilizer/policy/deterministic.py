@@ -1,6 +1,7 @@
 from nn_laser_stabilizer.envs.box import Box
 from nn_laser_stabilizer.model.actor import Actor
 from nn_laser_stabilizer.policy.policy import Policy
+from nn_laser_stabilizer.config.config import Config
 
 
 import torch
@@ -43,3 +44,17 @@ class DeterministicPolicy(Policy):
         for _ in range(num_steps):
             fake_obs = observation_space.sample()
             self._actor.act(fake_obs, {})
+
+    @classmethod
+    def from_config(
+        cls,
+        exploration_config: Config,
+        *,
+        actor: Actor,
+    ) -> "DeterministicPolicy":
+        steps = int(exploration_config.steps)
+        if steps != 0:
+            raise ValueError(
+                "exploration.steps must be 0 when using DeterministicPolicy (type=none)"
+            )
+        return cls(actor=actor)
