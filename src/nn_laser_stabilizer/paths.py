@@ -30,62 +30,42 @@ def find_project_root() -> Path:
     )
 
 
-def get_or_create_experiments_dir() -> Path:
+def get_dir(dir_name: str) -> Path:
     project_root = find_project_root()
-    experiments_dir = (project_root / EXPERIMENTS_DIR_NAME).resolve()
-    experiments_dir.mkdir(parents=True, exist_ok=True)
-    return experiments_dir
-
-
-def get_experiments_dir() -> Path:
-    project_root = find_project_root()
-    experiments_dir = (project_root / EXPERIMENTS_DIR_NAME).resolve()
-    
-    if not experiments_dir.exists():
+    dir_path = (project_root / dir_name).resolve()
+    if not dir_path.exists():
         raise FileNotFoundError(
-            f"Experiments directory not found: {experiments_dir}. "
+            f"{dir_name} directory not found: {dir_path}. "
             f"Project root detected as: {project_root}"
         )
-    
-    return experiments_dir
+    return dir_path
+
+
+def get_or_create_dir(dir_name: str) -> Path:
+    project_root = find_project_root()
+    dir_path = (project_root / dir_name).resolve()
+    dir_path.mkdir(parents=True, exist_ok=True)
+    return dir_path
 
 
 def get_configs_dir() -> Path:
-    project_root = find_project_root()
-    configs_dir = (project_root / CONFIGS_DIR_NAME).resolve()
-    
-    if not configs_dir.exists():
-        raise FileNotFoundError(
-            f"Configs directory not found: {configs_dir}. "
-            f"Project root detected as: {project_root}"
-        )
-    
-    return configs_dir
+    return get_dir(CONFIGS_DIR_NAME)
 
 
 def get_data_dir() -> Path:
-    project_root = find_project_root()
-    data_dir = (project_root / DATA_DIR_NAME).resolve()
-
-    if not data_dir.exists():
-        raise FileNotFoundError(
-            f"Data directory not found: {data_dir}. "
-            f"Project root detected as: {project_root}"
-        )
-    return data_dir
+    return get_dir(DATA_DIR_NAME)
 
 
 def get_resources_dir() -> Path:
-    project_root = find_project_root()
-    resources_dir = (project_root / RESOURCES_DIR_NAME).resolve()
-    
-    if not resources_dir.exists():
-        raise FileNotFoundError(
-            f"Resources directory not found: {resources_dir}. "
-            f"Project root detected as: {project_root}"
-        )
-    
-    return resources_dir
+    return get_dir(RESOURCES_DIR_NAME)
+
+
+def get_experiments_dir() -> Path:
+    return get_dir(EXPERIMENTS_DIR_NAME)
+
+
+def get_or_create_experiments_dir() -> Path:
+    return get_or_create_dir(EXPERIMENTS_DIR_NAME)
 
 
 class WorkingDirectoryContext:
