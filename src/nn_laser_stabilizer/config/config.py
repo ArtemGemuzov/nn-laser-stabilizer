@@ -8,21 +8,6 @@ from nn_laser_stabilizer.paths import get_configs_dir
 CONFIGS_DIR = get_configs_dir()
 
 
-def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    result = base.copy()
-    
-    for key, value in override.items():
-        if key == '_extends':
-            continue
-        
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
-        else:
-            result[key] = value
-    
-    return result
-
-
 def _substitute_placeholders(data: Any, variables: dict[str, Any]) -> Any:
     if isinstance(data, str):
         result = data
@@ -37,6 +22,40 @@ def _substitute_placeholders(data: Any, variables: dict[str, Any]) -> Any:
         return [_substitute_placeholders(item, variables) for item in data]
     else:
         return data
+
+
+def _resolve_includes(
+    data: Any,
+    configs_dir: Path,
+    load_variables: dict[str, str],
+    visited: set[Path],
+) -> Any:
+    if isinstance(data, dict):
+        if "_include" in data and len(data) == 1:
+            path_str = data["_include"]
+            if not isinstance(path_str, str):
+                raise ValueError(f"_include value must be a string path, got {type(path_str)}")
+            resolved_path_str = path_str
+            for var_name, var_value in load_variables.items():
+                resolved_path_str = resolved_path_str.replace(f"{{{var_name}}}", var_value)
+            include_path = Path(resolved_path_str)
+            if not include_path.is_absolute():
+                include_path = (configs_dir / include_path).resolve()
+            if not include_path.suffix:
+                include_path = include_path.with_suffix(".yaml")
+            elif include_path.suffix not in (".yaml", ".yml"):
+                include_path = include_path.with_suffix(".yaml")
+            if not include_path.exists():
+                raise FileNotFoundError(f"Included config not found: {include_path}")
+            included = load_config(include_path, configs_dir=configs_dir, visited=visited)
+            return included.to_dict()
+        return {
+            k: _resolve_includes(v, configs_dir, load_variables, visited)
+            for k, v in data.items()
+        }
+    elif isinstance(data, list):
+        return [_resolve_includes(item, configs_dir, load_variables, visited) for item in data]
+    return data
 
 
 class Config:
@@ -141,21 +160,8 @@ def load_config(config_path: Path, configs_dir: Optional[Path] = None, visited: 
         if config_data is None:
             config_data = {}
         
-        extends_path = config_data.get('_extends')
-        
-        if extends_path:
-            if isinstance(extends_path, str):
-                if not Path(extends_path).is_absolute():
-                    base_config_path = configs_dir / extends_path
-                else:
-                    base_config_path = Path(extends_path)
-                
-                base_config = load_config(base_config_path, configs_dir=configs_dir, visited=visited)
-                base_data = base_config.to_dict()
-                
-                config_data = _deep_merge(base_data, config_data)
-            
-            config_data.pop('_extends', None)
+        load_variables = {"CONFIGS_DIR": str(configs_dir)}
+        config_data = _resolve_includes(config_data, configs_dir, load_variables, visited)
         
         return Config(config_data)
     finally:
