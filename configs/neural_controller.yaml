@@ -2,31 +2,31 @@ experiment_name: neural_controller
 seed: 1
 
 env:
-  _include: {CONFIGS_DIR}/envs/neural_controller
+  _include: "{CONFIGS_DIR}/envs/neural_controller"
 
 training:
-  _include: {CONFIGS_DIR}/common/training_neural
+  _include: "{CONFIGS_DIR}/common/training_neural"
 
 exploration:
-  _include: {CONFIGS_DIR}/common/exploration_ou
+  _include: "{CONFIGS_DIR}/common/exploration_ou"
 
 collector:
-  _include: {CONFIGS_DIR}/collectors/async
+  _include: "{CONFIGS_DIR}/collectors/async"
 
 validation:
-  _include: {CONFIGS_DIR}/common/validation_none
+  _include: "{CONFIGS_DIR}/common/validation_none"
 
 testing:
-  _include: {CONFIGS_DIR}/common/testing_none
+  _include: "{CONFIGS_DIR}/common/testing_none"
 
 buffer:
-  _include: {CONFIGS_DIR}/buffers/100k
+  _include: "{CONFIGS_DIR}/buffers/100k"
 
 sampler:
-  _include: {CONFIGS_DIR}/samplers/single
+  _include: "{CONFIGS_DIR}/samplers/single"
 
 network:
-  _include: {CONFIGS_DIR}/networks/mlp_256_256
+  _include: "{CONFIGS_DIR}/networks/mlp_256_256"
 
 updater:
-  _include: {CONFIGS_DIR}/updaters/td3_default
+  _include: "{CONFIGS_DIR}/updaters/td3_default"

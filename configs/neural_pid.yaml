@@ -2,31 +2,31 @@ experiment_name: neural_pid
 seed: 1
 
 env:
-  _include: {CONFIGS_DIR}/envs/neural_pid
+  _include: "{CONFIGS_DIR}/envs/neural_pid"
 
 training:
-  _include: {CONFIGS_DIR}/common/training_pid
+  _include: "{CONFIGS_DIR}/common/training_pid"
 
 exploration:
-  _include: {CONFIGS_DIR}/common/exploration_random
+  _include: "{CONFIGS_DIR}/common/exploration_random"
 
 collector:
-  _include: {CONFIGS_DIR}/collectors/async
+  _include: "{CONFIGS_DIR}/collectors/async"
 
 validation:
-  _include: {CONFIGS_DIR}/common/validation_none
+  _include: "{CONFIGS_DIR}/common/validation_none"
 
 testing:
-  _include: {CONFIGS_DIR}/common/testing_none
+  _include: "{CONFIGS_DIR}/common/testing_none"
 
 buffer:
-  _include: {CONFIGS_DIR}/buffers/10k
+  _include: "{CONFIGS_DIR}/buffers/10k"
 
 sampler:
-  _include: {CONFIGS_DIR}/samplers/single
+  _include: "{CONFIGS_DIR}/samplers/single"
 
 network:
-  _include: {CONFIGS_DIR}/networks/mlp_3
+  _include: "{CONFIGS_DIR}/networks/mlp_3"
 
 updater:
-  _include: {CONFIGS_DIR}/updaters/td3_default
+  _include: "{CONFIGS_DIR}/updaters/td3_default"

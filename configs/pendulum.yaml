@@ -2,31 +2,31 @@ experiment_name: pendulum
 seed: 42
 
 env:
-  _include: {CONFIGS_DIR}/envs/pendulum
+  _include: "{CONFIGS_DIR}/envs/pendulum"
 
 buffer:
-  _include: {CONFIGS_DIR}/buffers/100k
+  _include: "{CONFIGS_DIR}/buffers/100k"
 
 sampler:
-  _include: {CONFIGS_DIR}/samplers/sequence
+  _include: "{CONFIGS_DIR}/samplers/sequence"
 
 collector:
-  _include: {CONFIGS_DIR}/collectors/sync
+  _include: "{CONFIGS_DIR}/collectors/sync"
 
 network:
-  _include: {CONFIGS_DIR}/networks/lstm_64_2
+  _include: "{CONFIGS_DIR}/networks/lstm_64_2"
 
 updater:
-  _include: {CONFIGS_DIR}/updaters/td3_pendulum
+  _include: "{CONFIGS_DIR}/updaters/td3_pendulum"
 
 training:
-  _include: {CONFIGS_DIR}/common/training_pendulum
+  _include: "{CONFIGS_DIR}/common/training_pendulum"
 
 exploration:
-  _include: {CONFIGS_DIR}/common/exploration_random_pendulum
+  _include: "{CONFIGS_DIR}/common/exploration_random_pendulum"
 
 validation:
-  _include: {CONFIGS_DIR}/common/validation_pendulum
+  _include: "{CONFIGS_DIR}/common/validation_pendulum"
 
 testing:
-  _include: {CONFIGS_DIR}/common/testing_pendulum
+  _include: "{CONFIGS_DIR}/common/testing_pendulum"
