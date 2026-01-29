@@ -5,9 +5,6 @@ import yaml
 from nn_laser_stabilizer.paths import get_configs_dir
 
 
-CONFIGS_DIR = get_configs_dir()
-
-
 def _substitute_placeholders(data: Any, variables: dict[str, Any]) -> Any:
     if isinstance(data, str):
         result = data
@@ -126,7 +123,7 @@ def find_config_path(relative_config_path: str | Path) -> Path:
     if rel_path.is_absolute():
         return rel_path
     
-    return CONFIGS_DIR / rel_path
+    return get_configs_dir() / rel_path
 
 
 def load_config(config_path: Path, configs_dir: Optional[Path] = None, visited: Optional[set[Path]] = None) -> Config:
