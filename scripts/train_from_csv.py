@@ -6,8 +6,8 @@ import time
 import numpy as np
 import pandas as pd
 
-from nn_laser_stabilizer.buffer_loader import load_buffer_from_csv
-from nn_laser_stabilizer.sampler import make_sampler_from_config
+from nn_laser_stabilizer.data.buffer_loader import load_buffer_from_csv
+from nn_laser_stabilizer.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.experiment.workdir_context import WorkingDirectoryContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger

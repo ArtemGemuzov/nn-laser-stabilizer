@@ -2,8 +2,8 @@ from pathlib import Path
 import argparse
 import time
 
-from nn_laser_stabilizer.replay_buffer import ReplayBuffer
-from nn_laser_stabilizer.sampler import make_sampler_from_config
+from nn_laser_stabilizer.data.replay_buffer import ReplayBuffer
+from nn_laser_stabilizer.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.experiment.workdir_context import WorkingDirectoryContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger

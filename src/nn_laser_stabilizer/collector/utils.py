@@ -5,7 +5,7 @@ import traceback
 import torch
 
 from nn_laser_stabilizer.enum_base import BaseEnum
-from nn_laser_stabilizer.replay_buffer import ReplayBuffer
+from nn_laser_stabilizer.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy import Policy
 
