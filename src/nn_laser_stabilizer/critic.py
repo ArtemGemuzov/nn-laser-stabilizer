@@ -1,6 +1,7 @@
+from typing import Sequence, Any, cast
 from abc import ABC, abstractmethod
+from pathlib import Path
 
-from typing import Sequence, Any
 
 import torch
 import torch.nn as nn
@@ -24,6 +25,13 @@ class Critic(Model, ABC):
         if options is None:
             options = {}
         return self(observation, action, options)
+
+    def clone(self, reinitialize_weights: bool = False) -> "Critic":
+        return cast(Critic, super().clone(reinitialize_weights))
+
+    @classmethod
+    def load(cls, path: Path) -> "Critic":
+        return cast(Critic, super().load(path))
     
 
 class MLPCritic(Critic):
