@@ -1,20 +1,18 @@
 from pathlib import Path
 import argparse
 import time
-from functools import partial
 
 from nn_laser_stabilizer.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.sampler import make_sampler_from_config
-from nn_laser_stabilizer.loss import make_loss_from_config, TD3Loss, TD3BCLoss
-from nn_laser_stabilizer.training import td3_train_step, td3bc_train_step
-from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.experiment.workdir_context import WorkingDirectoryContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.actor import make_actor_from_config
 from nn_laser_stabilizer.critic import make_critic_from_config
 from nn_laser_stabilizer.env_wrapper import make_spaces_from_config
+from nn_laser_stabilizer.optimizer import Optimizer
 from nn_laser_stabilizer.config.config import load_config, find_config_path
+from nn_laser_stabilizer.updater import make_updater_from_config
 
 
 def offline_train(
@@ -52,41 +50,20 @@ def offline_train(
             action_dim=action_space.dim,
         ).train()
 
-        loss_module = make_loss_from_config(
-            loss_config=context.config.loss,
+        updater_cfg = context.config.updater
+        updater = make_updater_from_config(
+            updater_config=updater_cfg,
             actor=actor,
             critic=critic,
-            action_space=action_space,
+            actor_optimizer_factory=lambda params: Optimizer(
+                params,
+                lr=updater_cfg.actor_lr,
+            ),
+            critic_optimizer_factory=lambda params: Optimizer(
+                params,
+                lr=updater_cfg.critic_lr,
+            ),
         )
-
-        actor_optimizer = Optimizer(
-            loss_module.actor.parameters(),
-            lr=context.config.optimizer.actor_lr,
-        )
-        critic_optimizer = Optimizer(
-            list(loss_module.critic1.parameters()) + list(loss_module.critic2.parameters()),
-            lr=context.config.optimizer.critic_lr,
-        )
-        soft_updater = SoftUpdater(loss_module, tau=context.config.optimizer.tau)
-
-        # TODO: временный костыль - выбор функции train step по типу loss. Нужно переделать на правильную абстракцию.
-        # Фиксируем loss_module и оптимизаторы с помощью partial
-        if isinstance(loss_module, TD3BCLoss):
-            train_step = partial(
-                td3bc_train_step,
-                loss_module=loss_module,
-                critic_optimizer=critic_optimizer,
-                actor_optimizer=actor_optimizer,
-                soft_updater=soft_updater,
-            )
-        else:
-            train_step = partial(
-                td3_train_step,
-                loss_module=loss_module,
-                critic_optimizer=critic_optimizer,
-                actor_optimizer=actor_optimizer,
-                soft_updater=soft_updater,
-            )
 
         sampler = make_sampler_from_config(
             buffer=buffer,
@@ -106,7 +83,6 @@ def offline_train(
             num_steps = context.config.training.num_steps
             infinite_steps = num_steps == -1
 
-            policy_freq = context.config.training.policy_freq
             log_frequency = context.config.training.log_frequency
             logging_enabled = log_frequency > 0
 
@@ -120,12 +96,7 @@ def offline_train(
 
                 batch = sampler.sample()
 
-                update_actor_and_target = (step % policy_freq == 0)
-
-                loss_q1, loss_q2, actor_loss = train_step(
-                    batch,
-                    update_actor_and_target=update_actor_and_target,
-                )
+                loss_q1, loss_q2, actor_loss = updater.update_step(batch)
 
                 if logging_enabled and step % log_frequency == 0:
                     timestamp = time.time()
@@ -145,12 +116,12 @@ def offline_train(
             context.logger.log("Saving models...")
             models_dir = Path("models")
             models_dir.mkdir(parents=True, exist_ok=True)
-            loss_module.actor.save(models_dir / "actor.pth")
-            loss_module.critic1.save(models_dir / "critic1.pth")
-            loss_module.critic2.save(models_dir / "critic2.pth")
-            loss_module.actor_target.save(models_dir / "actor_target.pth")
-            loss_module.critic1_target.save(models_dir / "critic1_target.pth")
-            loss_module.critic2_target.save(models_dir / "critic2_target.pth")
+            updater.actor.save(models_dir / "actor.pth")
+            updater.critic1.save(models_dir / "critic1.pth")
+            updater.critic2.save(models_dir / "critic2.pth")
+            updater.actor_target.save(models_dir / "actor_target.pth")
+            updater.critic1_target.save(models_dir / "critic1_target.pth")
+            updater.critic2_target.save(models_dir / "critic2_target.pth")
             context.logger.log(f"Models saved to {models_dir}")
 
             train_logger.close()

@@ -18,7 +18,7 @@ class ExplorationType(BaseEnum):
     OU = "ou"
 
 
-class LossType(BaseEnum):
+class UpdaterType(BaseEnum):
     TD3 = "td3"
     TD3BC = "td3bc"
 

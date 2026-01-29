@@ -1,0 +1,251 @@
+from typing import Callable, Iterable, Optional
+
+import torch
+import torch.nn as nn
+from torch import Tensor
+
+from nn_laser_stabilizer.actor import Actor
+from nn_laser_stabilizer.config.config import Config
+from nn_laser_stabilizer.critic import Critic
+from nn_laser_stabilizer.loss import TD3Loss, TD3BCLoss
+from nn_laser_stabilizer.config.types import UpdaterType
+from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
+
+
+OptimizerFactory = Callable[[Iterable[torch.nn.Parameter]], Optimizer]
+
+
+class TD3Updater:
+    def __init__(
+        self,
+        updater_config: Config,
+        actor: Actor,
+        critic: Critic,
+        actor_optimizer_factory: OptimizerFactory,
+        critic_optimizer_factory: OptimizerFactory,
+    ) -> None:
+        self._policy_freq: int = int(updater_config.policy_freq)
+        self._step: int = 0
+
+        self._actor = actor
+        self._critic1 = critic
+        self._critic2 = critic.clone(reinitialize_weights=True)
+
+        self._actor_target = self._actor.clone().requires_grad_(False)
+        self._critic1_target = self._critic1.clone().requires_grad_(False)
+        self._critic2_target = self._critic2.clone().requires_grad_(False)
+
+        self._loss_module = TD3Loss(
+            actor=self._actor,
+            critic1=self._critic1,
+            critic2=self._critic2,
+            actor_target=self._actor_target,
+            critic1_target=self._critic1_target,
+            critic2_target=self._critic2_target,
+            gamma=updater_config.gamma,
+            policy_noise=updater_config.policy_noise,
+            noise_clip=updater_config.noise_clip,
+        )
+
+        self._actor_optimizer = actor_optimizer_factory(self._actor.parameters())
+        self._critic_optimizer = critic_optimizer_factory(
+            list(self._critic1.parameters()) + list(self._critic2.parameters())
+        )
+        self._soft_updater = SoftUpdater(
+            pairs=_build_soft_update_pairs(
+                module_pairs=(
+                    (self._actor_target, self._actor),
+                    (self._critic1_target, self._critic1),
+                    (self._critic2_target, self._critic2),
+                )
+            ),
+            tau=updater_config.tau,
+        )
+    
+    @property
+    def actor(self):
+        return self._actor
+    
+    @property
+    def critic1(self):
+        return self._critic1
+    
+    @property
+    def critic2(self):
+        return self._critic2
+    
+    @property
+    def actor_target(self):
+        return self._actor_target
+    
+    @property
+    def critic1_target(self):
+        return self._critic1_target
+    
+    @property
+    def critic2_target(self):
+        return self._critic2_target
+
+    def _should_update_actor_and_target(self) -> bool:
+        self._step += 1
+        return (self._step % self._policy_freq) == 0
+
+    def update_step(self, batch: tuple[Tensor, ...]) -> tuple[float, float, Optional[float]]:
+        obs, actions, rewards, next_obs, dones = batch
+
+        loss_q1, loss_q2 = self._loss_module.critic_loss(
+            obs, actions, rewards, next_obs, dones
+        )
+        self._critic_optimizer.step((loss_q1 + loss_q2).sum())
+
+        actor_loss_value: Optional[Tensor] = None
+        if self._should_update_actor_and_target():
+            actor_loss_value = self._loss_module.actor_loss(obs)
+            self._actor_optimizer.step(actor_loss_value)
+            self._soft_updater.update()
+
+        return (
+            loss_q1.item(),
+            loss_q2.item(),
+            actor_loss_value.item() if actor_loss_value is not None else None,
+        )
+
+
+class TD3BCUpdater:
+    def __init__(
+        self,
+        updater_config: Config,
+        actor: Actor,
+        critic: Critic,
+        actor_optimizer_factory: OptimizerFactory,
+        critic_optimizer_factory: OptimizerFactory,
+    ) -> None:
+        self._policy_freq: int = int(updater_config.policy_freq)
+        self._step: int = 0
+
+        self._actor = actor
+        self._critic1 = critic
+        self._critic2 = critic.clone(reinitialize_weights=True)
+
+        self._actor_target = self._actor.clone().requires_grad_(False)
+        self._critic1_target = self._critic1.clone().requires_grad_(False)
+        self._critic2_target = self._critic2.clone().requires_grad_(False)
+
+        self._loss_module = TD3BCLoss(
+            actor=self._actor,
+            critic1=self._critic1,
+            critic2=self._critic2,
+            actor_target=self._actor_target,
+            critic1_target=self._critic1_target,
+            critic2_target=self._critic2_target,
+            gamma=updater_config.gamma,
+            policy_noise=updater_config.policy_noise,
+            noise_clip=updater_config.noise_clip,
+            alpha=updater_config.alpha,
+        )
+
+        self._actor_optimizer = actor_optimizer_factory(self._actor.parameters())
+        self._critic_optimizer = critic_optimizer_factory(
+            list(self._critic1.parameters()) + list(self._critic2.parameters())
+        )
+        self._soft_updater = SoftUpdater(
+            pairs=_build_soft_update_pairs(
+                module_pairs=(
+                    (self._actor_target, self._actor),
+                    (self._critic1_target, self._critic1),
+                    (self._critic2_target, self._critic2),
+                )
+            ),
+            tau=updater_config.tau,
+        )
+
+    @property
+    def actor(self):
+        return self._actor
+    
+    @property
+    def critic1(self):
+        return self._critic1
+    
+    @property
+    def critic2(self):
+        return self._critic2
+    
+    @property
+    def actor_target(self):
+        return self._actor_target
+    
+    @property
+    def critic1_target(self):
+        return self._critic1_target
+    
+    @property
+    def critic2_target(self):
+        return self._critic2_target
+
+    def _should_update_actor_and_target(self) -> bool:
+        self._step += 1
+        return (self._step % self._policy_freq) == 0
+
+    def update_step(self, batch: tuple[Tensor, ...]) -> tuple[float, float, Optional[float]]:
+        obs, actions, rewards, next_obs, dones = batch
+
+        loss_q1, loss_q2 = self._loss_module.critic_loss(
+            obs, actions, rewards, next_obs, dones
+        )
+        self._critic_optimizer.step((loss_q1 + loss_q2).sum())
+
+        actor_loss_value: Optional[Tensor] = None
+        if self._should_update_actor_and_target():
+            actor_loss_value = self._loss_module.actor_loss(
+                obs,
+                dataset_actions=actions,
+            )
+            self._actor_optimizer.step(actor_loss_value)
+            self._soft_updater.update()
+
+        return (
+            loss_q1.item(),
+            loss_q2.item(),
+            actor_loss_value.item() if actor_loss_value is not None else None,
+        )
+
+
+def make_updater_from_config(
+    updater_config: Config,
+    actor: Actor,
+    critic: Critic,
+    actor_optimizer_factory: OptimizerFactory,
+    critic_optimizer_factory: OptimizerFactory,
+) -> TD3Updater | TD3BCUpdater:
+    loss_type = UpdaterType.from_str(updater_config.type)
+
+    if loss_type == UpdaterType.TD3:
+        return TD3Updater(
+            updater_config=updater_config,
+            actor=actor,
+            critic=critic,
+            actor_optimizer_factory=actor_optimizer_factory,
+            critic_optimizer_factory=critic_optimizer_factory,
+        )
+    elif loss_type == UpdaterType.TD3BC:
+        return TD3BCUpdater(
+            updater_config=updater_config,
+            actor=actor,
+            critic=critic,
+            actor_optimizer_factory=actor_optimizer_factory,
+            critic_optimizer_factory=critic_optimizer_factory,
+        )
+    else:
+        raise ValueError(f"Unhandled updater type: {loss_type}")
+
+
+def _build_soft_update_pairs(
+    *,
+    module_pairs: Iterable[tuple[nn.Module, nn.Module]],
+) -> list[tuple[nn.Parameter, nn.Parameter]]:
+    pairs: list[tuple[nn.Parameter, nn.Parameter]] = []
+    for tgt, src in module_pairs:
+        for t_param, s_param in zip(tgt.parameters(), src.parameters()):
+            pairs.append((t_param, s_param))
+    return pairs

@@ -1,33 +1,32 @@
-from typing import Tuple, Union
-
 import torch
 import torch.nn.functional as F
 
 from nn_laser_stabilizer.actor import Actor
 from nn_laser_stabilizer.critic import Critic
-from nn_laser_stabilizer.box import Box
-from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.config.types import LossType
 
 
 class TD3Loss:
     def __init__(
         self,
         actor: Actor,
-        critic: Critic,
-        action_space: Box,
+        critic1: Critic,
+        critic2: Critic,
+        actor_target: Actor,
+        critic1_target: Critic,
+        critic2_target: Critic,
         gamma: float,
         policy_noise: float,
         noise_clip: float,
     ):
         self._actor = actor
-        self._critic1 = critic
-        self._critic2 = critic.clone(reinitialize_weights=True)
+        self._critic1 = critic1
+        self._critic2 = critic2
 
-        self._actor_target = self._actor.clone().requires_grad_(False)
-        self._critic1_target = self._critic1.clone().requires_grad_(False)
-        self._critic2_target = self._critic2.clone().requires_grad_(False)
+        self._actor_target = actor_target.requires_grad_(False)
+        self._critic1_target = critic1_target.requires_grad_(False)
+        self._critic2_target = critic2_target.requires_grad_(False)
         
+        action_space = actor.action_space
         self._action_space = action_space
         self._gamma = gamma
         self._policy_noise = policy_noise
@@ -36,30 +35,6 @@ class TD3Loss:
         self._min_action = action_space.low
         self._max_action = action_space.high
     
-    @property
-    def actor(self):
-        return self._actor
-    
-    @property
-    def critic1(self):
-        return self._critic1
-    
-    @property
-    def critic2(self):
-        return self._critic2
-    
-    @property
-    def actor_target(self):
-        return self._actor_target
-    
-    @property
-    def critic1_target(self):
-        return self._critic1_target
-    
-    @property
-    def critic2_target(self):
-        return self._critic2_target
-    
     def critic_loss(
         self,
         observations: torch.Tensor,
@@ -67,7 +42,7 @@ class TD3Loss:
         rewards: torch.Tensor,
         next_observations: torch.Tensor,
         dones: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             next_actions, _ = self._actor_target(next_observations)
             noise = (torch.randn_like(next_actions) * self._policy_noise).clamp(-self._noise_clip, self._noise_clip)
@@ -102,47 +77,32 @@ class TD3BCLoss:
     
     def __init__(
         self,
-        actor: Actor,
-        critic: Critic,
-        action_space: Box,
+         actor: Actor,
+        critic1: Critic,
+        critic2: Critic,
+        actor_target: Actor,
+        critic1_target: Critic,
+        critic2_target: Critic,
         gamma: float,
         policy_noise: float,
         noise_clip: float,
-        alpha: float,
+        alpha: float
     ):
         self._td3_loss = TD3Loss(
             actor=actor,
-            critic=critic,
-            action_space=action_space,
+            critic1=critic1,
             gamma=gamma,
             policy_noise=policy_noise,
             noise_clip=noise_clip,
+            critic2=critic2,
+            actor_target=actor_target,
+            critic1_target=critic1_target,
+            critic2_target=critic2_target,
         )
         self.alpha = alpha
-    
-    @property
-    def actor(self):
-        return self._td3_loss.actor
-    
-    @property
-    def critic1(self):
-        return self._td3_loss.critic1
-    
-    @property
-    def critic2(self):
-        return self._td3_loss.critic2
-    
-    @property
-    def actor_target(self):
-        return self._td3_loss.actor_target
-    
-    @property
-    def critic1_target(self):
-        return self._td3_loss.critic1_target
-    
-    @property
-    def critic2_target(self):
-        return self._td3_loss.critic2_target
+
+        self._actor = actor
+        self._critic1 = critic1
     
     def critic_loss(
         self,
@@ -151,7 +111,7 @@ class TD3BCLoss:
         rewards: torch.Tensor,
         next_observations: torch.Tensor,
         dones: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         return self._td3_loss.critic_loss(observations, actions, rewards, next_observations, dones)
     
     def actor_loss(
@@ -159,47 +119,14 @@ class TD3BCLoss:
         observations: torch.Tensor,
         dataset_actions: torch.Tensor,
     ) -> torch.Tensor:
-        actions, _ = self.actor(observations)
-        q_value, _ = self.critic1(observations, actions)
+        actions, _ = self._actor(observations)
+        q_value, _ = self._critic1(observations, actions)
     
         with torch.no_grad():
-            q_dataset, _ = self.critic1(observations, dataset_actions)
+            q_dataset, _ = self._critic1(observations, dataset_actions)
             lambda_coef = 1.0 / (torch.abs(q_dataset).mean().item() + self.EPSILON)
         
         bc_term = self.alpha * F.mse_loss(actions, dataset_actions)
         actor_loss = -lambda_coef * q_value.mean() + bc_term
         return actor_loss
-
-
-def make_loss_from_config(
-    loss_config: Config,
-    actor: Actor,
-    critic: Critic,
-    action_space: Box
-) -> Union[TD3Loss, TD3BCLoss]:
-    loss_type_str = loss_config.type
-    loss_type = LossType.from_str(loss_type_str)
-    
-    if loss_type == LossType.TD3:
-        return TD3Loss(
-            actor=actor,
-            critic=critic,
-            action_space=action_space,
-            gamma=loss_config.gamma,
-            policy_noise=loss_config.policy_noise,
-            noise_clip=loss_config.noise_clip,
-        )
-    elif loss_type == LossType.TD3BC:
-        alpha = loss_config.alpha
-        return TD3BCLoss(
-            actor=actor,
-            critic=critic,
-            action_space=action_space,
-            gamma=loss_config.gamma,
-            policy_noise=loss_config.policy_noise,
-            noise_clip=loss_config.noise_clip,
-            alpha=alpha,
-        )
-    else:
-        raise ValueError(f"Unhandled loss type: {loss_type}")
     

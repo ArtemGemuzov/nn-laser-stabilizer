@@ -57,14 +57,12 @@ network:
   type: mlp
   mlp_hidden_sizes: [3]
 
-loss:
-  type: td3  
+updater:
+  type: td3
   gamma: 0.95
   policy_noise: 0.05
   noise_clip: 0.125
-
-optimizer:
   actor_lr: 0.001
   critic_lr: 0.001
   tau: 0.005
-
+  policy_freq: 2

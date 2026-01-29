@@ -88,14 +88,13 @@ network:
   lstm_num_layers: 2
   mlp_hidden_sizes: [256, 256]
 
-loss:
-  type: td3 
+updater:
+  type: td3
   gamma: 0.95
   policy_noise: 0.05
   noise_clip: 0.125
-
-optimizer:
   actor_lr: 0.001
   critic_lr: 0.001
   tau: 0.005
+  policy_freq: 2
 
