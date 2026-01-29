@@ -94,7 +94,6 @@ def main(context: ExperimentContext):
 
     policy = make_policy_from_config(
         actor=actor,
-        action_space=action_space,
         exploration_config=context.config.exploration,
     ).train()
     

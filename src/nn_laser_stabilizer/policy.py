@@ -86,11 +86,10 @@ class RandomExplorationPolicy(Policy):
         self,
         actor: Actor,
         exploration_steps: int,
-        action_space: Box
     ):
         self._actor = actor
         self.exploration_steps = exploration_steps
-        self.action_space = action_space
+        self.action_space = actor.action_space
         
         self._exploration_step_count = 0
     
@@ -107,7 +106,6 @@ class RandomExplorationPolicy(Policy):
         return RandomExplorationPolicy(
             actor=cloned_actor,
             exploration_steps=self.exploration_steps,
-            action_space=self.action_space
         )
     
     def share_memory(self) -> "RandomExplorationPolicy":
@@ -140,13 +138,12 @@ class NoisyExplorationPolicy(Policy):
         self,
         actor: Actor,
         exploration_steps: int,
-        action_space: Box,
         policy_noise: float,
         noise_clip: float,
     ):
         self._actor = actor
         self.exploration_steps = exploration_steps
-        self.action_space = action_space
+        self.action_space = actor.action_space
         self.policy_noise = policy_noise
         self.noise_clip = noise_clip
         
@@ -168,7 +165,6 @@ class NoisyExplorationPolicy(Policy):
         return NoisyExplorationPolicy(
             actor=cloned_actor,
             exploration_steps=self.exploration_steps,
-            action_space=self.action_space,
             policy_noise=self.policy_noise,
             noise_clip=self.noise_clip,
         )
@@ -211,7 +207,6 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
         self,
         actor: Actor,
         exploration_steps: int,
-        action_space: Box,
         theta: float,
         sigma: float,
         mu: float,
@@ -219,7 +214,7 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
     ):
         self._actor = actor
         self.exploration_steps = exploration_steps
-        self.action_space = action_space
+        self.action_space = actor.action_space
         self.theta = theta
         self.sigma = sigma
         self.mu = mu
@@ -259,7 +254,6 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
         return OrnsteinUhlenbeckExplorationPolicy(
             actor=cloned_actor,
             exploration_steps=self.exploration_steps,
-            action_space=self.action_space,
             theta=self.theta,
             sigma=self.sigma,
             mu=self.mu,
@@ -293,7 +287,6 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
 
 def make_policy_from_config(
     actor: Actor,
-    action_space: Box,
     exploration_config: Config,
 ) -> Policy:
     exploration_type = ExplorationType.from_str(exploration_config.type)
@@ -310,7 +303,6 @@ def make_policy_from_config(
         return RandomExplorationPolicy(
             actor=actor,
             exploration_steps=exploration_steps,
-            action_space=action_space
         )
     elif exploration_type == ExplorationType.NOISY:
         policy_noise = exploration_config.policy_noise
@@ -330,7 +322,6 @@ def make_policy_from_config(
         return NoisyExplorationPolicy(
             actor=actor,
             exploration_steps=exploration_steps,
-            action_space=action_space,
             policy_noise=policy_noise,
             noise_clip=noise_clip,
         )
@@ -361,7 +352,6 @@ def make_policy_from_config(
         return OrnsteinUhlenbeckExplorationPolicy(
             actor=actor,
             exploration_steps=exploration_steps,
-            action_space=action_space,
             theta=theta,
             sigma=sigma,
             mu=mu,
