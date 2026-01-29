@@ -9,7 +9,7 @@ import pandas as pd
 from nn_laser_stabilizer.data.buffer_loader import load_buffer_from_csv
 from nn_laser_stabilizer.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.experiment.workdir_context import WorkingDirectoryContext
+from nn_laser_stabilizer.paths import WorkingDirectoryContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.model.actor import make_actor_from_config
 from nn_laser_stabilizer.model.critic import make_critic_from_config

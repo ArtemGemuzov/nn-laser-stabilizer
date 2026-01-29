@@ -4,7 +4,7 @@ import argparse
 
 from nn_laser_stabilizer.config.config import load_config, find_config_path
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.experiment.workdir_context import WorkingDirectoryContext
+from nn_laser_stabilizer.paths import WorkingDirectoryContext
 
 
 def experiment(
