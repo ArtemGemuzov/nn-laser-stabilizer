@@ -13,6 +13,14 @@ from nn_laser_stabilizer.config.types import NetworkType
 
 
 class Actor(Model):
+    def __init__(self, *, action_space: Box, **kwargs: Any):
+        super().__init__(action_space=action_space, **kwargs)
+        self._action_space = action_space
+
+    @property
+    def action_space(self) -> Box:
+        return self._action_space
+
     @torch.no_grad()
     def act(self, observation: torch.Tensor, options: dict[str, Any] | None = None) -> tuple[torch.Tensor, dict[str, Any]]:
         if options is None:
