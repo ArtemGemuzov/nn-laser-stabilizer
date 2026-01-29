@@ -16,7 +16,7 @@ from nn_laser_stabilizer.model.critic import make_critic_from_config
 from nn_laser_stabilizer.envs.env_wrapper import make_spaces_from_config
 from nn_laser_stabilizer.optimizer import Optimizer
 from nn_laser_stabilizer.config.config import load_config, find_config_path
-from nn_laser_stabilizer.algorithm.utils import make_updater_from_config
+from nn_laser_stabilizer.algorithm.algorithm import make_updater_from_config
 
 
 def make_extract_transition(
