@@ -3,10 +3,10 @@ import os
 from pathlib import Path
 
 
-CONFIG_DIR_NAME = "configs"
+EXPERIMENTS_DIR_NAME = "experiments"
+CONFIGS_DIR_NAME = "configs"
 DATA_DIR_NAME = "data"
-EXPERIMENTS_DIR = Path("experiments")
-RESOURCES_DIR = Path("resources")
+RESOURCES_DIR_NAME = "resources"
 
 
 def find_project_root() -> Path:
@@ -30,18 +30,29 @@ def find_project_root() -> Path:
     )
 
 
-def get_configs_dir() -> Path:
-    """
-    Возвращает абсолютный путь к папке configs относительно корня проекта.
-    
-    Returns:
-        Path: Абсолютный путь к директории с конфигами.
-        
-    Raises:
-        FileNotFoundError: Если папка configs не найдена.
-    """
+def get_or_create_experiments_dir() -> Path:
     project_root = find_project_root()
-    configs_dir = (project_root / CONFIG_DIR_NAME).resolve()
+    experiments_dir = (project_root / EXPERIMENTS_DIR_NAME).resolve()
+    experiments_dir.mkdir(parents=True, exist_ok=True)
+    return experiments_dir
+
+
+def get_experiments_dir() -> Path:
+    project_root = find_project_root()
+    experiments_dir = (project_root / EXPERIMENTS_DIR_NAME).resolve()
+    
+    if not experiments_dir.exists():
+        raise FileNotFoundError(
+            f"Experiments directory not found: {experiments_dir}. "
+            f"Project root detected as: {project_root}"
+        )
+    
+    return experiments_dir
+
+
+def get_configs_dir() -> Path:
+    project_root = find_project_root()
+    configs_dir = (project_root / CONFIGS_DIR_NAME).resolve()
     
     if not configs_dir.exists():
         raise FileNotFoundError(
@@ -62,6 +73,19 @@ def get_data_dir() -> Path:
             f"Project root detected as: {project_root}"
         )
     return data_dir
+
+
+def get_resources_dir() -> Path:
+    project_root = find_project_root()
+    resources_dir = (project_root / RESOURCES_DIR_NAME).resolve()
+    
+    if not resources_dir.exists():
+        raise FileNotFoundError(
+            f"Resources directory not found: {resources_dir}. "
+            f"Project root detected as: {project_root}"
+        )
+    
+    return resources_dir
 
 
 class WorkingDirectoryContext:
