@@ -8,20 +8,25 @@ from nn_laser_stabilizer.algorithm.td3bc_loss import TD3BCLoss
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.model.actor import Actor
 from nn_laser_stabilizer.model.critic import Critic
-from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
+from nn_laser_stabilizer.optimizer import SoftUpdater
 from nn_laser_stabilizer.algorithm.utils import OptimizerFactory, build_soft_update_pairs
 
 
 class TD3BCUpdater:
     def __init__(
         self,
-        updater_config: Config,
         actor: Actor,
         critic: Critic,
         actor_optimizer_factory: OptimizerFactory,
         critic_optimizer_factory: OptimizerFactory,
-    ) -> None:
-        self._policy_freq: int = int(updater_config.policy_freq)
+        gamma: float,
+        policy_noise: float,
+        noise_clip: float,
+        alpha: float,
+        tau: float,
+        policy_freq: int,
+    ):
+        self._policy_freq: int = int(policy_freq)
         self._step: int = 0
 
         self._actor = actor
@@ -39,10 +44,10 @@ class TD3BCUpdater:
             actor_target=self._actor_target,
             critic1_target=self._critic1_target,
             critic2_target=self._critic2_target,
-            gamma=updater_config.gamma,
-            policy_noise=updater_config.policy_noise,
-            noise_clip=updater_config.noise_clip,
-            alpha=updater_config.alpha,
+            gamma=gamma,
+            policy_noise=policy_noise,
+            noise_clip=noise_clip,
+            alpha=alpha,
         )
 
         self._actor_optimizer = actor_optimizer_factory(self._actor.parameters())
@@ -57,7 +62,7 @@ class TD3BCUpdater:
                     (self._critic2_target, self._critic2),
                 )
             ),
-            tau=updater_config.tau,
+            tau=tau,
         )
 
     @classmethod
@@ -67,24 +72,34 @@ class TD3BCUpdater:
         *,
         actor: Actor,
         critic: Critic,
+        actor_optimizer_factory: OptimizerFactory,
+        critic_optimizer_factory: OptimizerFactory,
     ) -> "TD3BCUpdater":
-        actor_lr = float(updater_config.actor_lr)
-        critic_lr = float(updater_config.critic_lr)
+        gamma = float(updater_config.gamma)
+        policy_noise = float(updater_config.policy_noise)
+        noise_clip = float(updater_config.noise_clip)
+        alpha = float(updater_config.alpha)
+        tau = float(updater_config.tau)
+        policy_freq = int(updater_config.policy_freq)
 
-        if actor_lr <= 0.0:
-            raise ValueError("updater.actor_lr must be > 0 for TD3BCUpdater")
-        if critic_lr <= 0.0:
-            raise ValueError("updater.critic_lr must be > 0 for TD3BCUpdater")
-
-        actor_optimizer_factory: OptimizerFactory = lambda params: Optimizer(params, lr=actor_lr)
-        critic_optimizer_factory: OptimizerFactory = lambda params: Optimizer(params, lr=critic_lr)
+        if gamma <= 0.0:
+            raise ValueError("updater.gamma must be > 0")
+        if tau <= 0.0:
+            raise ValueError("updater.tau must be > 0")
+        if policy_freq <= 0:
+            raise ValueError("updater.policy_freq must be > 0")
 
         return cls(
-            updater_config=updater_config,
             actor=actor,
             critic=critic,
             actor_optimizer_factory=actor_optimizer_factory,
             critic_optimizer_factory=critic_optimizer_factory,
+            gamma=gamma,
+            policy_noise=policy_noise,
+            noise_clip=noise_clip,
+            alpha=alpha,
+            tau=tau,
+            policy_freq=policy_freq,
         )
 
     @property
