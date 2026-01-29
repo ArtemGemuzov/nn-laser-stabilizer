@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from nn_laser_stabilizer.layers import build_mlp
-from nn_laser_stabilizer.model import Model
+from nn_laser_stabilizer.model.model import Model
 from nn_laser_stabilizer.box import Box
 from nn_laser_stabilizer.layers import Scaler
 from nn_laser_stabilizer.config.config import Config

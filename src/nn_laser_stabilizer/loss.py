@@ -1,8 +1,8 @@
 import torch
 import torch.nn.functional as F
 
-from nn_laser_stabilizer.actor import Actor
-from nn_laser_stabilizer.critic import Critic
+from nn_laser_stabilizer.model.actor import Actor
+from nn_laser_stabilizer.model.critic import Critic
 
 
 class TD3Loss:

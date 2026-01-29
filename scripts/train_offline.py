@@ -7,8 +7,8 @@ from nn_laser_stabilizer.sampler import make_sampler_from_config
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.experiment.workdir_context import WorkingDirectoryContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
-from nn_laser_stabilizer.actor import make_actor_from_config
-from nn_laser_stabilizer.critic import make_critic_from_config
+from nn_laser_stabilizer.model.actor import make_actor_from_config
+from nn_laser_stabilizer.model.critic import make_critic_from_config
 from nn_laser_stabilizer.env_wrapper import make_spaces_from_config
 from nn_laser_stabilizer.optimizer import Optimizer
 from nn_laser_stabilizer.config.config import load_config, find_config_path

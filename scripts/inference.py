@@ -1,7 +1,7 @@
 from functools import partial
 from pathlib import Path
 
-from nn_laser_stabilizer.actor import load_actor_from_path
+from nn_laser_stabilizer.model.actor import load_actor_from_path
 from nn_laser_stabilizer.config.types import NetworkType
 from nn_laser_stabilizer.policy import DeterministicPolicy
 from nn_laser_stabilizer.env_wrapper import make_env_from_config

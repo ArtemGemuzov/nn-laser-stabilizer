@@ -14,8 +14,8 @@ from nn_laser_stabilizer.policy import make_policy_from_config
 from nn_laser_stabilizer.optimizer import Optimizer
 from nn_laser_stabilizer.experiment.decorator import experiment, ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
-from nn_laser_stabilizer.actor import make_actor_from_config
-from nn_laser_stabilizer.critic import make_critic_from_config
+from nn_laser_stabilizer.model.actor import make_actor_from_config
+from nn_laser_stabilizer.model.critic import make_critic_from_config
 from nn_laser_stabilizer.updater import make_updater_from_config
 
 

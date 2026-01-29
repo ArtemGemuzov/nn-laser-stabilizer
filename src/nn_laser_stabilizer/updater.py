@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from nn_laser_stabilizer.actor import Actor
+from nn_laser_stabilizer.model.actor import Actor
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.critic import Critic
+from nn_laser_stabilizer.model.critic import Critic
 from nn_laser_stabilizer.loss import TD3Loss, TD3BCLoss
 from nn_laser_stabilizer.config.types import UpdaterType
 from nn_laser_stabilizer.optimizer import Optimizer, SoftUpdater
