@@ -5,10 +5,7 @@ import traceback
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.experiment.seed import set_seeds, generate_random_seed
 from nn_laser_stabilizer.logger import ConsoleLogger
-
-
-EXPERIMENTS_DIR = Path("experiments")
-RESOURCES_DIR = Path("resources")
+from nn_laser_stabilizer.paths import EXPERIMENTS_DIR, RESOURCES_DIR
 
 
 class ExperimentContext:
