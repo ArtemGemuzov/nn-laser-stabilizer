@@ -45,7 +45,6 @@ class NeuralControllerDeltaEnv(BaseEnv):
         self._setpoint_norm = normalize_to_01(physics.setpoint, 0.0, self._process_variable_max)
         self._current_control_output: int = 0
 
-        # Действие: приращение в [-1, 1], интерпретируется как доля от max_control_delta
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
             high=np.array([1.0], dtype=np.float32),
