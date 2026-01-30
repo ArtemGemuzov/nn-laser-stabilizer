@@ -18,8 +18,6 @@ from nn_laser_stabilizer.time import CallIntervalTracker
 class NeuralControllerEnv(BaseEnv):
     LOG_PREFIX = "ENV"
 
-    metadata = {"render_modes": []}
-
     def __init__(
         self,
         *,

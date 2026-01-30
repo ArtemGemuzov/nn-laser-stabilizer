@@ -18,8 +18,6 @@ from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 class PidDeltaTuningEnv(BaseEnv):
     LOG_PREFIX = "ENV"
 
-    metadata = {"render_modes": []}
-
     def __init__(
         self,
         *,

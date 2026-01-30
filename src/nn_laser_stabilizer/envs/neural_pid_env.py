@@ -17,8 +17,6 @@ from nn_laser_stabilizer.normalize import (
 class NeuralPIDEnv(BaseEnv):
     LOG_PREFIX = "ENV"
 
-    metadata = {"render_modes": []}
-
     def __init__(
         self,
         *,

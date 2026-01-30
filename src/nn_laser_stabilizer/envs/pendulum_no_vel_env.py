@@ -8,8 +8,6 @@ from nn_laser_stabilizer.envs.base_env import BaseEnv
 
 
 class PendulumNoVelEnv(BaseEnv):
-    metadata = {"render_modes": []}
-
     def __init__(self):
         super().__init__()
         
