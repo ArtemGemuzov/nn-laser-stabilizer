@@ -39,7 +39,7 @@ class NeuralControllerEnv(BaseEnv):
         self._env_logger = PrefixedLogger(self._base_logger, NeuralControllerEnv.LOG_PREFIX)
         self._physics = physics
 
-        self._setpoint_norm = float(physics.setpoint) / self._process_variable_max
+        self._setpoint_norm = normalize_to_01(physics.setpoint, 0.0, self._process_variable_max)
 
         self._error: float = 0.0
         self._step: int = 0
@@ -115,7 +115,7 @@ class NeuralControllerEnv(BaseEnv):
         self._step_interval_tracker.reset()
 
         process_variable, setpoint, control_output = self._physics.reset()
-        self._setpoint_norm = float(setpoint) / self._process_variable_max
+        self._setpoint_norm = normalize_to_01(setpoint, 0.0, self._process_variable_max)
 
         process_variable_norm = normalize_to_01(process_variable, 0.0, self._process_variable_max)
         self._compute_error(process_variable_norm)

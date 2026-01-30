@@ -10,6 +10,7 @@ from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
 from nn_laser_stabilizer.normalize import (
     denormalize_from_minus1_plus1,
     normalize_to_minus1_plus1,
+    normalize_to_01,
 )
 
 
@@ -37,7 +38,7 @@ class NeuralPIDEnv(BaseEnv):
         self._env_logger = PrefixedLogger(self._base_logger, NeuralPIDEnv.LOG_PREFIX)
         self._physics = physics
 
-        self._setpoint_norm = float(physics.setpoint) / self._process_variable_max
+        self._setpoint_norm = normalize_to_01(physics.setpoint, 0.0, self._process_variable_max)
 
         self._error: float = 0.0
         self._prev_error: float = 0.0
@@ -119,7 +120,7 @@ class NeuralPIDEnv(BaseEnv):
         self._integral_error = 0.0
 
         process_variable, setpoint, control_output = self._physics.reset()
-        self._setpoint_norm = float(setpoint) / self._process_variable_max
+        self._setpoint_norm = normalize_to_01(setpoint, 0.0, self._process_variable_max)
 
         process_variable_norm = float(process_variable) / self._process_variable_max
         self._compute_error(process_variable_norm)
