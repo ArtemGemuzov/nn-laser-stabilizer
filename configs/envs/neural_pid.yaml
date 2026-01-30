@@ -15,5 +15,7 @@ args:
 
   control_min: 0
   control_max: 4095
+  reset_value: 2000
+  reset_steps: 1000
 
   process_variable_max: 2000

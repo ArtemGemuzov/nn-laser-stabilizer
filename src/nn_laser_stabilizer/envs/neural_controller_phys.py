@@ -26,6 +26,9 @@ class NeuralControllerPhys:
         # Параметры диапазона управления
         control_min: int,
         control_max: int,
+        # Сброс: фиксированное значение и число шагов в начале эпизода
+        reset_value: int,
+        reset_steps: int,
         # Логгер верхнего уровня
         base_logger: Logger,
     ):
@@ -38,6 +41,9 @@ class NeuralControllerPhys:
 
         self._control_min = control_min
         self._control_max = control_max
+        
+        self._reset_value = int(reset_value)
+        self._reset_steps = int(reset_steps)
 
         if self._auto_determine_setpoint and self._setpoint_determination_steps <= 1:
             raise ValueError(
@@ -89,16 +95,19 @@ class NeuralControllerPhys:
         print(f"Setpoint determined: {self._setpoint} (min_pv={min_pv_int}, max_pv={max_pv_int})")
 
 
-    def open_and_warmup(self) -> None:
+    def reset(self) -> tuple[int, int, int]:
         self._pid_connection.open()
 
         if self._auto_determine_setpoint and not self._setpoint_determined:
             self._determine_setpoint()
 
-    def neutral_measure(self) -> tuple[int, int]:
-        neutral_control_output = (self._control_min + self._control_max) // 2
-        process_variable = self._pid_connection.exchange(control_output=neutral_control_output)
-        return process_variable, neutral_control_output
+        process_variable = 0
+        for _ in range(self._reset_steps):
+            process_variable = self._pid_connection.exchange(
+                control_output=self._reset_value
+            )
+
+        return process_variable, self._setpoint, self._reset_value
 
     def step(self, control_output: int) -> int:
         return self._pid_connection.exchange(control_output=control_output)

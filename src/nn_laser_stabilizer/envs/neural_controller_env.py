@@ -30,6 +30,9 @@ class NeuralControllerEnv(gym.Env):
         # Параметры диапазона управления
         control_min: int,
         control_max: int,
+        # Сброс: фиксированное значение и число шагов в начале эпизода
+        reset_value: int,
+        reset_steps: int,
         # Параметры нормализации наблюдений
         process_variable_max: int,
         # Параметры для логирования окружения
@@ -57,6 +60,8 @@ class NeuralControllerEnv(gym.Env):
             setpoint_determination_factor=setpoint_determination_factor,
             control_min=control_min,
             control_max=control_max,
+            reset_value=reset_value,
+            reset_steps=reset_steps,
             base_logger=self._base_logger,
         )
 
@@ -139,19 +144,18 @@ class NeuralControllerEnv(gym.Env):
         self._error = 0.0
         self._step_interval_tracker.reset()
 
-        self._physics.open_and_warmup()
-
-        process_variable, neutral_control_output = self._physics.neutral_measure()
+        process_variable, setpoint, control_output = self._physics.reset()
+        self._setpoint_norm = float(setpoint) / self._process_variable_max
 
         process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
         self._compute_error(process_variable_norm)
-        neutral_control_output_norm = self._normalize_control_output(neutral_control_output)
-        observation = self._build_observation(neutral_control_output_norm)
+        control_output_norm = self._normalize_control_output(control_output)
+        observation = self._build_observation(control_output_norm)
 
         log_line = (
             "reset: "
-            f"process_variable={process_variable} setpoint={self._physics.setpoint} error={self._error} "
-            f"control_output={neutral_control_output}"
+            f"process_variable={process_variable} setpoint={setpoint} error={self._error} "
+            f"control_output={control_output}"
         )
         self._env_logger.log(log_line)
 
