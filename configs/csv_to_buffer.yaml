@@ -1,0 +1,6 @@
+base_config:
+  _include: "{CONFIGS_DIR}/neural_controller"
+
+csv_data:
+  csv_path: "data/2026-01-26_2_cut.csv"
+  buffer_output: "data/replay_buffer.pth"

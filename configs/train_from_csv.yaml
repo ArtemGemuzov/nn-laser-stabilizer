@@ -1,8 +1,0 @@
-experiment_name: train_from_csv
-seed: 1
-
-base_config: neural_controller
-
-csv_data:
-  csv_path: "data/2026-01-26_2_cut.csv"
-  skip_rows: 0

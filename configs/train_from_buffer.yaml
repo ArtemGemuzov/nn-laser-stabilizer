@@ -1,0 +1,6 @@
+experiment_name: train_from_buffer
+seed: 1
+
+base_config:
+  _include: "{CONFIGS_DIR}/neural_controller"
+buffer_path: "data/replay_buffer.pth"
