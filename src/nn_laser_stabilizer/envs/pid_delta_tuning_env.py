@@ -103,12 +103,10 @@ class PidDeltaTuningEnv(BaseEnv):
         ki_norm = normalize_to_minus1_plus1(self.phys.ki, self._ki_min, self._ki_max)
         kd_norm = normalize_to_minus1_plus1(self.phys.kd, self._kd_min, self._kd_max)
         
-        observation = np.array(
+        return np.array(
             [error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm],
             dtype=np.float32
         )
-        
-        return observation
 
     def _unpack_action_value(
         self, action: np.ndarray
