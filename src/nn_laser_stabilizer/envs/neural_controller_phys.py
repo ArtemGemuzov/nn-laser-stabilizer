@@ -61,7 +61,7 @@ class NeuralControllerPhys:
             timeout=timeout,
             baudrate=baudrate,
         )
-        pid_connection: ConnectionToPhaseShifter = ConnectionToPhaseShifter(connection=connection)
+        pid_connection = ConnectionToPhaseShifter(connection=connection)
         if log_connection:
             pid_connection = LoggingConnectionToPhaseShifter(
                 connection_to_phase_shifter=pid_connection,
