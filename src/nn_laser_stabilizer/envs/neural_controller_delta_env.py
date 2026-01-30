@@ -26,14 +26,14 @@ class NeuralControllerDeltaEnv(BaseEnv):
         control_min: int,
         control_max: int,
         max_control_delta: int,
-        process_variable_max: float,
+        process_variable_max: int,
     ):
         super().__init__()
 
         self._control_min = int(control_min)
         self._control_max = int(control_max)
         self._max_control_delta = int(max_control_delta)
-        self._process_variable_max = float(process_variable_max)
+        self._process_variable_max = process_variable_max
 
         self._base_logger = base_logger
         self._env_logger = PrefixedLogger(self._base_logger, NeuralControllerDeltaEnv.LOG_PREFIX)
