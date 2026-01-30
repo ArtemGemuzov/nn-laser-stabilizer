@@ -1,0 +1,23 @@
+name: NeuralPIDDeltaEnv
+args:
+  port: COM3
+  timeout: 0.1
+  baudrate: 115200
+  log_connection: false
+
+  log_dir: "env_logs"
+  log_file: env.log
+
+  setpoint: 700
+  auto_determine_setpoint: false
+  setpoint_determination_steps: 6000
+  setpoint_determination_max_value: 2000
+  setpoint_determination_factor: 0.1
+
+  control_min: 0
+  control_max: 3000
+  max_control_delta: 150
+  reset_value: 2000
+  reset_steps: 1000
+
+  process_variable_max: 1200
