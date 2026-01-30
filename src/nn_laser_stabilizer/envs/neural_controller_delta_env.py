@@ -6,6 +6,7 @@ import gymnasium as gym
 from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
+from nn_laser_stabilizer.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
 from nn_laser_stabilizer.normalize import (
     denormalize_from_minus1_plus1,
@@ -43,7 +44,7 @@ class NeuralControllerDeltaEnv(BaseEnv):
         self._step: int = 0
 
         self._setpoint_norm = normalize_to_01(physics.setpoint, 0.0, self._process_variable_max)
-        self._current_control_output: int = 0
+        self._control_output = BoundedValue(control_min, control_max, 0)
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
@@ -59,17 +60,8 @@ class NeuralControllerDeltaEnv(BaseEnv):
     def _unpack_action_value(self, action: np.ndarray) -> float:
         return float(action[0])
 
-    def _update_control_output(self, delta: float) -> int:
-        delta_int = int(round(delta))
-        new_control = int(
-            np.clip(
-                self._current_control_output + delta_int,
-                self._control_min,
-                self._control_max,
-            )
-        )
-        self._current_control_output = new_control
-        return new_control
+    def _update_control_output(self, delta: int) -> int:
+        return self._control_output.add(delta)
 
     def _apply_control(self, control_output: int) -> int:
         return self._physics.step(control_output)
@@ -98,9 +90,9 @@ class NeuralControllerDeltaEnv(BaseEnv):
         self._step += 1
 
         delta_norm = self._unpack_action_value(action)
-        delta = denormalize_from_minus1_plus1(
+        delta = int(round(denormalize_from_minus1_plus1(
             delta_norm, -self._max_control_delta, self._max_control_delta
-        )
+        )))
         control_output = self._update_control_output(delta)
         process_variable = self._apply_control(control_output)
 
@@ -132,7 +124,7 @@ class NeuralControllerDeltaEnv(BaseEnv):
 
         process_variable, setpoint, control_output = self._physics.reset()
         self._setpoint_norm = normalize_to_01(setpoint, 0.0, self._process_variable_max)
-        self._current_control_output = control_output
+        self._control_output.value = control_output
 
         observation = self._build_observation(process_variable, control_output)
 

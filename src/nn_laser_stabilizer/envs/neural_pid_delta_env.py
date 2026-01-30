@@ -6,6 +6,7 @@ import gymnasium as gym
 from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
+from nn_laser_stabilizer.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
 from nn_laser_stabilizer.normalize import (
     denormalize_from_minus1_plus1,
@@ -47,7 +48,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._setpoint_norm = normalize_to_01(
             physics.setpoint, 0.0, self._process_variable_max
         )
-        self._current_control_output: int = 0
+        self._current_control_output = BoundedValue(control_min, control_max, 0)
         self._error_prev: float = 0.0
         self._error_prev_prev: float = 0.0
 
@@ -66,16 +67,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         return float(action[0])
 
     def _update_control_output(self, delta: float) -> int:
-        delta_int = int(round(delta))
-        new_control = int(
-            np.clip(
-                self._current_control_output + delta_int,
-                self._control_min,
-                self._control_max,
-            )
-        )
-        self._current_control_output = new_control
-        return new_control
+        return self._current_control_output.add(int(round(delta)))
 
     def _apply_control(self, control_output: int) -> int:
         return self._physics.step(control_output)
@@ -151,7 +143,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._setpoint_norm = normalize_to_01(
             setpoint, 0.0, self._process_variable_max
         )
-        self._current_control_output = control_output
+        self._current_control_output.value = control_output
 
         observation = self._build_observation(process_variable, control_output)
 
