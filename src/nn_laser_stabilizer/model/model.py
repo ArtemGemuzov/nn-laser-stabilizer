@@ -33,6 +33,11 @@ class Model(nn.Module, ABC):
     
     @classmethod
     def load(cls, path: Path) -> "Model":
+        import sys
+        import nn_laser_stabilizer.envs.box as new_box_mod
+
+        sys.modules['nn_laser_stabilizer.box'] = new_box_mod
+
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"Model file not found: {path}")
