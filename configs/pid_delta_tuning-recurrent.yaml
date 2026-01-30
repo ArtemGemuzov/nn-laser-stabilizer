@@ -14,22 +14,22 @@ training:
   log_file: train.log
 
 collector:
-  _include: {CONFIGS_DIR}/collectors/async
+  _include: "{CONFIGS_DIR}/collectors/async"
 
 validation:
-  _include: {CONFIGS_DIR}/common/validation_none
+  _include: "{CONFIGS_DIR}/common/validation_none"
 
 testing:
-  _include: {CONFIGS_DIR}/common/testing_none
+  _include: "{CONFIGS_DIR}/common/testing_none"
 
 buffer:
-  _include: {CONFIGS_DIR}/buffers/10k
+  _include: "{CONFIGS_DIR}/buffers/10k"
 
 sampler:
-  _include: {CONFIGS_DIR}/samplers/sequence
+  _include: "{CONFIGS_DIR}/samplers/sequence"
 
 network:
-  _include: {CONFIGS_DIR}/networks/lstm_64_2
+  _include: "{CONFIGS_DIR}/networks/lstm_64_2"
 
 updater:
-  _include: {CONFIGS_DIR}/updaters/td3_default
+  _include: "{CONFIGS_DIR}/updaters/td3_default"
