@@ -7,6 +7,11 @@ from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
 from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
+from nn_laser_stabilizer.normalize import (
+    denormalize_from_minus1_plus1,
+    normalize_to_minus1_plus1,
+    normalize_to_01,
+)
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
@@ -54,17 +59,13 @@ class NeuralControllerEnv(BaseEnv):
 
     def _map_action_to_control(self, action: float) -> int:
         """Линейное отображение действия из [-1, 1] в [control_min, control_max]."""
-        norm = (action + 1.0) / 2.0
-        control_output = self._control_min + norm * (self._control_max - self._control_min)
+        control_output = denormalize_from_minus1_plus1(
+            action, self._control_min, self._control_max
+        )
         return int(round(control_output))
 
     def _compute_error(self, process_variable_norm: float) -> None:
         self._error = self._setpoint_norm - process_variable_norm
-
-    def _normalize_control_output(self, control_output: int) -> float:
-        span = float(self._control_max - self._control_min)
-        norm_01 = float(control_output - self._control_min) / span
-        return 2.0 * norm_01 - 1.0
 
     def _build_observation(self, control_output_norm: float) -> np.ndarray:
         return np.array(
@@ -73,7 +74,7 @@ class NeuralControllerEnv(BaseEnv):
         )
 
     def _compute_reward(self) -> float:
-        return 1.0 - 2.0 * abs(self._error)
+        return normalize_to_minus1_plus1(-abs(self._error), -1.0, 0.0)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         step_interval = self._step_interval_tracker.tick()
@@ -81,7 +82,7 @@ class NeuralControllerEnv(BaseEnv):
         action_value = float(action[0])
         control_output = self._map_action_to_control(action_value)
         process_variable = self._physics.step(control_output)
-        process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
+        process_variable_norm = normalize_to_01(process_variable, 0.0, self._process_variable_max)
 
         self._compute_error(process_variable_norm)
         observation = self._build_observation(action_value)
@@ -116,9 +117,9 @@ class NeuralControllerEnv(BaseEnv):
         process_variable, setpoint, control_output = self._physics.reset()
         self._setpoint_norm = float(setpoint) / self._process_variable_max
 
-        process_variable_norm = np.clip(float(process_variable) / self._process_variable_max, 0.0, 1.0)
+        process_variable_norm = normalize_to_01(process_variable, 0.0, self._process_variable_max)
         self._compute_error(process_variable_norm)
-        control_output_norm = self._normalize_control_output(control_output)
+        control_output_norm = normalize_to_minus1_plus1(control_output, self._control_min, self._control_max)
         observation = self._build_observation(control_output_norm)
 
         log_line = (

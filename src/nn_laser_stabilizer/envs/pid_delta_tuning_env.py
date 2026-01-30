@@ -6,6 +6,10 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
+from nn_laser_stabilizer.normalize import (
+    denormalize_from_minus1_plus1,
+    normalize_to_minus1_plus1,
+)
 from nn_laser_stabilizer.envs.pid_delta_tuning_phys import PidDeltaTuningPhys
 from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
@@ -97,15 +101,9 @@ class PidDeltaTuningEnv(BaseEnv):
             error_std / self._error_std_normalization_factor, 0.0, 1.0
         )
         
-        kp_norm = np.clip(
-            (self.phys.kp - self._kp_min) / self._kp_range * 2.0 - 1.0, -1.0, 1.0
-        )
-        ki_norm = np.clip(
-            (self.phys.ki - self._ki_min) / self._ki_range * 2.0 - 1.0, -1.0, 1.0
-        )
-        kd_norm = np.clip(
-            (self.phys.kd - self._kd_min) / self._kd_range * 2.0 - 1.0, -1.0, 1.0
-        )
+        kp_norm = normalize_to_minus1_plus1(self.phys.kp, self._kp_min, self._kp_max)
+        ki_norm = normalize_to_minus1_plus1(self.phys.ki, self._ki_min, self._ki_max)
+        kd_norm = normalize_to_minus1_plus1(self.phys.kd, self._kd_min, self._kd_max)
         
         observation = np.array(
             [error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm],
@@ -135,9 +133,15 @@ class PidDeltaTuningEnv(BaseEnv):
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         delta_kp_norm, delta_ki_norm, delta_kd_norm = action[0], action[1], action[2]
 
-        delta_kp = delta_kp_norm * self._kp_delta_max
-        delta_ki = delta_ki_norm * self._ki_delta_max
-        delta_kd = delta_kd_norm * self._kd_delta_max
+        delta_kp = denormalize_from_minus1_plus1(
+            delta_kp_norm, -self._kp_delta_max, self._kp_delta_max
+        )
+        delta_ki = denormalize_from_minus1_plus1(
+            delta_ki_norm, -self._ki_delta_max, self._ki_delta_max
+        )
+        delta_kd = denormalize_from_minus1_plus1(
+            delta_kd_norm, -self._kd_delta_max, self._kd_delta_max
+        )
 
         self.phys.update_pid(delta_kp, delta_ki, delta_kd)
         process_variables, control_outputs, setpoint, should_reset = self.phys.step()

@@ -7,6 +7,10 @@ from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
 from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
+from nn_laser_stabilizer.normalize import (
+    denormalize_from_minus1_plus1,
+    normalize_to_minus1_plus1,
+)
 
 
 class NeuralPIDEnv(BaseEnv):
@@ -53,8 +57,9 @@ class NeuralPIDEnv(BaseEnv):
 
     def _map_action_to_control(self, action: float) -> int:
         """Линейное отображение действия из [-1, 1] в [control_min, control_max]."""
-        norm = (action + 1.0) / 2.0
-        control = self._control_min + norm * (self._control_max - self._control_min)
+        control = denormalize_from_minus1_plus1(
+            action, self._control_min, self._control_max
+        )
         return int(round(control))
 
     def _compute_error(self, process_variable_norm: float) -> None:
@@ -71,7 +76,7 @@ class NeuralPIDEnv(BaseEnv):
         )
 
     def _compute_reward(self) -> float:
-        return 1.0 - 2.0 * abs(self._error)
+        return normalize_to_minus1_plus1(-abs(self._error), -1.0, 0.0)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         action_value = float(action[0])

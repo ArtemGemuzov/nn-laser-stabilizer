@@ -7,6 +7,11 @@ from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
 from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
+from nn_laser_stabilizer.normalize import (
+    denormalize_from_minus1_plus1,
+    normalize_to_minus1_plus1,
+    normalize_to_01,
+)
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
@@ -57,7 +62,9 @@ class NeuralControllerDeltaEnv(BaseEnv):
         )
 
     def _map_action_to_delta(self, action: float) -> int:
-        delta = action * self._max_control_delta
+        delta = denormalize_from_minus1_plus1(
+            action, -self._max_control_delta, self._max_control_delta
+        )
         return int(round(delta))
 
     def _map_delta_to_control(self, delta: int) -> int:
@@ -71,14 +78,6 @@ class NeuralControllerDeltaEnv(BaseEnv):
     def _compute_error(self, process_variable_norm: float) -> None:
         self._error = self._setpoint_norm - process_variable_norm
 
-    def _normalize_control_output(self, control_output: int) -> float:
-        span = float(self._control_max - self._control_min)
-        norm_01 = float(control_output - self._control_min) / span
-        return 2.0 * norm_01 - 1.0
-
-    def _normalize_process_variable(self, process_variable: int) -> float:
-        return float(np.clip(process_variable / self._process_variable_max, 0.0, 1.0))
-
     def _build_observation(self, control_output_norm: float) -> np.ndarray:
         return np.array(
             [self._error, control_output_norm],
@@ -86,7 +85,7 @@ class NeuralControllerDeltaEnv(BaseEnv):
         )
 
     def _compute_reward(self) -> float:
-        return 1.0 - 2.0 * abs(self._error)
+        return normalize_to_minus1_plus1(-abs(self._error), -1.0, 0.0)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         step_interval = self._step_interval_tracker.tick()
@@ -97,10 +96,12 @@ class NeuralControllerDeltaEnv(BaseEnv):
         process_variable = self._physics.step(new_control)
         self._current_control_output = new_control
 
-        process_variable_norm = self._normalize_process_variable(process_variable)
+        process_variable_norm = normalize_to_01(process_variable, 0.0, self._process_variable_max)
 
         self._compute_error(process_variable_norm)
-        control_output_norm = self._normalize_control_output(self._current_control_output)
+        control_output_norm = normalize_to_minus1_plus1(
+            self._current_control_output, self._control_min, self._control_max
+        )
         observation = self._build_observation(control_output_norm)
         reward = self._compute_reward()
 
@@ -134,10 +135,10 @@ class NeuralControllerDeltaEnv(BaseEnv):
         self._setpoint_norm = float(setpoint) / self._process_variable_max
         self._current_control_output = control_output
 
-        process_variable_norm = self._normalize_process_variable(process_variable)
+        process_variable_norm = normalize_to_01(process_variable, 0.0, self._process_variable_max)
         self._compute_error(process_variable_norm)
-        control_output_norm = self._normalize_control_output(
-            self._current_control_output
+        control_output_norm = normalize_to_minus1_plus1(
+            self._current_control_output, self._control_min, self._control_max
         )
         observation = self._build_observation(control_output_norm)
 
