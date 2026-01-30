@@ -66,8 +66,8 @@ class PidDeltaTuningEnv(BaseEnv):
         self._env_logger = PrefixedLogger(self._base_logger, PidDeltaTuningEnv.LOG_PREFIX)
         self.phys = phys
 
-        self._step = 0
-        
+        self._step: int = 0
+
         self.action_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
@@ -110,6 +110,28 @@ class PidDeltaTuningEnv(BaseEnv):
         
         return observation
 
+    def _unpack_action_value(
+        self, action: np.ndarray
+    ) -> tuple[float, float, float]:
+        return float(action[0]), float(action[1]), float(action[2])
+
+    def _update_pid_params(
+        self, delta_kp_norm: float, delta_ki_norm: float, delta_kd_norm: float
+    ) -> None:
+        delta_kp = denormalize_from_minus1_plus1(
+            delta_kp_norm, -self._kp_delta_max, self._kp_delta_max
+        )
+        delta_ki = denormalize_from_minus1_plus1(
+            delta_ki_norm, -self._ki_delta_max, self._ki_delta_max
+        )
+        delta_kd = denormalize_from_minus1_plus1(
+            delta_kd_norm, -self._kd_delta_max, self._kd_delta_max
+        )
+        self.phys.update_pid(delta_kp, delta_ki, delta_kd)
+
+    def _apply_control(self) -> tuple[np.ndarray, np.ndarray, float, bool]:
+        return self.phys.step()
+
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
         error_mean_norm, error_std_norm = observation[0], observation[1]
         
@@ -129,35 +151,23 @@ class PidDeltaTuningEnv(BaseEnv):
         return 2 * total_reward + 1
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        delta_kp_norm, delta_ki_norm, delta_kd_norm = action[0], action[1], action[2]
-
-        delta_kp = denormalize_from_minus1_plus1(
-            delta_kp_norm, -self._kp_delta_max, self._kp_delta_max
-        )
-        delta_ki = denormalize_from_minus1_plus1(
-            delta_ki_norm, -self._ki_delta_max, self._ki_delta_max
-        )
-        delta_kd = denormalize_from_minus1_plus1(
-            delta_kd_norm, -self._kd_delta_max, self._kd_delta_max
-        )
-
-        self.phys.update_pid(delta_kp, delta_ki, delta_kd)
-        process_variables, control_outputs, setpoint, should_reset = self.phys.step()
         self._step += 1
+
+        delta_kp_norm, delta_ki_norm, delta_kd_norm = self._unpack_action_value(action)
+        self._update_pid_params(delta_kp_norm, delta_ki_norm, delta_kd_norm)
+        process_variables, control_outputs, setpoint, should_reset = self._apply_control()
 
         observation = self._build_observation(
             process_variables, control_outputs, setpoint
         )
-        
-        action_array = np.array([delta_kp_norm, delta_ki_norm, delta_kd_norm], dtype=np.float32)
-        reward = self._compute_reward(observation, action_array)
-        
+        reward = self._compute_reward(observation, action)
+
         log_line = (
             f"step: step={self._step} time={time.time()} "
             f"kp={self.phys.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
             f"ki={self.phys.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
             f"kd={self.phys.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
-            f"delta_kp_norm={action[0]} delta_ki_norm={action[1]} delta_kd_norm={action[2]} "
+            f"delta_kp_norm={delta_kp_norm} delta_ki_norm={delta_ki_norm} delta_kd_norm={delta_kd_norm} "
             f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
             f"reward={reward} should_reset={should_reset}"
         )

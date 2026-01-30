@@ -39,13 +39,11 @@ class NeuralControllerDeltaEnv(BaseEnv):
         self._env_logger = PrefixedLogger(self._base_logger, NeuralControllerDeltaEnv.LOG_PREFIX)
         self._physics = physics
 
-        self._setpoint_norm = normalize_to_01(physics.setpoint, 0.0, self._process_variable_max)
-
-        self._error: float = 0.0
-        self._step: int = 0
-        self._current_control_output: int = 0
-
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
+        self._step: int = 0
+
+        self._setpoint_norm = normalize_to_01(physics.setpoint, 0.0, self._process_variable_max)
+        self._current_control_output: int = 0
 
         # Действие: приращение в [-1, 1], интерпретируется как доля от max_control_delta
         self.action_space = gym.spaces.Box(
@@ -59,57 +57,62 @@ class NeuralControllerDeltaEnv(BaseEnv):
             dtype=np.float32,
         )
 
-    def _map_action_to_delta(self, action: float) -> int:
-        delta = denormalize_from_minus1_plus1(
-            action, -self._max_control_delta, self._max_control_delta
+    def _unpack_action_value(self, action: np.ndarray) -> float:
+        return float(action[0])
+
+    def _update_control_output(self, delta: float) -> int:
+        delta_int = int(round(delta))
+        new_control = int(
+            np.clip(
+                self._current_control_output + delta_int,
+                self._control_min,
+                self._control_max,
+            )
         )
-        return int(round(delta))
+        self._current_control_output = new_control
+        return new_control
 
-    def _map_delta_to_control(self, delta: int) -> int:
-        new_control = np.clip(
-            self._current_control_output + delta,
-            self._control_min,
-            self._control_max,
+    def _apply_control(self, control_output: int) -> int:
+        return self._physics.step(control_output)
+
+    def _build_observation(
+        self, process_variable: int, control_output: int
+    ) -> np.ndarray:
+        process_variable_norm = normalize_to_01(
+            float(process_variable), 0.0, self._process_variable_max
         )
-        return int(new_control)
-
-    def _compute_error(self, process_variable_norm: float) -> None:
-        self._error = self._setpoint_norm - process_variable_norm
-
-    def _build_observation(self, control_output_norm: float) -> np.ndarray:
+        error = self._setpoint_norm - process_variable_norm
+        control_output_norm = normalize_to_minus1_plus1(
+            float(control_output), self._control_min, self._control_max
+        )
         return np.array(
-            [self._error, control_output_norm],
+            [error, control_output_norm],
             dtype=np.float32,
         )
 
-    def _compute_reward(self) -> float:
-        return normalize_to_minus1_plus1(-abs(self._error), -1.0, 0.0)
+    def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
+        error = float(observation[0])
+        return normalize_to_minus1_plus1(-abs(error), -1.0, 0.0)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         step_interval = self._step_interval_tracker.tick()
-
-        action_value = float(action[0])
-        delta = self._map_action_to_delta(action_value)
-        new_control = self._map_delta_to_control(delta)
-        process_variable = self._physics.step(new_control)
-        self._current_control_output = new_control
-
-        process_variable_norm = normalize_to_01(process_variable, 0.0, self._process_variable_max)
-
-        self._compute_error(process_variable_norm)
-        control_output_norm = normalize_to_minus1_plus1(
-            self._current_control_output, self._control_min, self._control_max
-        )
-        observation = self._build_observation(control_output_norm)
-        reward = self._compute_reward()
-
         self._step += 1
+
+        delta_norm = self._unpack_action_value(action)
+        delta = denormalize_from_minus1_plus1(
+            delta_norm, -self._max_control_delta, self._max_control_delta
+        )
+        control_output = self._update_control_output(delta)
+        process_variable = self._apply_control(control_output)
+
+        observation = self._build_observation(process_variable, control_output)
+        reward = self._compute_reward(observation, action)
 
         log_line = (
             "step: "
             f"step={self._step} "
-            f"process_variable={process_variable} setpoint={self._physics.setpoint} error={self._error} "
-            f"action={action_value} delta={delta} control_output={new_control} "
+            f"process_variable={process_variable} setpoint={self._physics.setpoint} error={observation[0]} "
+            f"delta_norm={delta_norm} delta={delta} control_output={control_output} "
             f"reward={reward} "
             f"step_interval={step_interval}us"
         )
@@ -126,23 +129,17 @@ class NeuralControllerDeltaEnv(BaseEnv):
         super().reset(seed=seed)
 
         self._step = 0
-        self._error = 0.0
         self._step_interval_tracker.reset()
 
         process_variable, setpoint, control_output = self._physics.reset()
         self._setpoint_norm = normalize_to_01(setpoint, 0.0, self._process_variable_max)
         self._current_control_output = control_output
 
-        process_variable_norm = normalize_to_01(process_variable, 0.0, self._process_variable_max)
-        self._compute_error(process_variable_norm)
-        control_output_norm = normalize_to_minus1_plus1(
-            self._current_control_output, self._control_min, self._control_max
-        )
-        observation = self._build_observation(control_output_norm)
+        observation = self._build_observation(process_variable, control_output)
 
         log_line = (
             "reset: "
-            f"process_variable={process_variable} setpoint={setpoint} error={self._error} "
+            f"process_variable={process_variable} setpoint={setpoint} error={observation[0]} "
             f"control_output={control_output}"
         )
         self._env_logger.log(log_line)
