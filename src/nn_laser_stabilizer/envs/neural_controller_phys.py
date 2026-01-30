@@ -29,6 +29,8 @@ class NeuralControllerPhys:
         # Сброс: фиксированное значение и число шагов в начале эпизода
         reset_value: int,
         reset_steps: int,
+        # Логирование соединения
+        log_connection: bool,
         # Логгер верхнего уровня
         base_logger: Logger,
     ):
@@ -59,7 +61,13 @@ class NeuralControllerPhys:
             timeout=timeout,
             baudrate=baudrate,
         )
-        self._pid_connection =  ConnectionToPhaseShifter(connection=connection)
+        pid_connection: ConnectionToPhaseShifter = ConnectionToPhaseShifter(connection=connection)
+        if log_connection:
+            pid_connection = LoggingConnectionToPhaseShifter(
+                connection_to_phase_shifter=pid_connection,
+                logger=base_logger,
+            )
+        self._pid_connection = pid_connection
 
     @property
     def setpoint(self) -> int:

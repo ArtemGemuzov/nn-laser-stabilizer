@@ -150,6 +150,7 @@ class NeuralControllerEnv(BaseEnv):
             control_max=config.args.control_max,
             reset_value=config.args.reset_value,
             reset_steps=config.args.reset_steps,
+            log_connection=config.args.log_connection,
             base_logger=base_logger,
         )
         return cls(
