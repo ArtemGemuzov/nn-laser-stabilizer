@@ -3,8 +3,11 @@ from typing import Optional, cast
 import numpy as np
 import gymnasium as gym
 
+from nn_laser_stabilizer.config.config import Config
+from nn_laser_stabilizer.envs.base_env import BaseEnv
 
-class PendulumNoVelEnv(gym.Env):
+
+class PendulumNoVelEnv(BaseEnv):
     metadata = {"render_modes": []}
 
     def __init__(self):
@@ -36,3 +39,7 @@ class PendulumNoVelEnv(gym.Env):
 
     def close(self):
         self.env.close()
+
+    @classmethod
+    def from_config(cls, config: Config) -> "PendulumNoVelEnv":
+        return cls()

@@ -75,16 +75,16 @@ class TorchEnvWrapper:
         return wrapped_env
 
 
-def make_env(
-    env_name: str,
-    seed: Optional[int] = None,
-    **env_kwargs,
-) -> TorchEnvWrapper: 
+def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> TorchEnvWrapper:
+    env_name = env_config.name
     if env_name in CUSTOM_ENV_MAP:
         env_class = CUSTOM_ENV_MAP[env_name]
-        env = env_class(**env_kwargs)
+        env = env_class.from_config(env_config)
         return TorchEnvWrapper.wrap(env, seed=seed)
-   
+
+    args = env_config.get("args")
+    env_kwargs = args.to_dict() if args is not None else {}
+
     try:
         env = gym.make(env_name, **env_kwargs)
         return TorchEnvWrapper.wrap(env, seed=seed)
@@ -93,13 +93,6 @@ def make_env(
             f"Unknown environment: '{env_name}'. "
             f"Custom environments: {list(CUSTOM_ENV_MAP.keys())}"
         )
-    
-
-def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> TorchEnvWrapper:
-    env_name = env_config.name
-    env_args_dict = env_config.get('args')
-    env_args = env_args_dict.to_dict() if env_args_dict is not None else {}
-    return make_env(env_name, seed=seed, **env_args)
 
 
 def make_spaces_from_config(

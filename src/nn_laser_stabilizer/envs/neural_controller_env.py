@@ -1,71 +1,40 @@
 from typing import Optional
-from pathlib import Path
 
 import numpy as np
 import gymnasium as gym
 
-from nn_laser_stabilizer.logger import AsyncFileLogger, PrefixedLogger
+from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
+from nn_laser_stabilizer.config.config import Config
+from nn_laser_stabilizer.envs.base_env import BaseEnv
 from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
-class NeuralControllerEnv(gym.Env):
+class NeuralControllerEnv(BaseEnv):
     LOG_PREFIX = "ENV"
 
     metadata = {"render_modes": []}
 
     def __init__(
         self,
-        # Параметры для соединения
-        port: str,
-        timeout: float,
-        baudrate: int,
-        # Параметры для работы с установкой
-        setpoint: int,
-        # Параметры автоматического определения setpoint
-        auto_determine_setpoint: bool,
-        setpoint_determination_steps: int,
-        setpoint_determination_max_value: int,
-        setpoint_determination_factor: float,
-        # Параметры диапазона управления
+        *,
+        physics: NeuralControllerPhys,
+        base_logger: Logger,
         control_min: int,
         control_max: int,
-        # Сброс: фиксированное значение и число шагов в начале эпизода
-        reset_value: int,
-        reset_steps: int,
-        # Параметры нормализации наблюдений
-        process_variable_max: int,
-        # Параметры для логирования окружения
-        log_dir: str | Path,
-        log_file: str,
+        process_variable_max: float,
     ):
         super().__init__()
 
         self._control_min = int(control_min)
         self._control_max = int(control_max)
-        
         self._process_variable_max = float(process_variable_max)
 
-        self._base_logger = AsyncFileLogger(log_dir=log_dir, log_file=log_file)
+        self._base_logger = base_logger
         self._env_logger = PrefixedLogger(self._base_logger, NeuralControllerEnv.LOG_PREFIX)
+        self._physics = physics
 
-        self._physics = NeuralControllerPhys(
-            port=port,
-            timeout=timeout,
-            baudrate=baudrate,
-            setpoint=setpoint,
-            auto_determine_setpoint=auto_determine_setpoint,
-            setpoint_determination_steps=setpoint_determination_steps,
-            setpoint_determination_max_value=setpoint_determination_max_value,
-            setpoint_determination_factor=setpoint_determination_factor,
-            control_min=control_min,
-            control_max=control_max,
-            reset_value=reset_value,
-            reset_steps=reset_steps,
-            base_logger=self._base_logger,
-        )
-
-        self._setpoint_norm = float(setpoint) / self._process_variable_max
+        self._setpoint_norm = float(physics.setpoint) / self._process_variable_max
 
         self._error: float = 0.0
         self._step: int = 0
@@ -164,3 +133,29 @@ class NeuralControllerEnv(gym.Env):
     def close(self) -> None:
         self._physics.close()
         self._base_logger.close()
+
+    @classmethod
+    def from_config(cls, config: Config) -> "NeuralControllerEnv":
+        base_logger = AsyncFileLogger(log_dir=config.args.log_dir, log_file=config.args.log_file)
+        physics = NeuralControllerPhys(
+            port=config.args.port,
+            timeout=config.args.timeout,
+            baudrate=config.args.baudrate,
+            setpoint=config.args.setpoint,
+            auto_determine_setpoint=config.args.auto_determine_setpoint,
+            setpoint_determination_steps=config.args.setpoint_determination_steps,
+            setpoint_determination_max_value=config.args.setpoint_determination_max_value,
+            setpoint_determination_factor=config.args.setpoint_determination_factor,
+            control_min=config.args.control_min,
+            control_max=config.args.control_max,
+            reset_value=config.args.reset_value,
+            reset_steps=config.args.reset_steps,
+            base_logger=base_logger,
+        )
+        return cls(
+            physics=physics,
+            base_logger=base_logger,
+            control_min=config.args.control_min,
+            control_max=config.args.control_max,
+            process_variable_max=config.args.process_variable_max,
+        )
