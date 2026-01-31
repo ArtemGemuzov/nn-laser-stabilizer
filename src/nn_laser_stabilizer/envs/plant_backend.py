@@ -1,5 +1,7 @@
 from typing import Protocol, Tuple
 
+import numpy as np
+
 from nn_laser_stabilizer.envs.setpoint import determine_setpoint
 from nn_laser_stabilizer.hardware.connection import create_connection
 from nn_laser_stabilizer.connection.phase_shifter_connection import (
@@ -129,3 +131,47 @@ class ExperimentalPlantBackend:
 
     def close(self) -> None:
         self._pid_connection.close()
+
+
+class ReplayPlantBackend:
+    def __init__(
+        self,
+        *,
+        process_variables: np.ndarray,
+        control_outputs: np.ndarray,
+        setpoint: int,
+    ):
+        if len(process_variables) != len(control_outputs):
+            raise ValueError(
+                f"process_variables and control_outputs must have same length, "
+                f"got {len(process_variables)} and {len(control_outputs)}"
+            )
+        if len(process_variables) < 3:
+            raise ValueError(
+                f"Need at least 3 rows for one transition, got {len(process_variables)}"
+            )
+        self._process_variables = np.asarray(process_variables, dtype=np.int64)
+        self._control_outputs = np.asarray(control_outputs, dtype=np.int64)
+        self._setpoint = setpoint
+        self._index = 0
+        self._n = len(self._process_variables)
+
+    @property
+    def setpoint(self) -> int:
+        return self._setpoint
+
+    def reset(self) -> tuple[int, int, int]:
+        self._index = 1
+        pv = int(self._process_variables[1])
+        control = int(self._control_outputs[0])
+        return pv, self._setpoint, control
+
+    def exchange(self, control_output: int) -> int:
+        if self._index >= self._n - 1:
+            return self._process_variables[self._n - 1]
+        result = self._process_variables[self._index + 1]
+        self._index += 1
+        return result
+
+    def close(self) -> None:
+        pass
