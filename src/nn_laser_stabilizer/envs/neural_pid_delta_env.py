@@ -58,8 +58,8 @@ class NeuralPIDDeltaEnv(BaseEnv):
             dtype=np.float32,
         )
         self.observation_space = gym.spaces.Box(
-            low=np.array([-1.0, -1.0, -1.0, -1.0], dtype=np.float32),
-            high=np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float32),
+            low=np.array([-1.0, -1.0, -1.0], dtype=np.float32),
+            high=np.array([1.0, 1.0, 1.0], dtype=np.float32),
             dtype=np.float32,
         )
 
@@ -79,16 +79,8 @@ class NeuralPIDDeltaEnv(BaseEnv):
             float(process_variable), 0.0, self._process_variable_max
         )
         error = self._setpoint_norm - process_variable_norm
-        control_output_norm = normalize_to_minus1_plus1(
-            float(control_output), self._control_min, self._control_max
-        )
         observation = np.array(
-            [
-                control_output_norm,
-                error,
-                self._error_prev,
-                self._error_prev_prev,
-            ],
+            [error, self._error_prev, self._error_prev_prev],
             dtype=np.float32,
         )
         self._error_prev_prev = self._error_prev
@@ -96,7 +88,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         return observation
 
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
-        error = float(observation[1])
+        error = float(observation[0])
         return normalize_to_minus1_plus1(-abs(error), -1.0, 0.0)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
@@ -117,7 +109,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
             "step: "
             f"step={self._step} "
             f"process_variable={process_variable} setpoint={self._physics.setpoint} "
-            f"error={observation[1]} error_prev={observation[2]} error_prev_prev={observation[3]} "
+            f"error={observation[0]} error_prev={observation[1]} error_prev_prev={observation[2]} "
             f"delta_norm={delta_norm} delta={delta} control_output={control_output} "
             f"reward={reward} "
             f"step_interval={step_interval}us"
@@ -150,7 +142,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         log_line = (
             "reset: "
             f"process_variable={process_variable} setpoint={setpoint} "
-            f"error={observation[1]} control_output={control_output}"
+            f"error={observation[0]} control_output={control_output}"
         )
         self._env_logger.log(log_line)
 

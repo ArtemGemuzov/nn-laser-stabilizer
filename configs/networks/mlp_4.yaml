@@ -1,2 +1,0 @@
-type: mlp
-mlp_hidden_sizes: [4]
