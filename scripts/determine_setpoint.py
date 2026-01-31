@@ -1,6 +1,6 @@
 from nn_laser_stabilizer.hardware.connection import create_connection
 from nn_laser_stabilizer.connection.pid_connection import ConnectionToPid, LoggingConnectionToPid
-from nn_laser_stabilizer.envs.pid_delta_tuning_phys import determine_setpoint
+from nn_laser_stabilizer.envs.setpoint import determine_setpoint
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import AsyncFileLogger
@@ -37,8 +37,19 @@ def main(context: ExperimentContext) -> None:
         context.logger.log(f"Определение setpoint: steps={steps} max_value={max_value} factor={factor}")
         context.logger.log("Выполняется сканирование...")
         
+        def send_control_and_get_pv(control_value: int) -> int:
+            pv, _ = pid_connection.exchange(
+                kp=0.0,
+                ki=0.0,
+                kd=0.0,
+                control_min=control_value,
+                control_max=control_value,
+                setpoint=0,
+            )
+            return int(pv)
+
         setpoint, min_pv, max_pv = determine_setpoint(
-            pid_connection=pid_connection,
+            send_control_and_get_pv=send_control_and_get_pv,
             steps=steps,
             max_value=max_value,
             factor=factor,

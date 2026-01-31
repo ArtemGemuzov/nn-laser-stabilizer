@@ -6,7 +6,7 @@ import gymnasium as gym
 from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
-from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
+from nn_laser_stabilizer.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
 from nn_laser_stabilizer.normalize import (
     denormalize_from_minus1_plus1,
     normalize_to_minus1_plus1,
@@ -20,7 +20,7 @@ class NeuralPIDEnv(BaseEnv):
     def __init__(
         self,
         *,
-        physics: NeuralControllerPhys,
+        backend: PlantBackend,
         base_logger: Logger,
         control_min: int,
         control_max: int,
@@ -34,11 +34,11 @@ class NeuralPIDEnv(BaseEnv):
 
         self._base_logger = base_logger
         self._env_logger = PrefixedLogger(self._base_logger, NeuralPIDEnv.LOG_PREFIX)
-        self._physics = physics
+        self._backend = backend
 
         self._step: int = 0
 
-        self._setpoint_norm = normalize_to_01(physics.setpoint, 0.0, self._process_variable_max)
+        self._setpoint_norm = normalize_to_01(backend.setpoint, 0.0, self._process_variable_max)
         self._error: float = 0.0
         self._prev_error: float = 0.0
         self._integral_error: float = 0.0
@@ -58,7 +58,7 @@ class NeuralPIDEnv(BaseEnv):
         return float(action[0])
 
     def _apply_control(self, control_output: int) -> int:
-        return self._physics.step(control_output)
+        return self._backend.exchange(control_output)
 
     def _compute_error(self, process_variable_norm: float) -> None:
         self._prev_error = self._error
@@ -97,7 +97,7 @@ class NeuralPIDEnv(BaseEnv):
         log_line = (
             "step: "
             f"step={self._step} "
-            f"process_variable={process_variable} setpoint={self._physics.setpoint} "
+            f"process_variable={process_variable} setpoint={self._backend.setpoint} "
             f"error={observation[0]} prev_error={self._prev_error} "
             f"d_error_dt={observation[1]} integral_error={observation[2]} "
             f"control_output_norm={control_output_norm} control_output={control_output} "
@@ -120,7 +120,7 @@ class NeuralPIDEnv(BaseEnv):
         self._prev_error = 0.0
         self._integral_error = 0.0
 
-        process_variable, setpoint, control_output = self._physics.reset()
+        process_variable, setpoint, control_output = self._backend.reset()
         self._setpoint_norm = normalize_to_01(setpoint, 0.0, self._process_variable_max)
 
         observation = self._build_observation(process_variable, control_output)
@@ -137,13 +137,13 @@ class NeuralPIDEnv(BaseEnv):
         return observation, {}
 
     def close(self) -> None:
-        self._physics.close()
+        self._backend.close()
         self._base_logger.close()
 
     @classmethod
     def from_config(cls, config: Config) -> "NeuralPIDEnv":
         base_logger = AsyncFileLogger(log_dir=config.args.log_dir, log_file=config.args.log_file)
-        physics = NeuralControllerPhys(
+        backend = ExperimentalPlantBackend(
             port=config.args.port,
             timeout=config.args.timeout,
             baudrate=config.args.baudrate,
@@ -160,7 +160,7 @@ class NeuralPIDEnv(BaseEnv):
             base_logger=base_logger,
         )
         return cls(
-            physics=physics,
+            backend=backend,
             base_logger=base_logger,
             control_min=config.args.control_min,
             control_max=config.args.control_max,

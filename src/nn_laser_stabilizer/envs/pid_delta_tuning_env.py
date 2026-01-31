@@ -6,11 +6,12 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
+from nn_laser_stabilizer.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.normalize import (
     denormalize_from_minus1_plus1,
     normalize_to_minus1_plus1,
 )
-from nn_laser_stabilizer.envs.pid_delta_tuning_phys import PidDeltaTuningPhys
+from nn_laser_stabilizer.envs.pid_loop_backend import ExperimentalPidLoopBackend, PidLoopBackend
 from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 
@@ -21,16 +22,19 @@ class PidDeltaTuningEnv(BaseEnv):
     def __init__(
         self,
         *,
-        phys: PidDeltaTuningPhys,
+        backend: PidLoopBackend,
         base_logger: Logger,
         kp_min: float,
         kp_max: float,
+        kp_start: float,
         kp_delta_scale: float,
         ki_min: float,
         ki_max: float,
+        ki_start: float,
         ki_delta_scale: float,
         kd_min: float,
         kd_max: float,
+        kd_start: float,
         kd_delta_scale: float,
         error_mean_normalization_factor: float,
         error_std_normalization_factor: float,
@@ -64,7 +68,14 @@ class PidDeltaTuningEnv(BaseEnv):
 
         self._base_logger = base_logger
         self._env_logger = PrefixedLogger(self._base_logger, PidDeltaTuningEnv.LOG_PREFIX)
-        self.phys = phys
+        self._backend = backend
+
+        self._kp = BoundedValue[float](kp_min, kp_max, kp_start)
+        self._ki = BoundedValue[float](ki_min, ki_max, ki_start)
+        self._kd = BoundedValue[float](kd_min, kd_max, kd_start)
+        self._kp_start = kp_start
+        self._ki_start = ki_start
+        self._kd_start = kd_start
 
         self._step: int = 0
 
@@ -99,9 +110,9 @@ class PidDeltaTuningEnv(BaseEnv):
             error_std / self._error_std_normalization_factor, 0.0, 1.0
         )
         
-        kp_norm = normalize_to_minus1_plus1(self.phys.kp, self._kp_min, self._kp_max)
-        ki_norm = normalize_to_minus1_plus1(self.phys.ki, self._ki_min, self._ki_max)
-        kd_norm = normalize_to_minus1_plus1(self.phys.kd, self._kd_min, self._kd_max)
+        kp_norm = normalize_to_minus1_plus1(self._kp.value, self._kp_min, self._kp_max)
+        ki_norm = normalize_to_minus1_plus1(self._ki.value, self._ki_min, self._ki_max)
+        kd_norm = normalize_to_minus1_plus1(self._kd.value, self._kd_min, self._kd_max)
         
         return np.array(
             [error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm],
@@ -125,10 +136,15 @@ class PidDeltaTuningEnv(BaseEnv):
         delta_kd = denormalize_from_minus1_plus1(
             delta_kd_norm, -self._kd_delta_max, self._kd_delta_max
         )
-        self.phys.update_pid(delta_kp, delta_ki, delta_kd)
+        self._kp.add(delta_kp)
+        self._ki.add(delta_ki)
+        self._kd.add(delta_kd)
+        self._kp.value = round(self._kp.value, PidProtocol.KP_DECIMAL_PLACES)
+        self._ki.value = round(self._ki.value, PidProtocol.KI_DECIMAL_PLACES)
+        self._kd.value = round(self._kd.value, PidProtocol.KD_DECIMAL_PLACES)
 
     def _apply_control(self) -> tuple[np.ndarray, np.ndarray, float, bool]:
-        return self.phys.step()
+        return self._backend.run_block(self._kp.value, self._ki.value, self._kd.value)
 
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
         error_mean_norm, error_std_norm = observation[0], observation[1]
@@ -162,9 +178,9 @@ class PidDeltaTuningEnv(BaseEnv):
 
         log_line = (
             f"step: step={self._step} time={time.time()} "
-            f"kp={self.phys.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
-            f"ki={self.phys.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
-            f"kd={self.phys.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
+            f"kp={self._kp.value:.{PidProtocol.KP_DECIMAL_PLACES}f} "
+            f"ki={self._ki.value:.{PidProtocol.KI_DECIMAL_PLACES}f} "
+            f"kd={self._kd.value:.{PidProtocol.KD_DECIMAL_PLACES}f} "
             f"delta_kp_norm={delta_kp_norm} delta_ki_norm={delta_ki_norm} delta_kd_norm={delta_kd_norm} "
             f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
             f"reward={reward} should_reset={should_reset}"
@@ -181,7 +197,12 @@ class PidDeltaTuningEnv(BaseEnv):
         seed: Optional[int] = None, 
         options: Optional[dict] = None
     ) -> tuple[np.ndarray, dict]:
-        process_variables, control_outputs, setpoint, _ = self.phys.reset()
+        self._kp.value = self._kp_start
+        self._ki.value = self._ki_start
+        self._kd.value = self._kd_start
+        process_variables, control_outputs, setpoint, _ = self._backend.start(
+            self._kp.value, self._ki.value, self._kd.value
+        )
 
         observation = self._build_observation(
             process_variables, control_outputs, setpoint
@@ -189,9 +210,9 @@ class PidDeltaTuningEnv(BaseEnv):
         
         log_line = (
             f"reset: time={time.time()} "
-            f"kp={self.phys.kp:.{PidProtocol.KP_DECIMAL_PLACES}f} "
-            f"ki={self.phys.ki:.{PidProtocol.KI_DECIMAL_PLACES}f} "
-            f"kd={self.phys.kd:.{PidProtocol.KD_DECIMAL_PLACES}f} "
+            f"kp={self._kp.value:.{PidProtocol.KP_DECIMAL_PLACES}f} "
+            f"ki={self._ki.value:.{PidProtocol.KI_DECIMAL_PLACES}f} "
+            f"kd={self._kd.value:.{PidProtocol.KD_DECIMAL_PLACES}f} "
             f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
         )
         self._env_logger.log(log_line) 
@@ -200,13 +221,13 @@ class PidDeltaTuningEnv(BaseEnv):
         return observation, info
 
     def close(self) -> None:
-        self.phys.close()
+        self._backend.close()
         self._base_logger.close()
 
     @classmethod
     def from_config(cls, config: Config) -> "PidDeltaTuningEnv":
         base_logger = AsyncFileLogger(log_dir=config.args.log_dir, log_file=config.args.log_file)
-        phys = PidDeltaTuningPhys(
+        backend = ExperimentalPidLoopBackend(
             logger=base_logger,
             port=config.args.port,
             timeout=config.args.timeout,
@@ -222,31 +243,25 @@ class PidDeltaTuningEnv(BaseEnv):
             force_max_value=config.args.force_max_value,
             default_min=config.args.default_min,
             default_max=config.args.default_max,
-            kp_min=config.args.kp_min,
-            kp_max=config.args.kp_max,
-            kp_start=config.args.kp_start,
-            ki_min=config.args.ki_min,
-            ki_max=config.args.ki_max,
-            ki_start=config.args.ki_start,
-            kd_min=config.args.kd_min,
-            kd_max=config.args.kd_max,
-            kd_start=config.args.kd_start,
             auto_determine_setpoint=config.args.auto_determine_setpoint,
             setpoint_determination_steps=config.args.setpoint_determination_steps,
             setpoint_determination_max_value=config.args.setpoint_determination_max_value,
             setpoint_determination_factor=config.args.setpoint_determination_factor,
         )
         return cls(
-            phys=phys,
+            backend=backend,
             base_logger=base_logger,
             kp_min=config.args.kp_min,
             kp_max=config.args.kp_max,
+            kp_start=config.args.kp_start,
             kp_delta_scale=config.args.kp_delta_scale,
             ki_min=config.args.ki_min,
             ki_max=config.args.ki_max,
+            ki_start=config.args.ki_start,
             ki_delta_scale=config.args.ki_delta_scale,
             kd_min=config.args.kd_min,
             kd_max=config.args.kd_max,
+            kd_start=config.args.kd_start,
             kd_delta_scale=config.args.kd_delta_scale,
             error_mean_normalization_factor=config.args.error_mean_normalization_factor,
             error_std_normalization_factor=config.args.error_std_normalization_factor,

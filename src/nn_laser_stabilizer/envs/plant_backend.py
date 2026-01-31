@@ -1,3 +1,6 @@
+from typing import Protocol, Tuple
+
+from nn_laser_stabilizer.envs.setpoint import determine_setpoint
 from nn_laser_stabilizer.hardware.connection import create_connection
 from nn_laser_stabilizer.connection.phase_shifter_connection import (
     ConnectionToPhaseShifter,
@@ -6,8 +9,25 @@ from nn_laser_stabilizer.connection.phase_shifter_connection import (
 from nn_laser_stabilizer.logger import Logger, PrefixedLogger
 
 
-class NeuralControllerPhys:
-    LOG_PREFIX = "NEURAL_CONTROLLER_PHYS"
+class PlantBackend(Protocol):
+    @property
+    def setpoint(self) -> int:
+        ...
+
+    def reset(self) -> Tuple[int, int, int]:
+        """Сбросить установку к началу эпизода; возвращает (process_variable, setpoint, control_output)."""
+        ...
+
+    def exchange(self, control_output: int) -> int:
+        """Отправить управление, получить текущую process_variable."""
+        ...
+
+    def close(self) -> None:
+        ...
+
+
+class ExperimentalPlantBackend:
+    LOG_PREFIX = "EXPERIMENTAL_PLANT_BACKEND"
 
     def __init__(
         self,
@@ -43,7 +63,7 @@ class NeuralControllerPhys:
 
         self._control_min = control_min
         self._control_max = control_max
-        
+
         self._reset_value = int(reset_value)
         self._reset_steps = int(reset_steps)
 
@@ -54,7 +74,7 @@ class NeuralControllerPhys:
             )
 
         self._base_logger = base_logger
-        self._logger = PrefixedLogger(base_logger, NeuralControllerPhys.LOG_PREFIX)
+        self._logger = PrefixedLogger(base_logger, ExperimentalPlantBackend.LOG_PREFIX)
 
         connection = create_connection(
             port=port,
@@ -74,24 +94,12 @@ class NeuralControllerPhys:
         return self._setpoint
 
     def _determine_setpoint(self) -> None:
-        min_pv = float("inf")
-        max_pv = float("-inf")
-
-        for step in range(self._setpoint_determination_steps):
-            progress = step / (self._setpoint_determination_steps - 1)
-            control_output = int(progress * self._setpoint_determination_max_value)
-
-            process_variable = self._pid_connection.exchange(control_output=control_output)
-
-            min_pv = min(min_pv, process_variable)
-            max_pv = max(max_pv, process_variable)
-
-        min_pv_int = int(min_pv)
-        max_pv_int = int(max_pv)
-        setpoint = int(
-            round(min_pv + self._setpoint_determination_factor * (max_pv - min_pv))
+        setpoint, min_pv_int, max_pv_int = determine_setpoint(
+            send_control_and_get_pv=lambda c: self._pid_connection.exchange(control_output=c),
+            steps=self._setpoint_determination_steps,
+            max_value=self._setpoint_determination_max_value,
+            factor=self._setpoint_determination_factor,
         )
-
         self._setpoint = setpoint
         self._setpoint_determined = True
 
@@ -101,7 +109,6 @@ class NeuralControllerPhys:
 
         # TODO: Заменить print на ConsoleLogger для унифицированного вывода в консоль
         print(f"Setpoint determined: {self._setpoint} (min_pv={min_pv_int}, max_pv={max_pv_int})")
-
 
     def reset(self) -> tuple[int, int, int]:
         self._pid_connection.open()
@@ -117,9 +124,8 @@ class NeuralControllerPhys:
 
         return process_variable, self._setpoint, self._reset_value
 
-    def step(self, control_output: int) -> int:
+    def exchange(self, control_output: int) -> int:
         return self._pid_connection.exchange(control_output=control_output)
 
     def close(self) -> None:
         self._pid_connection.close()
-

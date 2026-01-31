@@ -7,7 +7,7 @@ from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.envs.base_env import BaseEnv
 from nn_laser_stabilizer.envs.bounded_value import BoundedValue
-from nn_laser_stabilizer.envs.neural_controller_phys import NeuralControllerPhys
+from nn_laser_stabilizer.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
 from nn_laser_stabilizer.normalize import (
     denormalize_from_minus1_plus1,
     normalize_to_minus1_plus1,
@@ -22,7 +22,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
     def __init__(
         self,
         *,
-        physics: NeuralControllerPhys,
+        backend: PlantBackend,
         base_logger: Logger,
         control_min: int,
         control_max: int,
@@ -40,13 +40,13 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._env_logger = PrefixedLogger(
             self._base_logger, NeuralPIDDeltaEnv.LOG_PREFIX
         )
-        self._physics = physics
+        self._backend = backend
 
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
         self._step: int = 0
 
         self._setpoint_norm = normalize_to_01(
-            physics.setpoint, 0.0, self._process_variable_max
+            backend.setpoint, 0.0, self._process_variable_max
         )
         self._current_control_output = BoundedValue(control_min, control_max, 0)
         self._error_prev: float = 0.0
@@ -70,7 +70,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         return self._current_control_output.add(int(round(delta)))
 
     def _apply_control(self, control_output: int) -> int:
-        return self._physics.step(control_output)
+        return self._backend.exchange(control_output)
 
     def _build_observation(
         self, process_variable: float, control_output: int
@@ -108,7 +108,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         log_line = (
             "step: "
             f"step={self._step} "
-            f"process_variable={process_variable} setpoint={self._physics.setpoint} "
+            f"process_variable={process_variable} setpoint={self._backend.setpoint} "
             f"error={observation[0]} error_prev={observation[1]} error_prev_prev={observation[2]} "
             f"delta_norm={delta_norm} delta={delta} control_output={control_output} "
             f"reward={reward} "
@@ -131,7 +131,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._error_prev = 0.0
         self._error_prev_prev = 0.0
 
-        process_variable, setpoint, control_output = self._physics.reset()
+        process_variable, setpoint, control_output = self._backend.reset()
         self._setpoint_norm = normalize_to_01(
             setpoint, 0.0, self._process_variable_max
         )
@@ -149,7 +149,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         return observation, {}
 
     def close(self) -> None:
-        self._physics.close()
+        self._backend.close()
         self._base_logger.close()
 
     @classmethod
@@ -157,7 +157,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         base_logger = AsyncFileLogger(
             log_dir=config.args.log_dir, log_file=config.args.log_file
         )
-        physics = NeuralControllerPhys(
+        backend = ExperimentalPlantBackend(
             port=config.args.port,
             timeout=config.args.timeout,
             baudrate=config.args.baudrate,
@@ -174,7 +174,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
             base_logger=base_logger,
         )
         return cls(
-            physics=physics,
+            backend=backend,
             base_logger=base_logger,
             control_min=config.args.control_min,
             control_max=config.args.control_max,
