@@ -14,6 +14,14 @@ class Logger(Protocol):
     def close(self) -> None: ...
 
 
+class NoOpLogger:
+    def log(self, message: str) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
 class PrefixedLogger:
     def __init__(self, logger: Logger, prefix: str):
         self._logger = logger
