@@ -140,10 +140,11 @@ class TD3BCUpdater:
 
         actor_loss_value: Optional[Tensor] = None
         if self._should_update_actor_and_target():
-            actor_loss_value = self._loss_module.actor_loss(
+            policy_term, bc_term = self._loss_module.actor_loss(
                 obs,
                 dataset_actions=actions,
             )
+            actor_loss_value = policy_term + bc_term
             self._actor_optimizer.step(actor_loss_value)
             self._soft_updater.update()
 

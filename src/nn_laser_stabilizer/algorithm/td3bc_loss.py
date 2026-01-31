@@ -53,7 +53,7 @@ class TD3BCLoss:
         self,
         observations: torch.Tensor,
         dataset_actions: torch.Tensor,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         actions, _ = self._actor(observations)
         q_value, _ = self._critic1(observations, actions)
 
@@ -61,6 +61,6 @@ class TD3BCLoss:
             q_dataset, _ = self._critic1(observations, dataset_actions)
             lambda_coef = 1.0 / (torch.abs(q_dataset).mean().item() + self.EPSILON)
 
+        policy_term = -lambda_coef * q_value.mean()
         bc_term = self.alpha * F.mse_loss(actions, dataset_actions)
-        actor_loss = -lambda_coef * q_value.mean() + bc_term
-        return actor_loss
+        return policy_term, bc_term
