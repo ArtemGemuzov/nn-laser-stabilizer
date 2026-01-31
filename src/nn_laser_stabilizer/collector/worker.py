@@ -6,7 +6,7 @@ from nn_laser_stabilizer.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.envs.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy.policy import Policy
 from nn_laser_stabilizer.collector.connection import CollectorConnection
-from nn_laser_stabilizer.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, _collect_step
+from nn_laser_stabilizer.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, collect_step
 
 
 class CollectorWorker: 
@@ -64,7 +64,7 @@ class CollectorWorker:
                         self.connection.send_shutdown_complete()
                         break 
                 
-                obs, options = _collect_step(policy, env, obs, self.buffer, options)
+                obs, options = collect_step(policy, env, obs, self.buffer, options)
                     
         except KeyboardInterrupt:
             pass

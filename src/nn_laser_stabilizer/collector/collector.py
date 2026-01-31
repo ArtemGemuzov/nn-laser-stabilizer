@@ -9,7 +9,7 @@ from nn_laser_stabilizer.envs.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.policy.policy import Policy
 from nn_laser_stabilizer.collector.worker import CollectorWorker
 from nn_laser_stabilizer.collector.connection import CollectorConnection
-from nn_laser_stabilizer.collector.utils import _collect_step, CollectorWorkerError
+from nn_laser_stabilizer.collector.utils import collect_step, CollectorWorkerError
 
 
 def _policy_factory(policy : Policy):
@@ -48,7 +48,7 @@ class SyncCollector:
         
         assert self._current_observation is not None
         for _ in range(num_steps):
-            self._current_observation, self._options = _collect_step(
+            self._current_observation, self._options = collect_step(
                 self._policy,
                 self._env,
                 self._current_observation,

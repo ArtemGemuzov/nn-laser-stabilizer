@@ -46,7 +46,7 @@ class CollectorWorkerError(Exception):
         super().__init__(message)
 
 
-def _collect_step(
+def collect_step(
     policy: Policy,
     env: TorchEnvWrapper,
     obs: torch.Tensor,
