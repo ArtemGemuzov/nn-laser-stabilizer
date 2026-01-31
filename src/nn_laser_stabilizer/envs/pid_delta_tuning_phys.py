@@ -2,6 +2,7 @@ from typing import Tuple
 
 import numpy as np
 
+from nn_laser_stabilizer.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.hardware.connection import create_connection
 from nn_laser_stabilizer.connection.pid_connection import (
     ConnectionToPid,
@@ -105,19 +106,12 @@ class PidDeltaTuningPhys:
         
         self._logger = PrefixedLogger(logger, PidDeltaTuningPhys.LOG_PREFIX)
 
-        self._kp_min = kp_min
-        self._kp_max = kp_max
+        self._kp = BoundedValue[float](kp_min, kp_max, kp_start)
+        self._ki = BoundedValue[float](ki_min, ki_max, ki_start)
+        self._kd = BoundedValue[float](kd_min, kd_max, kd_start)
         self._kp_start = kp_start
-        self._ki_min = ki_min
-        self._ki_max = ki_max
         self._ki_start = ki_start
-        self._kd_min = kd_min
-        self._kd_max = kd_max
         self._kd_start = kd_start
-
-        self._kp = kp_start
-        self._ki = ki_start
-        self._kd = kd_start
         
         self._warmup_steps = warmup_steps
         self._block_size = block_size
@@ -161,29 +155,28 @@ class PidDeltaTuningPhys:
     
     @property
     def kp(self) -> float:
-        return self._kp
-    
+        return self._kp.value
+
     @property
     def ki(self) -> float:
-        return self._ki
-    
+        return self._ki.value
+
     @property
     def kd(self) -> float:
-        return self._kd
-    
+        return self._kd.value
+
     def update_pid(self, delta_kp: float, delta_ki: float, delta_kd: float) -> None:
-        self._kp = np.clip(self._kp + delta_kp, self._kp_min, self._kp_max)
-        self._ki = np.clip(self._ki + delta_ki, self._ki_min, self._ki_max)
-        self._kd = np.clip(self._kd + delta_kd, self._kd_min, self._kd_max)
-        
-        self._kp = round(self._kp, PidProtocol.KP_DECIMAL_PLACES)
-        self._ki = round(self._ki, PidProtocol.KI_DECIMAL_PLACES)
-        self._kd = round(self._kd, PidProtocol.KD_DECIMAL_PLACES)
-    
+        self._kp.add(delta_kp)
+        self._ki.add(delta_ki)
+        self._kd.add(delta_kd)
+        self._kp.value = round(self._kp.value, PidProtocol.KP_DECIMAL_PLACES)
+        self._ki.value = round(self._ki.value, PidProtocol.KI_DECIMAL_PLACES)
+        self._kd.value = round(self._kd.value, PidProtocol.KD_DECIMAL_PLACES)
+
     def reset_pid(self) -> None:
-        self._kp = self._kp_start
-        self._ki = self._ki_start
-        self._kd = self._kd_start
+        self._kp.value = self._kp_start
+        self._ki.value = self._ki_start
+        self._kd.value = self._kd_start
     
     def _should_reset(self, control_outputs: np.ndarray) -> bool:
         mean_control_output = np.mean(control_outputs)
@@ -214,9 +207,9 @@ class PidDeltaTuningPhys:
         
         for _ in range(self._block_size):
             process_variable, control_output = self.pid_connection.exchange(
-                kp=self._kp,
-                ki=self._ki,
-                kd=self._kd,
+                kp=self.kp,
+                ki=self.ki,
+                kd=self.kd,
                 control_min=self._default_min,
                 control_max=self._default_max,
                 setpoint=self._setpoint,
@@ -248,9 +241,9 @@ class PidDeltaTuningPhys:
         
         for _ in range(self._warmup_steps):
             self.pid_connection.exchange(
-                kp=self._kp,
-                ki=self._ki,
-                kd=self._kd,
+                kp=self.kp,
+                ki=self.ki,
+                kd=self.kd,
                 control_min=self._force_min_value,
                 control_max=self._force_max_value,
                 setpoint=self._setpoint,
