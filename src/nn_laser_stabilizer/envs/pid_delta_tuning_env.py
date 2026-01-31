@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Optional
 import time
 
@@ -47,20 +48,15 @@ class PidDeltaTuningEnv(BaseEnv):
         self._error_mean_normalization_factor = error_mean_normalization_factor
         self._error_std_normalization_factor = error_std_normalization_factor
 
-        self._kp_min = kp_min
-        self._kp_max = kp_max
-        self._kp_range = kp_max - kp_min
-        self._kp_delta_max = self._kp_range * kp_delta_scale
-
-        self._ki_min = ki_min
-        self._ki_max = ki_max
-        self._ki_range = ki_max - ki_min
-        self._ki_delta_max = self._ki_range * ki_delta_scale
-
-        self._kd_min = kd_min
-        self._kd_max = kd_max
-        self._kd_range = kd_max - kd_min
-        self._kd_delta_max = self._kd_range * kd_delta_scale
+        kp_delta_max = (kp_max - kp_min) * kp_delta_scale
+        ki_delta_max = (ki_max - ki_min) * ki_delta_scale
+        kd_delta_max = (kd_max - kd_min) * kd_delta_scale
+        self._normalize_kp = partial(normalize_to_minus1_plus1, kp_min, kp_max)
+        self._normalize_ki = partial(normalize_to_minus1_plus1, ki_min, ki_max)
+        self._normalize_kd = partial(normalize_to_minus1_plus1, kd_min, kd_max)
+        self._denormalize_kp_delta = partial(denormalize_from_minus1_plus1, -kp_delta_max, kp_delta_max)
+        self._denormalize_ki_delta = partial(denormalize_from_minus1_plus1, -ki_delta_max, ki_delta_max)
+        self._denormalize_kd_delta = partial(denormalize_from_minus1_plus1, -kd_delta_max, kd_delta_max)
 
         self._precision_weight = precision_weight
         self._stability_weight = stability_weight
@@ -110,9 +106,9 @@ class PidDeltaTuningEnv(BaseEnv):
             error_std / self._error_std_normalization_factor, 0.0, 1.0
         )
         
-        kp_norm = normalize_to_minus1_plus1(self._kp.value, self._kp_min, self._kp_max)
-        ki_norm = normalize_to_minus1_plus1(self._ki.value, self._ki_min, self._ki_max)
-        kd_norm = normalize_to_minus1_plus1(self._kd.value, self._kd_min, self._kd_max)
+        kp_norm = self._normalize_kp(self._kp.value)
+        ki_norm = self._normalize_ki(self._ki.value)
+        kd_norm = self._normalize_kd(self._kd.value)
         
         return np.array(
             [error_mean_norm, error_std_norm, kp_norm, ki_norm, kd_norm],
@@ -127,15 +123,9 @@ class PidDeltaTuningEnv(BaseEnv):
     def _update_pid_params(
         self, delta_kp_norm: float, delta_ki_norm: float, delta_kd_norm: float
     ) -> None:
-        delta_kp = denormalize_from_minus1_plus1(
-            delta_kp_norm, -self._kp_delta_max, self._kp_delta_max
-        )
-        delta_ki = denormalize_from_minus1_plus1(
-            delta_ki_norm, -self._ki_delta_max, self._ki_delta_max
-        )
-        delta_kd = denormalize_from_minus1_plus1(
-            delta_kd_norm, -self._kd_delta_max, self._kd_delta_max
-        )
+        delta_kp = self._denormalize_kp_delta(delta_kp_norm)
+        delta_ki = self._denormalize_ki_delta(delta_ki_norm)
+        delta_kd = self._denormalize_kd_delta(delta_kd_norm)
         self._kp.add(delta_kp)
         self._ki.add(delta_ki)
         self._kd.add(delta_kd)

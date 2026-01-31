@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Optional
 
 import numpy as np
@@ -29,9 +30,10 @@ class NeuralControllerEnv(BaseEnv):
     ):
         super().__init__()
 
-        self._control_min = int(control_min)
-        self._control_max = int(control_max)
-        self._process_variable_max = float(process_variable_max)
+        self._normalize_pv = partial(normalize_to_01, 0.0, float(process_variable_max))
+        self._normalize_control = partial(normalize_to_minus1_plus1, float(control_min), float(control_max))
+        self._denormalize_control = partial(denormalize_from_minus1_plus1, float(control_min), float(control_max))
+        self._normalize_reward = partial(normalize_to_minus1_plus1, -1.0, 0.0)
 
         self._base_logger = base_logger
         self._env_logger = PrefixedLogger(self._base_logger, NeuralControllerEnv.LOG_PREFIX)
@@ -40,7 +42,7 @@ class NeuralControllerEnv(BaseEnv):
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
         self._step: int = 0
 
-        self._setpoint_norm = normalize_to_01(backend.setpoint, 0.0, self._process_variable_max)
+        self._setpoint_norm = self._normalize_pv(backend.setpoint)
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
@@ -62,13 +64,9 @@ class NeuralControllerEnv(BaseEnv):
     def _build_observation(
         self, process_variable: float, control_output: int
     ) -> np.ndarray:
-        process_variable_norm = normalize_to_01(
-            process_variable, 0.0, self._process_variable_max
-        )
+        process_variable_norm = self._normalize_pv(process_variable)
         error = self._setpoint_norm - process_variable_norm
-        control_output_norm = normalize_to_minus1_plus1(
-            control_output, self._control_min, self._control_max
-        )
+        control_output_norm = self._normalize_control(control_output)
         return np.array(
             [error, control_output_norm],
             dtype=np.float32,
@@ -76,16 +74,14 @@ class NeuralControllerEnv(BaseEnv):
 
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
         error = float(observation[0])
-        return normalize_to_minus1_plus1(-abs(error), -1.0, 0.0)
+        return self._normalize_reward(-abs(error))
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         step_interval = self._step_interval_tracker.tick()
         self._step += 1
 
         control_output_norm = self._unpack_action_value(action)
-        control_output = int(round(denormalize_from_minus1_plus1(
-            control_output_norm, self._control_min, self._control_max
-        )))
+        control_output = int(round(self._denormalize_control(control_output_norm)))
         process_variable = self._apply_control(control_output)
 
         observation = self._build_observation(process_variable, control_output)
@@ -115,7 +111,7 @@ class NeuralControllerEnv(BaseEnv):
         self._step_interval_tracker.reset()
 
         process_variable, setpoint, control_output = self._backend.reset()
-        self._setpoint_norm = normalize_to_01(setpoint, 0.0, self._process_variable_max)
+        self._setpoint_norm = self._normalize_pv(setpoint)
 
         observation = self._build_observation(process_variable, control_output)
 

@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Optional
 
 import numpy as np
@@ -31,10 +32,14 @@ class NeuralControllerDeltaEnv(BaseEnv):
     ):
         super().__init__()
 
-        self._control_min = int(control_min)
-        self._control_max = int(control_max)
-        self._max_control_delta = int(max_control_delta)
-        self._process_variable_max = process_variable_max
+        self._normalize_pv = partial(normalize_to_01, 0.0, float(process_variable_max))
+        self._normalize_control = partial(normalize_to_minus1_plus1, float(control_min), float(control_max))
+        self._denormalize_delta = partial(
+            denormalize_from_minus1_plus1,
+            -float(max_control_delta),
+            float(max_control_delta),
+        )
+        self._normalize_reward = partial(normalize_to_minus1_plus1, -1.0, 0.0)
 
         self._base_logger = base_logger
         self._env_logger = PrefixedLogger(self._base_logger, NeuralControllerDeltaEnv.LOG_PREFIX)
@@ -43,7 +48,7 @@ class NeuralControllerDeltaEnv(BaseEnv):
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
         self._step: int = 0
 
-        self._setpoint_norm = normalize_to_01(backend.setpoint, 0.0, self._process_variable_max)
+        self._setpoint_norm = self._normalize_pv(backend.setpoint)
         self._control_output = BoundedValue(control_min, control_max, 0)
 
         self.action_space = gym.spaces.Box(
@@ -69,13 +74,9 @@ class NeuralControllerDeltaEnv(BaseEnv):
     def _build_observation(
         self, process_variable: int, control_output: int
     ) -> np.ndarray:
-        process_variable_norm = normalize_to_01(
-            float(process_variable), 0.0, self._process_variable_max
-        )
+        process_variable_norm = self._normalize_pv(float(process_variable))
         error = self._setpoint_norm - process_variable_norm
-        control_output_norm = normalize_to_minus1_plus1(
-            float(control_output), self._control_min, self._control_max
-        )
+        control_output_norm = self._normalize_control(float(control_output))
         return np.array(
             [error, control_output_norm],
             dtype=np.float32,
@@ -83,16 +84,14 @@ class NeuralControllerDeltaEnv(BaseEnv):
 
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
         error = float(observation[0])
-        return normalize_to_minus1_plus1(-abs(error), -1.0, 0.0)
+        return self._normalize_reward(-abs(error))
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         step_interval = self._step_interval_tracker.tick()
         self._step += 1
 
         delta_norm = self._unpack_action_value(action)
-        delta = int(round(denormalize_from_minus1_plus1(
-            delta_norm, -self._max_control_delta, self._max_control_delta
-        )))
+        delta = int(round(self._denormalize_delta(delta_norm)))
         control_output = self._update_control_output(delta)
         process_variable = self._apply_control(control_output)
 
@@ -123,7 +122,7 @@ class NeuralControllerDeltaEnv(BaseEnv):
         self._step_interval_tracker.reset()
 
         process_variable, setpoint, control_output = self._backend.reset()
-        self._setpoint_norm = normalize_to_01(setpoint, 0.0, self._process_variable_max)
+        self._setpoint_norm = self._normalize_pv(setpoint)
         self._control_output.value = control_output
 
         observation = self._build_observation(process_variable, control_output)
