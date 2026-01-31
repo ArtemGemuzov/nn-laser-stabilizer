@@ -26,7 +26,7 @@ class NeuralControllerEnv(BaseEnv):
         base_logger: Logger,
         control_min: int,
         control_max: int,
-        process_variable_max: float,
+        process_variable_max: int,
     ):
         super().__init__()
 

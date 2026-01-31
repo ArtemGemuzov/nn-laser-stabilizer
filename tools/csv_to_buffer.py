@@ -10,7 +10,7 @@ from nn_laser_stabilizer.data.buffer_loader import load_buffer_from_csv
 
 
 def make_extract_transition(
-    process_variable_max: float,
+    process_variable_max: int,
     control_min: int,
     control_max: int,
     setpoint: int,
@@ -73,7 +73,7 @@ def csv_to_buffer(config_path: Path, csv_path: Path, output_path: Path) -> None:
     output_path = Path(output_path).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    process_variable_max = float(base_config.env.args.process_variable_max)
+    process_variable_max = int(base_config.env.args.process_variable_max)
     control_min = int(base_config.env.args.control_min)
     control_max = int(base_config.env.args.control_max)
     setpoint = int(base_config.env.args.setpoint)

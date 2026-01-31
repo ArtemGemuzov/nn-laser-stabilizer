@@ -28,7 +28,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         control_min: int,
         control_max: int,
         max_control_delta: int,
-        process_variable_max: float,
+        process_variable_max: int,
     ):
         super().__init__()
 
