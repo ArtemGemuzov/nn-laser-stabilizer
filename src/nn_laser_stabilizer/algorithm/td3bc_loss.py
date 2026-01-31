@@ -61,6 +61,6 @@ class TD3BCLoss:
             q_dataset, _ = self._critic1(observations, dataset_actions)
             lambda_coef = 1.0 / (torch.abs(q_dataset).mean().item() + self.EPSILON)
 
-        policy_term = -lambda_coef * q_value.mean()
+        td3_term = -lambda_coef * q_value.mean()
         bc_term = self.alpha * F.mse_loss(actions, dataset_actions)
-        return policy_term, bc_term
+        return td3_term, bc_term
