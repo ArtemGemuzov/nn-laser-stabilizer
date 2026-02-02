@@ -51,12 +51,36 @@ class PidDeltaTuningEnv(BaseEnv):
         kp_delta_max = (kp_max - kp_min) * kp_delta_scale
         ki_delta_max = (ki_max - ki_min) * ki_delta_scale
         kd_delta_max = (kd_max - kd_min) * kd_delta_scale
-        self._normalize_kp = partial(normalize_to_minus1_plus1, kp_min, kp_max)
-        self._normalize_ki = partial(normalize_to_minus1_plus1, ki_min, ki_max)
-        self._normalize_kd = partial(normalize_to_minus1_plus1, kd_min, kd_max)
-        self._denormalize_kp_delta = partial(denormalize_from_minus1_plus1, -kp_delta_max, kp_delta_max)
-        self._denormalize_ki_delta = partial(denormalize_from_minus1_plus1, -ki_delta_max, ki_delta_max)
-        self._denormalize_kd_delta = partial(denormalize_from_minus1_plus1, -kd_delta_max, kd_delta_max)
+        self._normalize_kp = partial(
+            normalize_to_minus1_plus1,
+            min_val=kp_min,
+            max_val=kp_max,
+        )
+        self._normalize_ki = partial(
+            normalize_to_minus1_plus1,
+            min_val=ki_min,
+            max_val=ki_max,
+        )
+        self._normalize_kd = partial(
+            normalize_to_minus1_plus1,
+            min_val=kd_min,
+            max_val=kd_max,
+        )
+        self._denormalize_kp_delta = partial(
+            denormalize_from_minus1_plus1,
+            min_val=-kp_delta_max,
+            max_val=kp_delta_max,
+        )
+        self._denormalize_ki_delta = partial(
+            denormalize_from_minus1_plus1,
+            min_val=-ki_delta_max,
+            max_val=ki_delta_max,
+        )
+        self._denormalize_kd_delta = partial(
+            denormalize_from_minus1_plus1,
+            min_val=-kd_delta_max,
+            max_val=kd_delta_max,
+        )
 
         self._precision_weight = precision_weight
         self._stability_weight = stability_weight

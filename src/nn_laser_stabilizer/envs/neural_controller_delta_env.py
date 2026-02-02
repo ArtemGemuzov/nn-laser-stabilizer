@@ -32,14 +32,26 @@ class NeuralControllerDeltaEnv(BaseEnv):
     ):
         super().__init__()
 
-        self._normalize_pv = partial(normalize_to_01, 0.0, float(process_variable_max))
-        self._normalize_control = partial(normalize_to_minus1_plus1, float(control_min), float(control_max))
+        self._normalize_pv = partial(
+            normalize_to_01,
+            min_val=0.0,
+            max_val=float(process_variable_max),
+        )
+        self._normalize_control = partial(
+            normalize_to_minus1_plus1,
+            min_val=float(control_min),
+            max_val=float(control_max),
+        )
         self._denormalize_delta = partial(
             denormalize_from_minus1_plus1,
-            -float(max_control_delta),
-            float(max_control_delta),
+            min_val=-float(max_control_delta),
+            max_val=float(max_control_delta),
         )
-        self._normalize_reward = partial(normalize_to_minus1_plus1, -1.0, 0.0)
+        self._normalize_reward = partial(
+            normalize_to_minus1_plus1,
+            min_val=-1.0,
+            max_val=0.0,
+        )
 
         self._base_logger = base_logger
         self._env_logger = PrefixedLogger(self._base_logger, NeuralControllerDeltaEnv.LOG_PREFIX)
