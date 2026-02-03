@@ -1,4 +1,4 @@
-type: td3
+type: td3bc
 gamma: 0.95
 policy_noise: 0.05
 noise_clip: 0.125
