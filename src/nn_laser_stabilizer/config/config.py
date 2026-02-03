@@ -62,7 +62,7 @@ class Config:
     """
     __slots__ = ('_data',)
     
-    def __init__(self, data: dict[str, Any]):
+    def __init__(self, data: dict[str, Any] = {}):
         object.__setattr__(self, '_data', data)
     
     def __setattr__(self, name: str, value: Any) -> None:

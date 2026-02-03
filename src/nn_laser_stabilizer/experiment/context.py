@@ -13,15 +13,14 @@ class ExperimentContext:
         self,
         config: Config,
     ):
-        self.config: Config = config
-
+        self._config: Config = config
         self._seed: int = 0
 
     def __enter__(self):
         start_time = datetime.now()
         timestamp = start_time.strftime("%Y-%m-%d_%H-%M-%S")
 
-        self._experiment_name = self.config.get("experiment_name", "unnamed_experiment")
+        self._experiment_name = self._config.experiment_name
         experiments_dir = get_or_create_experiments_dir()
         self._experiment_dir: Path = experiments_dir / self._experiment_name / timestamp
         self._experiment_dir.mkdir(parents=True, exist_ok=True)
@@ -32,7 +31,7 @@ class ExperimentContext:
             "CONFIGS_DIR": str(get_configs_dir()),
             "DATA_DIR": str(get_data_dir()),
         }
-        self.config = self.config.substitute_placeholders(variables)
+        self._config = self._config.substitute_placeholders(variables)
 
         self._set_seed()
         self._save_config()
@@ -69,15 +68,15 @@ class ExperimentContext:
 
     def _save_config(self) -> None:
         config_path = self._experiment_dir / "config.yaml"
-        self.config.save(config_path)
+        self._config.save(config_path)
 
     def _set_seed(self) -> None:
-        self._seed = self.config.get("seed")
+        self._seed = self._config.get("seed")
         if self._seed is None:
             self._seed = generate_random_seed()
-            config_dict = self.config.to_dict()
+            config_dict = self._config.to_dict()
             config_dict["seed"] = self._seed
-            self.config = Config(config_dict)
+            self._config = Config(config_dict)
         set_seeds(self._seed)
 
     def _setup_logger(self) -> None:
