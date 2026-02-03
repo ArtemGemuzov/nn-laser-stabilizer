@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 from torch import Tensor
 
@@ -142,7 +141,7 @@ class TD3Updater:
         self._critic1_target.save(models_dir / self.CRITIC1_TARGET_FILENAME)
         self._critic2_target.save(models_dir / self.CRITIC2_TARGET_FILENAME)
 
-    def update_step(self, batch: tuple[Tensor, ...]) -> tuple[float, float, Optional[float]]:
+    def update_step(self, batch: tuple[Tensor, ...]) -> dict[str, float]:
         obs, actions, rewards, next_obs, dones = batch
 
         loss_q1, loss_q2 = self._loss_module.critic_loss(
@@ -150,14 +149,13 @@ class TD3Updater:
         )
         self._critic_optimizer.step((loss_q1 + loss_q2).sum())
 
-        actor_loss_value: Optional[Tensor] = None
+        metrics: dict[str, float] = {
+            "loss_q1": loss_q1.item(),
+            "loss_q2": loss_q2.item(),
+        }
         if self._should_update_actor_and_target():
             actor_loss_value = self._loss_module.actor_loss(obs)
             self._actor_optimizer.step(actor_loss_value)
             self._soft_updater.update()
-
-        return (
-            loss_q1.item(),
-            loss_q2.item(),
-            actor_loss_value.item() if actor_loss_value is not None else None,
-        )
+            metrics["actor_loss"] = actor_loss_value.item()
+        return metrics

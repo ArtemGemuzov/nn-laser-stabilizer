@@ -64,8 +64,8 @@ class BCUpdater:
         models_dir.mkdir(parents=True, exist_ok=True)
         self._actor.save(models_dir / self.ACTOR_FILENAME)
 
-    def update_step(self, batch: tuple[Tensor, ...]) -> tuple[float, float, float]:
+    def update_step(self, batch: tuple[Tensor, ...]) -> dict[str, float]:
         obs, actions, *_ = batch
         actor_loss = self._loss_module.actor_loss(obs, dataset_actions=actions)
         self._actor_optimizer.step(actor_loss)
-        return (0.0, 0.0, actor_loss.item())
+        return {"actor_loss": actor_loss.item()}
