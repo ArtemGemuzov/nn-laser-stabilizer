@@ -68,6 +68,17 @@ def get_or_create_experiments_dir() -> Path:
     return get_or_create_dir(EXPERIMENTS_DIR_NAME)
 
 
+def get_experiment_dir(
+    *,
+    experiment_name: str,
+    experiment_date: str,
+    experiment_time: str,
+) -> Path:
+    experiments_dir = get_experiments_dir()
+    date_time = f"{experiment_date}_{experiment_time}"
+    return experiments_dir / experiment_name / date_time
+
+
 class WorkingDirectoryContext:
     def __init__(self, target_dir: Path):
         self.target_dir = Path(target_dir)
