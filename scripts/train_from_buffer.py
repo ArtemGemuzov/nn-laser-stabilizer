@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 import argparse
 import time
 
@@ -16,14 +15,11 @@ from nn_laser_stabilizer.config.config import load_config, find_config_path
 from nn_laser_stabilizer.algorithm.algorithm import make_updater_from_config
 
 
-def train_from_buffer(config_path: Path, buffer_path_override: Optional[Path] = None) -> None:
+def train_from_buffer(config_path: Path, buffer_path: Path) -> None:
     config_path = find_config_path(config_path)
     config = load_config(config_path)
 
-    base_config = config.base_config
-    buffer_path = Path(
-        buffer_path_override if buffer_path_override is not None else config.get("buffer_path", "data/replay_buffer.pth")
-    ).resolve()
+    buffer_path = buffer_path.resolve()
     if not buffer_path.exists():
         raise FileNotFoundError(f"Buffer file not found: {buffer_path}")
 
@@ -35,11 +31,11 @@ def train_from_buffer(config_path: Path, buffer_path_override: Optional[Path] = 
         context.logger.log(f"Buffer loaded. Size: {len(buffer)} / capacity={buffer.capacity}")
 
         observation_space, action_space = make_spaces_from_config(
-            base_config.env,
+            config.env,
             seed=context.seed,
         )
 
-        network_config = base_config.network
+        network_config = config.network
 
         actor = make_actor_from_config(
             network_config=network_config,
@@ -53,7 +49,7 @@ def train_from_buffer(config_path: Path, buffer_path_override: Optional[Path] = 
             action_dim=action_space.dim,
         ).train()
 
-        updater_cfg = base_config.updater
+        updater_cfg = config.updater
         updater = make_updater_from_config(
             updater_config=updater_cfg,
             actor=actor,
@@ -70,23 +66,23 @@ def train_from_buffer(config_path: Path, buffer_path_override: Optional[Path] = 
 
         sampler = make_sampler_from_config(
             buffer=buffer,
-            sampler_config=base_config.sampler,
+            sampler_config=config.sampler,
         )
 
-        train_log_dir = Path(base_config.training.log_dir)
+        train_log_dir = Path(config.training.log_dir)
         train_logger = PrefixedLogger(
             logger=SyncFileLogger(
                 log_dir=train_log_dir,
-                log_file=base_config.training.log_file,
+                log_file=config.training.log_file,
             ),
             prefix=TRAIN_LOG_PREFIX,
         )
 
         try:
-            num_steps = base_config.training.num_steps
+            num_steps = config.training.num_steps
             infinite_steps = num_steps == -1
 
-            log_frequency = base_config.training.log_frequency
+            log_frequency = config.training.log_frequency
             logging_enabled = log_frequency > 0
 
             context.logger.log(f"Training from buffer started. Buffer size: {len(buffer)}")
@@ -140,14 +136,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=str,
-        default="train_from_buffer",
-        help="Relative path to config inside 'configs/' (without .yaml). Default: train_from_buffer",
+        required=True,
+        help="Relative path to *flat* training config inside 'configs/' (without .yaml).",
     )
     parser.add_argument(
         "--buffer",
-        type=str,
-        default=None,
-        help="Path to .pth replay buffer file. Overrides config buffer_path if set.",
+        type=Path,
+        required=True,
+        help="Path to .pth replay buffer file.",
     )
     return parser.parse_args()
 
@@ -156,5 +152,5 @@ if __name__ == "__main__":
     args = parse_args()
     train_from_buffer(
         config_path=Path(args.config),
-        buffer_path_override=Path(args.buffer) if args.buffer else None,
+        buffer_path=args.buffer,
     )
