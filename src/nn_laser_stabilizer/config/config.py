@@ -112,7 +112,12 @@ class Config:
     def substitute_placeholders(self, variables: dict[str, Any]) -> "Config":
         substituted_data = _substitute_placeholders(self._data, variables)
         return Config(substituted_data)
-    
+
+    def with_key(self, key: str, value: Any) -> "Config":
+        data = self.to_dict()
+        data[key] = value
+        return Config(data)
+
     def save(self, path: Path) -> None:
         with open(path, 'w', encoding='utf-8') as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False, allow_unicode=True, sort_keys=False)
