@@ -5,7 +5,7 @@ import traceback
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.experiment.seed import set_seeds, generate_random_seed
 from nn_laser_stabilizer.logger import ConsoleLogger
-from nn_laser_stabilizer.paths import get_resources_dir, get_configs_dir, get_data_dir, get_or_create_experiments_dir
+from nn_laser_stabilizer.paths import get_resources_dir, get_configs_dir, get_data_dir, get_experiment_dir
 
 
 class ExperimentContext:
@@ -22,11 +22,15 @@ class ExperimentContext:
 
     def __enter__(self):
         start_time = datetime.now()
-        timestamp = start_time.strftime("%Y-%m-%d_%H-%M-%S")
-
+        date = start_time.strftime("%Y-%m-%d")
+        time = start_time.strftime("%H-%M-%S")
+        
         self._experiment_name = self._config.experiment_name
-        experiments_dir = get_or_create_experiments_dir()
-        self._experiment_dir: Path = experiments_dir / self._experiment_name / timestamp
+        self._experiment_dir: Path = get_experiment_dir(
+            experiment_name=self._experiment_name,
+            experiment_date=date,
+            experiment_time=time
+        )
         self._experiment_dir.mkdir(parents=True, exist_ok=True)
 
         variables = {
