@@ -115,13 +115,7 @@ def offline_train(
         finally:
             context.logger.log("Saving models...")
             models_dir = Path("models")
-            models_dir.mkdir(parents=True, exist_ok=True)
-            updater.actor.save(models_dir / "actor.pth")
-            updater.critic1.save(models_dir / "critic1.pth")
-            updater.critic2.save(models_dir / "critic2.pth")
-            updater.actor_target.save(models_dir / "actor_target.pth")
-            updater.critic1_target.save(models_dir / "critic1_target.pth")
-            updater.critic2_target.save(models_dir / "critic2_target.pth")
+            updater.save_models(models_dir)
             context.logger.log(f"Models saved to {models_dir}")
 
             train_logger.close()

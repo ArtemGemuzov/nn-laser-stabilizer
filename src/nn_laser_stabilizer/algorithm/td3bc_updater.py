@@ -1,5 +1,5 @@
+from pathlib import Path
 from typing import Optional
-
 
 from torch import Tensor
 
@@ -13,6 +13,13 @@ from nn_laser_stabilizer.algorithm.utils import OptimizerFactory, build_soft_upd
 
 
 class TD3BCUpdater:
+    ACTOR_FILENAME = "actor.pth"
+    CRITIC1_FILENAME = "critic1.pth"
+    CRITIC2_FILENAME = "critic2.pth"
+    ACTOR_TARGET_FILENAME = "actor_target.pth"
+    CRITIC1_TARGET_FILENAME = "critic1_target.pth"
+    CRITIC2_TARGET_FILENAME = "critic2_target.pth"
+
     def __init__(
         self,
         actor: Actor,
@@ -129,6 +136,15 @@ class TD3BCUpdater:
     def _should_update_actor_and_target(self) -> bool:
         self._step += 1
         return (self._step % self._policy_freq) == 0
+
+    def save_models(self, models_dir: Path) -> None:
+        models_dir.mkdir(parents=True, exist_ok=True)
+        self._actor.save(models_dir / self.ACTOR_FILENAME)
+        self._critic1.save(models_dir / self.CRITIC1_FILENAME)
+        self._critic2.save(models_dir / self.CRITIC2_FILENAME)
+        self._actor_target.save(models_dir / self.ACTOR_TARGET_FILENAME)
+        self._critic1_target.save(models_dir / self.CRITIC1_TARGET_FILENAME)
+        self._critic2_target.save(models_dir / self.CRITIC2_TARGET_FILENAME)
 
     def update_step(self, batch: tuple[Tensor, ...]) -> tuple[float, float, Optional[float]]:
         obs, actions, rewards, next_obs, dones = batch

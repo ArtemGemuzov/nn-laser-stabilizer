@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from torch import Tensor
 
 from nn_laser_stabilizer.algorithm.bc_loss import BCLoss
@@ -8,6 +10,8 @@ from nn_laser_stabilizer.model.critic import Critic
 
 
 class BCUpdater:
+    ACTOR_FILENAME = "actor.pth"
+
     def __init__(
         self,
         actor: Actor,
@@ -55,6 +59,10 @@ class BCUpdater:
     @property
     def critic2_target(self) -> None:
         return None
+
+    def save_models(self, models_dir: Path) -> None:
+        models_dir.mkdir(parents=True, exist_ok=True)
+        self._actor.save(models_dir / self.ACTOR_FILENAME)
 
     def update_step(self, batch: tuple[Tensor, ...]) -> tuple[float, float, float]:
         obs, actions, *_ = batch
