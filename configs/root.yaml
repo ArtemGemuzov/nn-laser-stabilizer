@@ -1,0 +1,32 @@
+experiment_name: neural_controller_delta_mlp_256_256
+seed: 1
+
+env:
+  _include: "{CONFIGS_DIR}/envs/neural_pid_delta"
+
+training:
+  _include: "{CONFIGS_DIR}/common/training_neural"
+
+exploration:
+  _include: "{CONFIGS_DIR}/common/exploration_ou"
+
+collector:
+  _include: "{CONFIGS_DIR}/collectors/async"
+
+validation:
+  _include: "{CONFIGS_DIR}/common/validation_none"
+
+testing:
+  _include: "{CONFIGS_DIR}/common/testing_none"
+
+buffer:
+  _include: "{CONFIGS_DIR}/buffers/100k"
+
+sampler:
+  _include: "{CONFIGS_DIR}/samplers/single"
+
+network:
+  _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+
+updater:
+  _include: "{CONFIGS_DIR}/updaters/td3_default"
