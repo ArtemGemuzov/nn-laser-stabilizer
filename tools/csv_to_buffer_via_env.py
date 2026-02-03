@@ -7,9 +7,10 @@ import pandas as pd
 import torch
 
 from nn_laser_stabilizer.config.config import Config, find_and_load_config
+from nn_laser_stabilizer.paths import get_data_dir
 from nn_laser_stabilizer.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.envs.env_wrapper import TorchEnvWrapper
-from nn_laser_stabilizer.envs.neural_controller_env import NeuralControllerEnv
+from nn_laser_stabilizer.envs.neural_pid_delta_env import NeuralPIDDeltaEnv
 from nn_laser_stabilizer.envs.plant_backend import MockPlantBackend
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import NoOpLogger
@@ -25,13 +26,15 @@ def csv_to_buffer_via_env(
 ) -> None:
     config = find_and_load_config(env_config_path)
     env_args = config.args
+    env_name = config.name
 
     control_min = int(env_args.control_min)
     control_max = int(env_args.control_max)
-    normalize_control = partial(
+    max_control_delta = int(env_args.max_control_delta)
+    normalize_delta = partial(
         normalize_to_minus1_plus1,
-        min_val=float(control_min),
-        max_val=float(control_max),
+        min_val=-float(max_control_delta),
+        max_val=float(max_control_delta),
     )
 
     process_variable_max = int(env_args.process_variable_max)
@@ -75,7 +78,8 @@ def csv_to_buffer_via_env(
         setpoint=setpoint,
     )
     base_logger = NoOpLogger()
-    base_env = NeuralControllerEnv(
+    base_env = NeuralPIDDeltaEnv(
+        max_control_delta=max_control_delta,
         backend=backend,
         base_logger=base_logger,
         control_min=control_min,
@@ -95,9 +99,15 @@ def csv_to_buffer_via_env(
 
     obs, _ = env.reset()
     for step_idx in range(num_steps):
-        control_output = int(control_outputs[step_idx + 1])
-        action_norm = normalize_control(float(control_output))
-        action = torch.tensor([action_norm], dtype=torch.float32)
+        control_prev = int(control_outputs[step_idx])
+        control_curr = int(control_outputs[step_idx + 1])
+        delta = control_curr - control_prev
+        if delta > max_control_delta:
+            delta = max_control_delta
+        elif delta < -max_control_delta:
+            delta = -max_control_delta
+        delta_norm = normalize_delta(float(delta))
+        action = torch.tensor([delta_norm], dtype=torch.float32)
 
         next_obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
@@ -122,7 +132,10 @@ def csv_to_buffer_via_env(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Convert CSV to replay buffer via NeuralControllerEnv.",
+        description=(
+            "Convert CSV to replay buffer via delta env "
+            "NeuralPIDDeltaEnv with MockPlantBackend."
+        ),
     )
     parser.add_argument(
         "--env-config",
@@ -147,18 +160,23 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
+    data_dir = get_data_dir()
+    csv_path = Path(args.csv_path)
+    if not csv_path.is_absolute():
+        csv_path = (data_dir / csv_path).resolve()
+
     experiment_config = Config({
         "experiment_name": "csv_to_buffer_via_env",
         "env_config": args.env_config,
-        "csv_path": args.csv_path,
+        "csv_path": csv_path,
     })
     with ExperimentContext(experiment_config) as context, WorkingDirectoryContext(context.experiment_dir):
         context.logger.log(
-            f"csv_to_buffer_via_env: env_config={args.env_config} csv={args.csv_path}"
+            f"csv_to_buffer_via_env: env_config={args.env_config} csv={csv_path}"
         )
         csv_to_buffer_via_env(
             context=context,
             env_config_path=args.env_config,
-            csv_path=args.csv_path,
+            csv_path=csv_path,
         )
         context.logger.log("csv_to_buffer_via_env: done.")
