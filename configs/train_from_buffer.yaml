@@ -1,4 +1,3 @@
-experiment_name: train_from_buffer
 seed: 1
 
 env:

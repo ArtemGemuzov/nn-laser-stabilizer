@@ -6,9 +6,12 @@ from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import AsyncFileLogger
 
 
-@experiment("setpoint_determination")
+@experiment(
+    experiment_name="determine_setpoint", 
+    config_name="setpoint_determination"
+)
 def main(context: ExperimentContext) -> None:
-    env_args = context.config.env.args
+    env_args = context._config.env.args
     
     port = env_args.port
     timeout = env_args.timeout

@@ -1,4 +1,3 @@
-experiment_name: neural_controller
 seed: 1
 
 env:

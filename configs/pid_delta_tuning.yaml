@@ -1,4 +1,3 @@
-experiment_name: pid_delta_tuning
 seed: 1
 
 env:

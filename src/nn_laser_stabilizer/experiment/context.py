@@ -16,6 +16,10 @@ class ExperimentContext:
         self._config: Config = config
         self._seed: int = 0
 
+    @property
+    def config(self) -> Config:
+        return self._config
+
     def __enter__(self):
         start_time = datetime.now()
         timestamp = start_time.strftime("%Y-%m-%d_%H-%M-%S")

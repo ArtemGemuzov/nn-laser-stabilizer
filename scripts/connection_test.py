@@ -7,7 +7,6 @@
     python scripts/connection_test.py --config connection_test --enable-logging
 """
 
-import argparse
 import time
 import numpy as np
 
@@ -21,7 +20,10 @@ from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger
 
 
-@experiment("connection_test")
+@experiment(
+    experiment_name="connection_test", 
+    config_name="connection_test"
+)
 def main(context: ExperimentContext):
     connection_config = context.config.connection
     port = connection_config.port

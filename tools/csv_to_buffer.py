@@ -1,12 +1,13 @@
+import argparse
 from pathlib import Path
 from typing import Optional, Tuple
-import argparse
 
 import numpy as np
 import pandas as pd
 
-from nn_laser_stabilizer.config.config import load_config, find_config_path
 from nn_laser_stabilizer.data.buffer_loader import load_buffer_from_csv
+from nn_laser_stabilizer.experiment.decorator import experiment
+from nn_laser_stabilizer.experiment.context import ExperimentContext
 
 
 def make_extract_transition(
@@ -64,13 +65,47 @@ def make_extract_transition(
     return extract_transition
 
 
-def csv_to_buffer(config_path: Path, csv_path: Path, output_path: Path) -> None:
-    config_path = find_config_path(config_path)
-    config = load_config(config_path)
+def _make_extra_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Convert CSV to replay buffer (no row trimming).",
+    )
+    parser.add_argument(
+        "--csv",
+        type=str,
+        default=None,
+        help="Path to CSV file. Overrides config csv_data.csv_path if set.",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output path for .pth buffer file. Overrides config csv_data.buffer_output if set.",
+    )
+    return parser
 
+
+@experiment(
+    experiment_name="csv_to_buffer", 
+    config_name="csv_to_buffer", 
+    extra_parser=_make_extra_parser()
+)
+def main(context: ExperimentContext) -> None:
+    config = context.config
     base_config = config.base_config
+    csv_data = config.csv_data
+
+    cli = context.config.cli
+    csv_path = cli.get("csv")
+    csv_path = Path(csv_path) if csv_path is not None else Path(csv_data.csv_path)
     csv_path = csv_path.resolve()
-    output_path = Path(output_path).resolve()
+
+    output_path = cli.get("output")
+    output_path = (
+        Path(output_path)
+        if output_path is not None
+        else Path(csv_data.get("buffer_output", "data/replay_buffer.pth"))
+    )
+    output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     process_variable_max = int(base_config.env.args.process_variable_max)
@@ -89,44 +124,10 @@ def csv_to_buffer(config_path: Path, csv_path: Path, output_path: Path) -> None:
         extract_transition=extract_transition_fn,
     )
     buffer.save(output_path)
-    print(f"Buffer saved: {output_path} (size={len(buffer)}, capacity={buffer.capacity})")
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Convert CSV to replay buffer (no row trimming).",
+    context.logger.log(
+        f"Buffer saved: {output_path} (size={len(buffer)}, capacity={buffer.capacity})"
     )
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="csv_to_buffer",
-        help="Relative path to config inside 'configs/' (without .yaml). Default: csv_to_buffer",
-    )
-    parser.add_argument(
-        "--csv",
-        type=str,
-        default=None,
-        help="Path to CSV file. Overrides config csv_data.csv_path if set.",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="Output path for .pth buffer file. Overrides config buffer_output if set.",
-    )
-    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    config_path = Path(args.config)
-
-    config = load_config(find_config_path(config_path))
-    csv_path = Path(args.csv) if args.csv else Path(config.csv_data.csv_path)
-    output_path = Path(
-        args.output
-        if args.output
-        else config.csv_data.get("buffer_output", "data/replay_buffer.pth")
-    )
-
-    csv_to_buffer(config_path=config_path, csv_path=csv_path, output_path=output_path)
+    main()

@@ -1,4 +1,3 @@
-experiment_name: pid_delta_tuning-inference
 seed: 1
 
 inference:

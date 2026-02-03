@@ -9,7 +9,10 @@ from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 
 
-@experiment("pid_delta_tuning-inference")
+@experiment(
+    experiment_name="inference", 
+    config_name="pid_delta_tuning-inference"
+)
 def main(context: ExperimentContext):
     env_config = context.config.env
     env_factory = partial(

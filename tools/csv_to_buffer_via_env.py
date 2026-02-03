@@ -6,27 +6,59 @@ import numpy as np
 import pandas as pd
 import torch
 
-from nn_laser_stabilizer.config.config import Config, find_and_load_config
+from nn_laser_stabilizer.config.config import find_and_load_config
 from nn_laser_stabilizer.paths import get_data_dir
 from nn_laser_stabilizer.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.envs.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.envs.neural_pid_delta_env import NeuralPIDDeltaEnv
 from nn_laser_stabilizer.envs.plant_backend import MockPlantBackend
+from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import NoOpLogger
 from nn_laser_stabilizer.normalize import normalize_to_minus1_plus1
-from nn_laser_stabilizer.paths import WorkingDirectoryContext
 
 
-def csv_to_buffer_via_env(
-    *,
-    context: ExperimentContext,
-    env_config_path: Path,
-    csv_path: Path
-) -> None:
-    config = find_and_load_config(env_config_path)
-    env_args = config.args
-    env_name = config.name
+def _make_extra_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Convert CSV to replay buffer via delta env "
+            "NeuralPIDDeltaEnv with MockPlantBackend."
+        ),
+    )
+    parser.add_argument(
+        "--env-config",
+        type=str,
+        required=True,
+        help="Path to environment config (e.g. envs/neural_controller or neural_controller).",
+    )
+    parser.add_argument(
+        "--csv-path",
+        type=str,
+        required=True,
+        help="Path to CSV file (process_variable, control_output columns).",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="replay_buffer.pth",
+        help="Path to output .pth buffer file. Default: <experiment_dir>/replay_buffer.pth",
+    )
+    return parser
+
+
+@experiment(
+    experiment_name="csv_to_buffer_via_env", 
+    extra_parser=_make_extra_parser()
+)
+def main(context: ExperimentContext) -> None:
+    cli = context.config.cli
+    env_config_path = Path(cli.env_config)
+    csv_path = Path(cli.csv_path)
+    if not csv_path.is_absolute():
+        csv_path = (get_data_dir() / csv_path).resolve()
+
+    env_config = find_and_load_config(env_config_path)
+    env_args = env_config.args
 
     control_min = int(env_args.control_min)
     control_max = int(env_args.control_max)
@@ -36,7 +68,6 @@ def csv_to_buffer_via_env(
         min_val=-float(max_control_delta),
         max_val=float(max_control_delta),
     )
-
     process_variable_max = int(env_args.process_variable_max)
     setpoint = int(env_args.setpoint)
 
@@ -123,60 +154,13 @@ def csv_to_buffer_via_env(
 
     env.close()
 
-    output_path = Path("replay_buffer.pth")
+    output_path = Path(cli.output)
     buffer.save(output_path)
     context.logger.log(
         f"Buffer saved: {output_path} (size={len(buffer)}, capacity={buffer.capacity})"
     )
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Convert CSV to replay buffer via delta env "
-            "NeuralPIDDeltaEnv with MockPlantBackend."
-        ),
-    )
-    parser.add_argument(
-        "--env-config",
-        type=Path,
-        required=True,
-        help="Path to environment config (e.g. envs/neural_controller or neural_controller).",
-    )
-    parser.add_argument(
-        "--csv-path",
-        type=Path,
-        required=True,
-        help="Path to CSV file (process_variable, control_output columns).",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=None,
-        help="Path to output .pth buffer file. Default: <experiment_dir>/replay_buffer.pth",
-    )
-    return parser.parse_args()
+    context.logger.log("csv_to_buffer_via_env: done.")
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    data_dir = get_data_dir()
-    csv_path = Path(args.csv_path)
-    if not csv_path.is_absolute():
-        csv_path = (data_dir / csv_path).resolve()
-
-    experiment_config = Config({
-        "experiment_name": "csv_to_buffer_via_env",
-        "env_config": args.env_config,
-        "csv_path": csv_path,
-    })
-    with ExperimentContext(experiment_config) as context, WorkingDirectoryContext(context.experiment_dir):
-        context.logger.log(
-            f"csv_to_buffer_via_env: env_config={args.env_config} csv={csv_path}"
-        )
-        csv_to_buffer_via_env(
-            context=context,
-            env_config_path=args.env_config,
-            csv_path=csv_path,
-        )
-        context.logger.log("csv_to_buffer_via_env: done.")
+    main()

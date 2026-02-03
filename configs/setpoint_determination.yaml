@@ -1,4 +1,3 @@
-experiment_name: setpoint_determination
 seed: 1
 
 env:

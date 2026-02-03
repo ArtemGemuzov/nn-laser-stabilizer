@@ -12,7 +12,8 @@ from nn_laser_stabilizer.envs.env_wrapper import make_env_from_config, get_space
 from nn_laser_stabilizer.policy.policy import Policy
 from nn_laser_stabilizer.policy.utils import make_policy_from_config
 from nn_laser_stabilizer.optimizer import Optimizer
-from nn_laser_stabilizer.experiment.decorator import experiment, ExperimentContext
+from nn_laser_stabilizer.experiment.decorator import experiment
+from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.model.actor import make_actor_from_config
 from nn_laser_stabilizer.model.critic import make_critic_from_config
@@ -47,7 +48,10 @@ def validate(
     return np.array(rewards)
 
 
-@experiment("neural_controller")
+@experiment(
+    experiment_name="train_online", 
+    config_name="neural_controller"
+)
 def main(context: ExperimentContext):
     TRAIN_LOG_PREFIX = "TRAIN"
     
@@ -172,23 +176,17 @@ def main(context: ExperimentContext):
                 
                 batch = sampler.sample()
 
-                loss_q1, loss_q2, actor_loss = updater.update_step(batch)
+                metrics = updater.update_step(batch)
                 
                 if is_async and step >= sync_start_step and step % sync_frequency == 0:
                     cast(AsyncCollector, collector).sync()
                     
                 if logging_enabled and step % log_frequency == 0:
                     timestamp = time.time()
-                    if actor_loss is not None:
-                        train_logger.log(
-                            f"step: actor_loss={actor_loss} buffer_size={len(buffer)} "
-                            f"loss_q1={loss_q1} loss_q2={loss_q2} step={step} time={timestamp}"
-                        )
-                    else:
-                        train_logger.log(
-                            f"step: buffer_size={len(buffer)} "
-                            f"loss_q1={loss_q1} loss_q2={loss_q2} step={step} time={timestamp}"
-                        )
+                    metrics_str = " ".join(f"{k}={v}" for k, v in metrics.items())
+                    train_logger.log(
+                        f"step: {metrics_str} buffer_size={len(buffer)} step={step} time={timestamp}"
+                    )
                 
                 if validation_enabled and step % validation_frequency == 0:
                     rewards = validate(
