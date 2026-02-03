@@ -67,6 +67,14 @@ def get_experiments_dir() -> Path:
 def get_or_create_experiments_dir() -> Path:
     return get_or_create_dir(EXPERIMENTS_DIR_NAME)
 
+def get_experiment_dir_name(
+    *,
+    experiment_name: str,
+    experiment_date: str,
+    experiment_time: str,
+) -> str:
+    return f"{experiment_date}_{experiment_time}_{experiment_name}"
+
 
 def get_experiment_dir(
     *,
@@ -75,8 +83,12 @@ def get_experiment_dir(
     experiment_time: str,
 ) -> Path:
     experiments_dir = get_experiments_dir()
-    date_time = f"{experiment_date}_{experiment_time}"
-    return experiments_dir / experiment_name / date_time
+    experiment_dir_name = get_experiment_dir_name(
+        experiment_name=experiment_name, 
+        experiment_date=experiment_date, 
+        experiment_time=experiment_time
+    )
+    return experiments_dir / experiment_dir_name
 
 
 class WorkingDirectoryContext:
