@@ -9,7 +9,7 @@ from nn_laser_stabilizer.paths import WorkingDirectoryContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.model.actor import make_actor_from_config
 from nn_laser_stabilizer.model.critic import make_critic_from_config
-from nn_laser_stabilizer.envs.env_wrapper import make_spaces_from_config
+from nn_laser_stabilizer.envs.env_wrapper import get_spaces_from_config
 from nn_laser_stabilizer.optimizer import Optimizer
 from nn_laser_stabilizer.config.config import load_config, find_config_path
 from nn_laser_stabilizer.algorithm.algorithm import make_updater_from_config
@@ -31,7 +31,7 @@ def offline_train(
         buffer = ReplayBuffer.load(buffer_path)
         context.logger.log(f"Replay buffer loaded. Size: {len(buffer)} / capacity={buffer.capacity}")
 
-        observation_space, action_space = make_spaces_from_config(
+        observation_space, action_space = get_spaces_from_config(
             context.config.env,
             seed=context.seed,
         )

@@ -95,7 +95,7 @@ def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> Torc
         )
 
 
-def make_spaces_from_config(
+def get_spaces_from_config(
     env_config: Config,
     seed: Optional[int] = None,
 ) -> tuple[Box, Box]:

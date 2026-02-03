@@ -8,7 +8,7 @@ import numpy as np
 from nn_laser_stabilizer.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.collector.collector import AsyncCollector, SyncCollector
-from nn_laser_stabilizer.envs.env_wrapper import make_env_from_config, make_spaces_from_config
+from nn_laser_stabilizer.envs.env_wrapper import make_env_from_config, get_spaces_from_config
 from nn_laser_stabilizer.policy.policy import Policy
 from nn_laser_stabilizer.policy.utils import make_policy_from_config
 from nn_laser_stabilizer.optimizer import Optimizer
@@ -61,9 +61,7 @@ def main(context: ExperimentContext):
     
     is_async = context.config.collector.is_async
     
-    env_factory = partial(make_env_from_config, env_config=context.config.env, seed=context.seed)
-    
-    observation_space, action_space = make_spaces_from_config(context.config.env, seed=context.seed)
+    observation_space, action_space = get_spaces_from_config(context.config.env, seed=context.seed)
     observation_dim = observation_space.dim
     action_dim = action_space.dim
     
@@ -113,6 +111,7 @@ def main(context: ExperimentContext):
     
     if is_async:
         context.logger.log("Starting async collector...")
+        env_factory = partial(make_env_from_config, env_config=context.config.env, seed=context.seed)
         collector = AsyncCollector(
             buffer=buffer,
             policy=policy,
@@ -173,17 +172,23 @@ def main(context: ExperimentContext):
                 
                 batch = sampler.sample()
 
-                metrics = updater.update_step(batch)
+                loss_q1, loss_q2, actor_loss = updater.update_step(batch)
                 
                 if is_async and step >= sync_start_step and step % sync_frequency == 0:
                     cast(AsyncCollector, collector).sync()
                     
                 if logging_enabled and step % log_frequency == 0:
                     timestamp = time.time()
-                    metrics_str = " ".join(f"{k}={v}" for k, v in metrics.items())
-                    train_logger.log(
-                        f"step: {metrics_str} buffer_size={len(buffer)} step={step} time={timestamp}"
-                    )
+                    if actor_loss is not None:
+                        train_logger.log(
+                            f"step: actor_loss={actor_loss} buffer_size={len(buffer)} "
+                            f"loss_q1={loss_q1} loss_q2={loss_q2} step={step} time={timestamp}"
+                        )
+                    else:
+                        train_logger.log(
+                            f"step: buffer_size={len(buffer)} "
+                            f"loss_q1={loss_q1} loss_q2={loss_q2} step={step} time={timestamp}"
+                        )
                 
                 if validation_enabled and step % validation_frequency == 0:
                     rewards = validate(
