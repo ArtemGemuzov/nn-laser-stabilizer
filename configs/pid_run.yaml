@@ -1,0 +1,22 @@
+connection:
+  port: COM3
+  timeout: 0.1
+  baudrate: 115200
+  log_connection: true
+  log_dir: "."
+  log_file: connection.log
+
+pid:
+  kp: 3.5
+  ki: 11.0
+  kd: 0.002
+  dt: 0.005
+  min_output: 0.0
+  max_output: 4095.0
+
+setpoint: 700
+
+num_steps: 0
+
+warmup_steps: 1000
+warmup_output: 2000
