@@ -27,7 +27,8 @@ def experiment(
         @wraps(func)
         def wrapper(*args, **kwargs):
             if extra_parser is not None:
-                parser = argparse.ArgumentParser(parents=[extra_parser])
+                # TODO: надо бы убирать помощь на уровне скриптов
+                parser = argparse.ArgumentParser(parents=[extra_parser], add_help=False)
             else:
                 parser = argparse.ArgumentParser()
             parser.add_argument(
