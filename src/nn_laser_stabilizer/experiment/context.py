@@ -5,7 +5,7 @@ import traceback
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.experiment.seed import set_seeds, generate_random_seed
 from nn_laser_stabilizer.logger import ConsoleLogger
-from nn_laser_stabilizer.paths import get_resources_dir, get_configs_dir, get_data_dir, get_experiment_dir
+from nn_laser_stabilizer.paths import get_resources_dir, get_configs_dir, get_experiment_dir
 
 
 class ExperimentContext:
@@ -37,7 +37,6 @@ class ExperimentContext:
             "EXPERIMENT_DIR": str(self._experiment_dir),
             "RESOURCES_DIR": str(get_resources_dir()),
             "CONFIGS_DIR": str(get_configs_dir()),
-            "DATA_DIR": str(get_data_dir()),
         }
         self._config = self._config.substitute_placeholders(variables)
 

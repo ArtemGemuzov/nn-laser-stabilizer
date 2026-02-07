@@ -67,6 +67,7 @@ def get_experiments_dir() -> Path:
 def get_or_create_experiments_dir() -> Path:
     return get_or_create_dir(EXPERIMENTS_DIR_NAME)
 
+
 def get_experiment_dir_name(
     *,
     experiment_name: str,
