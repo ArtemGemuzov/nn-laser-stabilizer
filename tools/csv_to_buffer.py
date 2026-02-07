@@ -5,9 +5,9 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from nn_laser_stabilizer.data.buffer_loader import load_buffer_from_csv
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
+from nn_laser_stabilizer.rl.data.buffer_loader import load_buffer_from_csv
 
 
 def make_extract_transition(

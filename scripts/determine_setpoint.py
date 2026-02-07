@@ -1,6 +1,6 @@
 from nn_laser_stabilizer.hardware.connection import create_connection
 from nn_laser_stabilizer.connection.pid_connection import ConnectionToPid, LoggingConnectionToPid
-from nn_laser_stabilizer.envs.setpoint import determine_setpoint
+from nn_laser_stabilizer.rl.envs.setpoint import determine_setpoint
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import AsyncFileLogger

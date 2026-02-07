@@ -1,0 +1,182 @@
+from functools import partial
+from typing import Optional
+
+import numpy as np
+import gymnasium as gym
+
+from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
+from nn_laser_stabilizer.config.config import Config
+from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
+from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
+from nn_laser_stabilizer.normalize import (
+    denormalize_from_minus1_plus1,
+    normalize_to_minus1_plus1,
+    normalize_to_01,
+)
+
+
+class NeuralPIDEnv(BaseEnv):
+    LOG_PREFIX = "ENV"
+
+    def __init__(
+        self,
+        *,
+        backend: PlantBackend,
+        base_logger: Logger,
+        control_min: int,
+        control_max: int,
+        process_variable_max: int,
+    ):
+        super().__init__()
+
+        self._normalize_pv = partial(
+            normalize_to_01,
+            min_val=0.0,
+            max_val=float(process_variable_max),
+        )
+        self._normalize_control = partial(
+            normalize_to_minus1_plus1,
+            min_val=float(control_min),
+            max_val=float(control_max),
+        )
+        self._denormalize_control = partial(
+            denormalize_from_minus1_plus1,
+            min_val=float(control_min),
+            max_val=float(control_max),
+        )
+        self._normalize_reward = partial(
+            normalize_to_minus1_plus1,
+            min_val=-1.0,
+            max_val=0.0,
+        )
+
+        self._base_logger = base_logger
+        self._env_logger = PrefixedLogger(self._base_logger, NeuralPIDEnv.LOG_PREFIX)
+        self._backend = backend
+
+        self._step: int = 0
+
+        self._setpoint_norm = self._normalize_pv(backend.setpoint)
+        self._error: float = 0.0
+        self._prev_error: float = 0.0
+        self._integral_error: float = 0.0
+
+        self.action_space = gym.spaces.Box(
+            low=np.array([-1.0], dtype=np.float32),
+            high=np.array([1.0], dtype=np.float32),
+            dtype=np.float32,
+        )
+        self.observation_space = gym.spaces.Box(
+            low=np.array([-1.0, -np.inf, -np.inf], dtype=np.float32),
+            high=np.array([1.0, np.inf, np.inf], dtype=np.float32),
+            dtype=np.float32,
+        )
+
+    def _unpack_action_value(self, action: np.ndarray) -> float:
+        return float(action[0])
+
+    def _apply_control(self, control_output: int) -> int:
+        return self._backend.exchange(control_output)
+
+    def _compute_error(self, process_variable_norm: float) -> None:
+        self._prev_error = self._error
+        self._error = self._setpoint_norm - process_variable_norm
+        self._integral_error += self._error
+
+    def _build_observation(
+        self, process_variable: float, control_output: int
+    ) -> np.ndarray:
+        process_variable_norm = self._normalize_pv(process_variable)
+        self._compute_error(process_variable_norm)
+        d_error_dt = self._error - self._prev_error
+        return np.array(
+            [self._error, d_error_dt, self._integral_error],
+            dtype=np.float32,
+        )
+
+    def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
+        error = float(observation[0])
+        return self._normalize_reward(-abs(error))
+
+    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+        self._step += 1
+
+        control_output_norm = self._unpack_action_value(action)
+        control_output = int(round(self._denormalize_control(control_output_norm)))
+        process_variable = self._apply_control(control_output)
+
+        observation = self._build_observation(process_variable, control_output)
+        reward = self._compute_reward(observation, action)
+
+        log_line = (
+            "step: "
+            f"step={self._step} "
+            f"process_variable={process_variable} setpoint={self._backend.setpoint} "
+            f"error={observation[0]} prev_error={self._prev_error} "
+            f"d_error_dt={observation[1]} integral_error={observation[2]} "
+            f"control_output_norm={control_output_norm} control_output={control_output} "
+            f"reward={reward}"
+        )
+        self._env_logger.log(log_line)
+
+        terminated = truncated = False
+        return observation, reward, terminated, truncated, {}
+
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None,
+    ) -> tuple[np.ndarray, dict]:
+        super().reset(seed=seed)
+
+        self._step = 0
+        self._error = 0.0
+        self._prev_error = 0.0
+        self._integral_error = 0.0
+
+        process_variable, setpoint, control_output = self._backend.reset()
+        self._setpoint_norm = self._normalize_pv(setpoint)
+
+        observation = self._build_observation(process_variable, control_output)
+
+        log_line = (
+            "reset: "
+            f"process_variable={process_variable} setpoint={setpoint} "
+            f"error={observation[0]} prev_error={self._prev_error} "
+            f"d_error_dt={observation[1]} integral_error={observation[2]} "
+            f"control_output={control_output}"
+        )
+        self._env_logger.log(log_line)
+
+        return observation, {}
+
+    def close(self) -> None:
+        self._backend.close()
+        self._base_logger.close()
+
+    @classmethod
+    def from_config(cls, config: Config) -> "NeuralPIDEnv":
+        base_logger = AsyncFileLogger(log_dir=config.args.log_dir, log_file=config.args.log_file)
+        backend = ExperimentalPlantBackend(
+            port=config.args.port,
+            timeout=config.args.timeout,
+            baudrate=config.args.baudrate,
+            setpoint=config.args.setpoint,
+            auto_determine_setpoint=config.args.auto_determine_setpoint,
+            setpoint_determination_steps=config.args.setpoint_determination_steps,
+            setpoint_determination_max_value=config.args.setpoint_determination_max_value,
+            setpoint_determination_factor=config.args.setpoint_determination_factor,
+            control_min=config.args.control_min,
+            control_max=config.args.control_max,
+            reset_value=config.args.reset_value,
+            reset_steps=config.args.reset_steps,
+            log_connection=config.args.log_connection,
+            base_logger=base_logger,
+        )
+        return cls(
+            backend=backend,
+            base_logger=base_logger,
+            control_min=config.args.control_min,
+            control_max=config.args.control_max,
+            process_variable_max=config.args.process_variable_max,
+        )
