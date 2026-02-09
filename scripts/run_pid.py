@@ -1,14 +1,14 @@
+import json
 import signal
 
+import numpy as np
+
 from nn_laser_stabilizer.hardware.connection import create_connection
-from nn_laser_stabilizer.connection.phase_shifter_connection import (
-    ConnectionToPhaseShifter,
-    LoggingConnectionToPhaseShifter,
-)
+from nn_laser_stabilizer.connection.phase_shifter_connection import ConnectionToPhaseShifter
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger
-from nn_laser_stabilizer.pid import PID
+from nn_laser_stabilizer.pid import PIDDelta
 
 
 _running = True
@@ -16,12 +16,11 @@ _running = True
 
 def signal_handler(signum, frame):
     global _running
-    print("\nОстановка...")
     _running = False
 
 
 @experiment(
-    experiment_name="run-pid-v1",
+    experiment_name="run-pid-v2",
     config_name="pid_run",
 )
 def main(context: ExperimentContext):
@@ -33,7 +32,6 @@ def main(context: ExperimentContext):
     port = str(connection_config.port)
     timeout = float(connection_config.timeout)
     baudrate = int(connection_config.baudrate)
-    log_connection = bool(connection_config.log_connection)
     
     pid_config = context.config.pid
     kp = float(pid_config.kp)
@@ -49,14 +47,7 @@ def main(context: ExperimentContext):
     warmup_steps = int(context.config.warmup_steps)
     warmup_output = int(context.config.warmup_output)
     
-    pid = PID(
-        kp=kp,
-        ki=ki,
-        kd=kd,
-        dt=dt,
-        min_output=min_output,
-        max_output=max_output,
-    )
+    pid_delta = PIDDelta(kp=kp, ki=ki, kd=kd, dt=dt)
     
     base_connection = create_connection(
         port=port,
@@ -65,41 +56,60 @@ def main(context: ExperimentContext):
     )
     
     phase_shifter = ConnectionToPhaseShifter(connection=base_connection)
-    connection_logger = None
-    if log_connection:
-        connection_logger = SyncFileLogger(
-            log_dir=connection_config.log_dir,
-            log_file=connection_config.log_file,
-        )
-        phase_shifter = LoggingConnectionToPhaseShifter(
-            connection_to_phase_shifter=phase_shifter,
-            logger=connection_logger,
-        )
+    
+    logger = SyncFileLogger(
+        log_dir=".",
+        log_file="pid_data.jsonl",
+    )
     
     try:
         phase_shifter.open()
         context.logger.log("Соединение открыто")
         
-        if warmup_steps > 0:
-            pid.min_output = warmup_output
-            pid.max_output = warmup_output
+        context.logger.log("Начало работы ПИД...")
         
-        context.logger.log("Запуск PID...")
-
-        step = 0
+        warmup_step = 0
+        is_warming_up = warmup_steps > 0 
         control_output = warmup_output
+        step = 0
         
         while _running:
             process_variable = phase_shifter.exchange(control_output=control_output)
             
-            # TODO: коэффициенты подобраны под работу с масштабом /10
-            control_output = int(pid(process_variable / 10, setpoint / 10))
+            delta = 0.0
+            
+            if is_warming_up:
+                control_output = warmup_output
+                warmup_step += 1
+                
+                if warmup_step >= warmup_steps:
+                    is_warming_up = False
+            else:
+                # TODO: коэффициенты подобраны под работу с масштабом /10
+                delta = pid_delta(process_variable / 10, setpoint / 10)
+                control_output = int(np.clip(
+                    control_output + delta,
+                    min_output,
+                    max_output,
+                ))
+                
+                if control_output >= max_output or control_output <= min_output:
+                    context.logger.log(
+                        f"Сигнал вышел за пределы ({control_output})"
+                    )
+                    is_warming_up = True
+                    warmup_step = 0
+                    control_output = warmup_output
+            
+            logger.log(json.dumps({
+                "step": step,
+                "process_variable": int(process_variable),
+                "control_output": int(control_output),
+                "delta": float(delta),
+                "is_warming_up": is_warming_up,
+            }))
             
             step += 1
-            
-            if step == warmup_steps:
-                pid.min_output = min_output
-                pid.max_output = max_output
             
             if num_steps > 0 and step >= num_steps:
                 break
@@ -110,9 +120,7 @@ def main(context: ExperimentContext):
     
     finally:
         phase_shifter.close()
-        
-        if connection_logger:
-            connection_logger.close()
+        logger.close()
         
         context.logger.log("Соединение закрыто")
 

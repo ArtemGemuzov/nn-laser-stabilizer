@@ -2,9 +2,6 @@ connection:
   port: COM3
   timeout: 0.1
   baudrate: 115200
-  log_connection: true
-  log_dir: "."
-  log_file: connection.log
 
 pid:
   kp: 3.5
