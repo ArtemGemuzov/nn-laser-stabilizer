@@ -76,7 +76,8 @@ def main(context: ExperimentContext):
         while _running:
             process_variable = phase_shifter.exchange(control_output=control_output)
             
-            delta = 0.0
+            # TODO: коэффициенты подобраны под работу с масштабом /10
+            delta = pid_delta(process_variable / 10, setpoint / 10)
             
             if is_warming_up:
                 control_output = warmup_output
@@ -85,8 +86,6 @@ def main(context: ExperimentContext):
                 if warmup_step >= warmup_steps:
                     is_warming_up = False
             else:
-                # TODO: коэффициенты подобраны под работу с масштабом /10
-                delta = pid_delta(process_variable / 10, setpoint / 10)
                 control_output = int(np.clip(
                     control_output + delta,
                     min_output,
