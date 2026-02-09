@@ -1,5 +1,6 @@
 import json
 import signal
+import time
 
 import numpy as np
 
@@ -72,8 +73,14 @@ def main(context: ExperimentContext):
         is_warming_up = warmup_steps > 0 
         control_output = warmup_output
         step = 0
+
+        prev_time = time.perf_counter()
         
         while _running:
+            now = time.perf_counter()
+            delta_time = now - prev_time
+            prev_time = now
+
             process_variable = phase_shifter.exchange(control_output=control_output)
             
             # TODO: коэффициенты подобраны под работу с масштабом /10
@@ -102,6 +109,7 @@ def main(context: ExperimentContext):
             
             logger.log(json.dumps({
                 "step": step,
+                "delta_time": delta_time,
                 "process_variable": int(process_variable),
                 "control_output": int(control_output),
                 "delta": float(delta),
