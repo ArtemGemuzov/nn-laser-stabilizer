@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from nn_laser_stabilizer.rl.algorithm.td3_loss import TD3Loss
+from nn_laser_stabilizer.rl.agents.td3_loss import TD3Loss
 from nn_laser_stabilizer.rl.model.actor import Actor
 from nn_laser_stabilizer.rl.model.critic import Critic
 

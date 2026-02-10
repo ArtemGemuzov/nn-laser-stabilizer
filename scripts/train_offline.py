@@ -10,8 +10,8 @@ from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.model.actor import make_actor_from_config
 from nn_laser_stabilizer.rl.model.critic import make_critic_from_config
 from nn_laser_stabilizer.rl.envs.env_wrapper import get_spaces_from_config
-from nn_laser_stabilizer.rl.algorithm.optimizer import Optimizer
-from nn_laser_stabilizer.rl.algorithm.algorithm import make_updater_from_config
+from nn_laser_stabilizer.rl.agents.optimizer import Optimizer
+from nn_laser_stabilizer.rl.agents.agents import make_updater_from_config
 
 
 def _make_extra_parser() -> argparse.ArgumentParser:

@@ -14,8 +14,8 @@ from nn_laser_stabilizer.rl.collector.collector import SyncCollector, AsyncColle
 from nn_laser_stabilizer.rl.model.actor import make_actor_from_config
 from nn_laser_stabilizer.rl.model.critic import make_critic_from_config
 from nn_laser_stabilizer.rl.envs.env_wrapper import get_spaces_from_config, make_env_from_config
-from nn_laser_stabilizer.rl.algorithm.optimizer import Optimizer
-from nn_laser_stabilizer.rl.algorithm.algorithm import make_updater_from_config
+from nn_laser_stabilizer.rl.agents.optimizer import Optimizer
+from nn_laser_stabilizer.rl.agents.agents import make_updater_from_config
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.policy.utils import make_policy_from_config
 

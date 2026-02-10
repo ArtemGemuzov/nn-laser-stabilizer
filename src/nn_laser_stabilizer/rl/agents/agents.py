@@ -1,9 +1,9 @@
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.config.types import UpdaterType
-from nn_laser_stabilizer.rl.algorithm.bc_updater import BCUpdater
-from nn_laser_stabilizer.rl.algorithm.td3_updater import TD3Updater
-from nn_laser_stabilizer.rl.algorithm.td3bc_updater import TD3BCUpdater
-from nn_laser_stabilizer.rl.algorithm.utils import OptimizerFactory
+from nn_laser_stabilizer.rl.agents.bc_updater import BCUpdater
+from nn_laser_stabilizer.rl.agents.td3_updater import TD3Updater
+from nn_laser_stabilizer.rl.agents.td3bc_updater import TD3BCUpdater
+from nn_laser_stabilizer.rl.agents.utils import OptimizerFactory
 from nn_laser_stabilizer.rl.model.actor import Actor
 from nn_laser_stabilizer.rl.model.critic import Critic
 

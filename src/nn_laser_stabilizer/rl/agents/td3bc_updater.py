@@ -3,11 +3,11 @@ from pathlib import Path
 from torch import Tensor
 
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.rl.algorithm.td3bc_loss import TD3BCLoss
+from nn_laser_stabilizer.rl.agents.td3bc_loss import TD3BCLoss
 from nn_laser_stabilizer.rl.model.actor import Actor
 from nn_laser_stabilizer.rl.model.critic import Critic
-from nn_laser_stabilizer.rl.algorithm.optimizer import SoftUpdater
-from nn_laser_stabilizer.rl.algorithm.utils import OptimizerFactory, build_soft_update_pairs
+from nn_laser_stabilizer.rl.agents.optimizer import SoftUpdater
+from nn_laser_stabilizer.rl.agents.utils import OptimizerFactory, build_soft_update_pairs
 
 
 class TD3BCUpdater:

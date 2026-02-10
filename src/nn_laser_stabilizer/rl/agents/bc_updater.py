@@ -3,8 +3,8 @@ from pathlib import Path
 from torch import Tensor
 
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.rl.algorithm.bc_loss import BCLoss
-from nn_laser_stabilizer.rl.algorithm.utils import OptimizerFactory
+from nn_laser_stabilizer.rl.agents.bc_loss import BCLoss
+from nn_laser_stabilizer.rl.agents.utils import OptimizerFactory
 from nn_laser_stabilizer.rl.model.actor import Actor
 from nn_laser_stabilizer.rl.model.critic import Critic
 
