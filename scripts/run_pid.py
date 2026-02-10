@@ -21,7 +21,7 @@ def signal_handler(signum, frame):
 
 
 @experiment(
-    experiment_name="run-pid-v2",
+    experiment_name="run-pid-v3",
     config_name="pid_run",
 )
 def main(context: ExperimentContext):
@@ -47,6 +47,10 @@ def main(context: ExperimentContext):
     num_steps = int(context.config.num_steps)
     warmup_steps = int(context.config.warmup_steps)
     warmup_output = int(context.config.warmup_output)
+    
+    noise_config = context.config.noise
+    noise_std = float(noise_config.std)
+    noise_clip = float(noise_config.clip)
     
     pid_delta = PIDDelta(kp=kp, ki=ki, kd=kd, dt=dt)
     
@@ -86,15 +90,27 @@ def main(context: ExperimentContext):
             # TODO: коэффициенты подобраны под работу с масштабом /10
             delta = pid_delta(process_variable / 10, setpoint / 10)
             
+            noise = float(np.clip(
+                np.random.normal(0, noise_std),
+                -noise_clip,
+                noise_clip,
+            ))
+            
             if is_warming_up:
                 control_output = warmup_output
+                clean_control_output = warmup_output
                 warmup_step += 1
                 
                 if warmup_step >= warmup_steps:
                     is_warming_up = False
             else:
-                control_output = int(np.clip(
+                clean_control_output = int(np.clip(
                     control_output + delta,
+                    min_output,
+                    max_output,
+                ))
+                control_output = int(np.clip(
+                    clean_control_output + noise,
                     min_output,
                     max_output,
                 ))
@@ -106,13 +122,16 @@ def main(context: ExperimentContext):
                     is_warming_up = True
                     warmup_step = 0
                     control_output = warmup_output
+                    clean_control_output = warmup_output
             
             logger.log(json.dumps({
                 "step": step,
                 "delta_time": delta_time,
                 "process_variable": int(process_variable),
                 "control_output": int(control_output),
+                "clean_control_output": int(clean_control_output),
                 "delta": float(delta),
+                "noise": noise,
                 "is_warming_up": is_warming_up,
             }))
             

@@ -17,3 +17,7 @@ num_steps: 0
 
 warmup_steps: 1000
 warmup_output: 2000
+
+noise:
+  std: 5.0
+  clip: 12.5
