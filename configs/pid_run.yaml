@@ -11,7 +11,7 @@ pid:
   min_output: 0.0
   max_output: 4095.0
 
-setpoint: 700
+setpoint: 1200
 
 num_steps: 0
 
