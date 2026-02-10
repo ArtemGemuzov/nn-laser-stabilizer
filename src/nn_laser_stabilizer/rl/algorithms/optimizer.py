@@ -38,4 +38,3 @@ class SoftUpdater:
     def update(self) -> None:
         for target_param, source_param in self._pairs:
             target_param.data.lerp_(source_param.data, self.tau)
-

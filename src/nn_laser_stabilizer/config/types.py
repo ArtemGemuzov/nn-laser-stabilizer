@@ -18,8 +18,9 @@ class ExplorationType(BaseEnum):
     OU = "ou"
 
 
-class UpdaterType(BaseEnum):
+class AlgorithmType(BaseEnum):
     TD3 = "td3"
     TD3BC = "td3bc"
     BC = "bc"
+    SAC = "sac"
 

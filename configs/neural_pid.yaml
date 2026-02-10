@@ -25,8 +25,12 @@ buffer:
 sampler:
   _include: "{CONFIGS_DIR}/samplers/single"
 
-network:
-  _include: "{CONFIGS_DIR}/networks/mlp_3"
+algorithm:
+  _include: "{CONFIGS_DIR}/algorithms/td3_default"
+  actor:
+    network:
+      _include: "{CONFIGS_DIR}/networks/mlp_3"
+  critic:
+    network:
+      _include: "{CONFIGS_DIR}/networks/mlp_3"
 
-updater:
-  _include: "{CONFIGS_DIR}/updaters/td3_default"

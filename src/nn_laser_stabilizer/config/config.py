@@ -21,6 +21,41 @@ def _substitute_placeholders(data: Any, variables: dict[str, Any]) -> Any:
         return data
 
 
+def _resolve_include_path(
+    path_str: str,
+    configs_dir: Path,
+    load_variables: dict[str, str],
+    visited: set[Path],
+) -> dict[str, Any]:
+    if not isinstance(path_str, str):
+        raise ValueError(f"_include value must be a string path, got {type(path_str)}")
+    resolved_path_str = path_str
+    for var_name, var_value in load_variables.items():
+        resolved_path_str = resolved_path_str.replace(f"{{{var_name}}}", var_value)
+    include_path = Path(resolved_path_str)
+    if not include_path.is_absolute():
+        include_path = (configs_dir / include_path).resolve()
+    if not include_path.suffix:
+        include_path = include_path.with_suffix(".yaml")
+    elif include_path.suffix not in (".yaml", ".yml"):
+        include_path = include_path.with_suffix(".yaml")
+    if not include_path.exists():
+        raise FileNotFoundError(f"Included config not found: {include_path}")
+    included = load_config(include_path, configs_dir=configs_dir, visited=visited)
+    return included.to_dict()
+
+
+def _deep_merge(base: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
+    """Рекурсивный merge: overrides переопределяют base, вложенные dict мержатся."""
+    result = base.copy()
+    for key, value in overrides.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 def _resolve_includes(
     data: Any,
     configs_dir: Path,
@@ -28,24 +63,19 @@ def _resolve_includes(
     visited: set[Path],
 ) -> Any:
     if isinstance(data, dict):
-        if "_include" in data and len(data) == 1:
-            path_str = data["_include"]
-            if not isinstance(path_str, str):
-                raise ValueError(f"_include value must be a string path, got {type(path_str)}")
-            resolved_path_str = path_str
-            for var_name, var_value in load_variables.items():
-                resolved_path_str = resolved_path_str.replace(f"{{{var_name}}}", var_value)
-            include_path = Path(resolved_path_str)
-            if not include_path.is_absolute():
-                include_path = (configs_dir / include_path).resolve()
-            if not include_path.suffix:
-                include_path = include_path.with_suffix(".yaml")
-            elif include_path.suffix not in (".yaml", ".yml"):
-                include_path = include_path.with_suffix(".yaml")
-            if not include_path.exists():
-                raise FileNotFoundError(f"Included config not found: {include_path}")
-            included = load_config(include_path, configs_dir=configs_dir, visited=visited)
-            return included.to_dict()
+        if "_include" in data:
+            base = _resolve_include_path(
+                data["_include"], configs_dir, load_variables, visited,
+            )
+            if len(data) == 1:
+                return base
+            # _include с дополнительными ключами: включённый конфиг
+            # служит базой, остальные ключи мержатся поверх (глубокий merge).
+            overrides = {
+                k: _resolve_includes(v, configs_dir, load_variables, visited)
+                for k, v in data.items() if k != "_include"
+            }
+            return _deep_merge(base, overrides)
         return {
             k: _resolve_includes(v, configs_dir, load_variables, visited)
             for k, v in data.items()

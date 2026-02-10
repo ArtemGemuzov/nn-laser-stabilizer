@@ -11,13 +11,9 @@ from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.collector.collector import SyncCollector, AsyncCollector
-from nn_laser_stabilizer.rl.model.actor import make_actor_from_config
-from nn_laser_stabilizer.rl.model.critic import make_critic_from_config
 from nn_laser_stabilizer.rl.envs.env_wrapper import get_spaces_from_config, make_env_from_config
-from nn_laser_stabilizer.rl.agents.optimizer import Optimizer
-from nn_laser_stabilizer.rl.agents.agents import make_updater_from_config
+from nn_laser_stabilizer.rl.algorithms.factory import build_algorithm
 from nn_laser_stabilizer.rl.policy.policy import Policy
-from nn_laser_stabilizer.rl.policy.utils import make_policy_from_config
 
 
 def validate(
@@ -79,39 +75,15 @@ def main(context: ExperimentContext):
         sampler_config=context.config.sampler
     )
 
-    network_config = context.config.network
-    
-    actor = make_actor_from_config(
-        action_space=action_space,
+    agent, learner = build_algorithm(
+        algorithm_config=context.config.algorithm,
         observation_space=observation_space,
-        network_config=network_config,
-    ).train()
-    
-    critic = make_critic_from_config(
-        obs_dim=observation_dim,
-        action_dim=action_dim,
-        network_config=network_config,
-    ).train()
+        action_space=action_space,
+    )
 
-    policy = make_policy_from_config(
-        actor=actor,
+    policy = agent.policy(
         exploration_config=context.config.exploration,
     ).train()
-
-    updater_cfg = context.config.updater
-    updater = make_updater_from_config(
-        updater_config=updater_cfg,
-        actor=actor,
-        critic=critic,
-        actor_optimizer_factory=lambda params: Optimizer(
-            params,
-            lr=updater_cfg.actor_lr,
-        ),
-        critic_optimizer_factory=lambda params: Optimizer(
-            params,
-            lr=updater_cfg.critic_lr,
-        ),
-    )
     
     if is_async:
         context.logger.log("Starting async collector...")
@@ -176,7 +148,7 @@ def main(context: ExperimentContext):
                 
                 batch = sampler.sample()
 
-                metrics = updater.update_step(batch)
+                metrics = learner.update_step(batch)
                 
                 if is_async and step >= sync_start_step and step % sync_frequency == 0:
                     cast(AsyncCollector, collector).sync()
@@ -212,7 +184,7 @@ def main(context: ExperimentContext):
         finally:
             context.logger.log("Saving models...")
             models_dir = Path("models")
-            updater.save_models(models_dir)
+            agent.save_models(models_dir)
             context.logger.log(f"Models saved to {models_dir}")
             
             context.logger.log("Saving replay buffer...")
@@ -227,4 +199,3 @@ def main(context: ExperimentContext):
 
 if __name__ == "__main__":
     main()
-

@@ -1,0 +1,19 @@
+type: td3bc
+gamma: 0.95
+policy_noise: 0.05
+noise_clip: 0.125
+tau: 0.005
+policy_freq: 2
+alpha: 2.5
+
+actor:
+  network:
+    _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+  optimizer:
+    lr: 0.001
+
+critic:
+  network:
+    _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+  optimizer:
+    lr: 0.001

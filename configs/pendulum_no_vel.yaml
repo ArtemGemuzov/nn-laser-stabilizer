@@ -13,11 +13,8 @@ sampler:
 collector:
   _include: "{CONFIGS_DIR}/collectors/sync"
 
-network:
-  _include: "{CONFIGS_DIR}/networks/lstm_64_2"
-
-updater:
-  _include: "{CONFIGS_DIR}/updaters/td3_pendulum"
+algorithm:
+  _include: "{CONFIGS_DIR}/algorithms/td3_pendulum"
 
 training:
   _include: "{CONFIGS_DIR}/common/training_pendulum"

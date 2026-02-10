@@ -1,6 +1,6 @@
 name: NeuralControllerEnv
 args:
-  port: COM3
+  port: localhost:8080
   timeout: 0.1
   baudrate: 115200
   log_connection: false

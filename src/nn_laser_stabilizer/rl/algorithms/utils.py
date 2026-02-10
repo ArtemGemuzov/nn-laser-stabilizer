@@ -3,7 +3,7 @@ from typing import Callable, Iterable
 import torch
 import torch.nn as nn
 
-from nn_laser_stabilizer.rl.agents.optimizer import Optimizer
+from nn_laser_stabilizer.rl.algorithms.optimizer import Optimizer
 
 
 OptimizerFactory = Callable[[Iterable[torch.nn.Parameter]], Optimizer]

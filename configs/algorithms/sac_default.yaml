@@ -1,0 +1,20 @@
+type: sac
+gamma: 0.99
+tau: 0.005
+initial_alpha: 0.2
+auto_alpha: true
+
+actor:
+  network:
+    _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+  optimizer:
+    lr: 0.0003
+
+critic:
+  network:
+    _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+  optimizer:
+    lr: 0.0003
+
+alpha_optimizer:
+  lr: 0.0003

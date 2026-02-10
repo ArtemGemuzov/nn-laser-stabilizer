@@ -7,11 +7,8 @@ from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
-from nn_laser_stabilizer.rl.model.actor import make_actor_from_config
-from nn_laser_stabilizer.rl.model.critic import make_critic_from_config
 from nn_laser_stabilizer.rl.envs.env_wrapper import get_spaces_from_config
-from nn_laser_stabilizer.rl.agents.optimizer import Optimizer
-from nn_laser_stabilizer.rl.agents.agents import make_updater_from_config
+from nn_laser_stabilizer.rl.algorithms.factory import build_algorithm
 
 
 def _make_extra_parser() -> argparse.ArgumentParser:
@@ -38,27 +35,11 @@ def main(context: ExperimentContext) -> None:
     context.logger.log(f"Replay buffer loaded. Size: {len(buffer)} / capacity={buffer.capacity}")
 
     observation_space, action_space = get_spaces_from_config(config.env, seed=context.seed)
-    network_config = config.network
 
-    actor = make_actor_from_config(
-        network_config=network_config,
-        action_space=action_space,
+    agent, learner = build_algorithm(
+        algorithm_config=config.algorithm,
         observation_space=observation_space,
-    ).train()
-
-    critic = make_critic_from_config(
-        network_config=network_config,
-        obs_dim=observation_space.dim,
-        action_dim=action_space.dim,
-    ).train()
-
-    updater_cfg = config.updater
-    updater = make_updater_from_config(
-        updater_config=updater_cfg,
-        actor=actor,
-        critic=critic,
-        actor_optimizer_factory=lambda params: Optimizer(params, lr=updater_cfg.actor_lr),
-        critic_optimizer_factory=lambda params: Optimizer(params, lr=updater_cfg.critic_lr),
+        action_space=action_space,
     )
 
     sampler = make_sampler_from_config(buffer=buffer, sampler_config=config.sampler)
@@ -81,7 +62,7 @@ def main(context: ExperimentContext) -> None:
         while infinite_steps or step < num_steps:
             step += 1
             batch = sampler.sample()
-            metrics = updater.update_step(batch)
+            metrics = learner.update_step(batch)
 
             if logging_enabled and step % log_frequency == 0:
                 timestamp = time.time()
@@ -94,7 +75,7 @@ def main(context: ExperimentContext) -> None:
     finally:
         context.logger.log("Saving models...")
         models_dir = Path("models")
-        updater.save_models(models_dir)
+        agent.save_models(models_dir)
         context.logger.log(f"Models saved to {models_dir}")
 
         train_logger.close()
