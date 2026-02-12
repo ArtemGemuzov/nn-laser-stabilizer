@@ -1,6 +1,8 @@
+import json
+
 from nn_laser_stabilizer.hardware.connection import BaseConnection
 from nn_laser_stabilizer.connection.phase_shifter_protocol import PhaseShifterProtocol
-from nn_laser_stabilizer.logger import Logger, PrefixedLogger
+from nn_laser_stabilizer.logger import Logger
 
 
 class ConnectionToPhaseShifter:
@@ -27,7 +29,7 @@ class ConnectionToPhaseShifter:
 
 
 class LoggingConnectionToPhaseShifter(ConnectionToPhaseShifter):
-    LOG_PREFIX = "PHASE_SHIFTER"
+    LOG_SOURCE = "phase_shifter"
 
     def __init__(
         self,
@@ -35,7 +37,7 @@ class LoggingConnectionToPhaseShifter(ConnectionToPhaseShifter):
         logger: Logger,
     ):
         self._phase_shifter = connection_to_phase_shifter
-        self._logger = PrefixedLogger(logger, LoggingConnectionToPhaseShifter.LOG_PREFIX)
+        self._logger = logger
 
     def open(self) -> None:
         self._phase_shifter.open()
@@ -44,17 +46,30 @@ class LoggingConnectionToPhaseShifter(ConnectionToPhaseShifter):
         self._phase_shifter.close()
 
     def send_command(self, *, control_output: int) -> None:
-        self._logger.log(f"send: control_output={control_output}")
+        self._logger.log(json.dumps({
+            "source": self.LOG_SOURCE,
+            "event": "send",
+            "control_output": control_output,
+        }))
         self._phase_shifter.send_command(control_output=control_output)
 
     def read_response(self) -> int:
         process_variable = self._phase_shifter.read_response()
-        self._logger.log(f"read: process_variable={process_variable}")
+        self._logger.log(json.dumps({
+            "source": self.LOG_SOURCE,
+            "event": "read",
+            "process_variable": process_variable,
+        }))
         return process_variable
 
     def exchange(self, *, control_output: int) -> int:
         self._phase_shifter.send_command(control_output=control_output)
         process_variable = self._phase_shifter.read_response()
-        self._logger.log(f"exchange: control_output={control_output} process_variable={process_variable}")
+        self._logger.log(json.dumps({
+            "source": self.LOG_SOURCE,
+            "event": "exchange",
+            "control_output": control_output,
+            "process_variable": process_variable,
+        }))
         return process_variable
 

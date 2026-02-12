@@ -1,10 +1,11 @@
+import json
 from functools import partial
 from typing import Optional
 
 import numpy as np
 import gymnasium as gym
 
-from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
+from nn_laser_stabilizer.logger import AsyncFileLogger, Logger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
 from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
@@ -17,7 +18,7 @@ from nn_laser_stabilizer.time import CallIntervalTracker
 
 
 class NeuralPIDDeltaEnv(BaseEnv):
-    LOG_PREFIX = "ENV"
+    LOG_SOURCE = "env"
 
     def __init__(
         self,
@@ -44,10 +45,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
             max_val=float(max_control_delta),
         )
 
-        self._base_logger = base_logger
-        self._env_logger = PrefixedLogger(
-            self._base_logger, NeuralPIDDeltaEnv.LOG_PREFIX
-        )
+        self._logger = base_logger
         self._backend = backend
 
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
@@ -122,16 +120,21 @@ class NeuralPIDDeltaEnv(BaseEnv):
         observation, info = self._build_observation(process_variable, control_output)
         reward = self._compute_reward(observation, action)
 
-        log_line = (
-            "step: "
-            f"step={self._step} "
-            f"process_variable={process_variable} setpoint={self._backend.setpoint} "
-            f"error={observation[0]} error_prev={observation[1]} error_prev_prev={observation[2]} "
-            f"delta_norm={delta_norm} delta={delta} control_output={control_output} "
-            f"reward={reward} "
-            f"step_interval={step_interval}us"
-        )
-        self._env_logger.log(log_line)
+        self._logger.log(json.dumps({
+            "source": self.LOG_SOURCE,
+            "event": "step",
+            "step": self._step,
+            "process_variable": process_variable,
+            "setpoint": self._backend.setpoint,
+            "error": float(observation[0]),
+            "error_prev": float(observation[1]),
+            "error_prev_prev": float(observation[2]),
+            "delta_norm": delta_norm,
+            "delta": delta,
+            "control_output": control_output,
+            "reward": reward,
+            "step_interval_us": step_interval,
+        }))
 
         terminated = truncated = False
         return observation, reward, terminated, truncated, info
@@ -159,21 +162,21 @@ class NeuralPIDDeltaEnv(BaseEnv):
             process_variable = self._apply_control(self._reset_value)
             observation, info = self._build_observation(process_variable, self._reset_value)
 
-        log_line = (
-            "reset: "
-            f"setpoint={self._backend.setpoint}"
-        )
-        self._env_logger.log(log_line)
+        self._logger.log(json.dumps({
+            "source": self.LOG_SOURCE,
+            "event": "reset",
+            "setpoint": self._backend.setpoint,
+        }))
 
         return observation, info
 
     def close(self) -> None:
         self._backend.close()
-        self._base_logger.close()
+        self._logger.close()
 
     @classmethod
     def from_config(cls, config: Config) -> "NeuralPIDDeltaEnv":
-        base_logger = AsyncFileLogger(
+        logger = AsyncFileLogger(
             log_dir=config.args.log_dir, log_file=config.args.log_file
         )
         backend = ExperimentalPlantBackend(
@@ -188,11 +191,11 @@ class NeuralPIDDeltaEnv(BaseEnv):
             control_min=config.args.control_min,
             control_max=config.args.control_max,
             log_connection=config.args.log_connection,
-            base_logger=base_logger,
+            base_logger=logger,
         )
         return cls(
             backend=backend,
-            base_logger=base_logger,
+            base_logger=logger,
             control_min=config.args.control_min,
             control_max=config.args.control_max,
             max_control_delta=config.args.max_control_delta,
