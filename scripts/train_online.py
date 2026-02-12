@@ -1,13 +1,14 @@
 from typing import Callable, Dict
 from functools import partial
 from pathlib import Path
+import json
 import time
 
 import numpy as np
 
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
+from nn_laser_stabilizer.logger import SyncFileLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.collector.collector import make_collector_from_config
@@ -50,19 +51,16 @@ def evaluate(
 
 
 @experiment(
-    experiment_name="train_online", 
+    experiment_name="neural_controller-v1", 
     config_name="neural_controller"
 )
 def main(context: ExperimentContext):
-    TRAIN_LOG_PREFIX = "TRAIN"
-    
+    LOG_SOURCE = "train"
+
     context.logger.log("Creating components...")
 
     train_log_dir = Path(context.config.training.log_dir)
-    train_logger = PrefixedLogger(
-        logger=SyncFileLogger(log_dir=train_log_dir, log_file=context.config.training.log_file),
-        prefix=TRAIN_LOG_PREFIX
-    )
+    train_logger = SyncFileLogger(log_dir=train_log_dir, log_file=context.config.training.log_file)
     
     observation_space, action_space = get_spaces_from_config(context.config.env, seed=context.seed)
     observation_dim = observation_space.dim
@@ -139,11 +137,14 @@ def main(context: ExperimentContext):
                     collector.sync()
                     
                 if logging_enabled and step % log_frequency == 0:
-                    timestamp = time.time()
-                    metrics_str = " ".join(f"{k}={v}" for k, v in metrics.items())
-                    train_logger.log(
-                        f"step: {metrics_str} buffer_size={len(buffer)} step={step} time={timestamp}"
-                    )
+                    train_logger.log(json.dumps({
+                        "source": LOG_SOURCE,
+                        "event": "step",
+                        "step": step,
+                        "buffer_size": len(buffer),
+                        "time": time.time(),
+                        **metrics,
+                    }))
                 
                 if evaluation_enabled and step % evaluation_frequency == 0:
                     eval_metrics = evaluate(
@@ -151,10 +152,13 @@ def main(context: ExperimentContext):
                         lambda: make_env_from_config(env_config),
                         num_steps=evaluation_num_steps,
                     )
-                    eval_metrics_str = " ".join(f"{k}={v}" for k, v in eval_metrics.items())
-                    train_logger.log(
-                        f"evaluation: {eval_metrics_str} step={step} time={time.time()}"
-                    )
+                    train_logger.log(json.dumps({
+                        "source": LOG_SOURCE,
+                        "event": "evaluation",
+                        "step": step,
+                        "time": time.time(),
+                        **eval_metrics,
+                    }))
             
             context.logger.log("Training completed.")
             context.logger.log(f"Final buffer size: {len(buffer)}")
