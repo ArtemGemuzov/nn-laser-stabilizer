@@ -51,13 +51,12 @@ class CollectorWorker:
             policy.eval()
             policy.warmup(env.observation_space)
 
-            obs, _ = env.reset()
-            options = {}
+            observation, options = env.reset()
 
             self.connection.send_worker_ready()
 
             for _ in range(self.warmup_steps):
-                obs, options = warmup_step(policy, env, obs, options)
+                observation, options = warmup_step(policy, env, observation, options)
             
             while True:
                 if self.connection.poll():
@@ -69,7 +68,7 @@ class CollectorWorker:
                         self.connection.send_shutdown_complete()
                         break 
                 
-                obs, options = collect_step(policy, env, obs, self.buffer, options)
+                observation, options = collect_step(policy, env, observation, self.buffer, options)
                     
         except KeyboardInterrupt:
             pass
