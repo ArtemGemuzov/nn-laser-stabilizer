@@ -12,8 +12,7 @@ class BoundedValue(Generic[T]):
         self._value: T = self._clip(initial)
 
     def _clip(self, x: T) -> T:
-        clipped: T = np.clip(x, self._min, self._max)
-        return clipped
+        return type(x)(np.clip(x, self._min, self._max))
 
     @property
     def value(self) -> T:
