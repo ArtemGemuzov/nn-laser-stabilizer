@@ -16,11 +16,8 @@ training:
 collector:
   _include: "{CONFIGS_DIR}/collectors/async"
 
-validation:
-  _include: "{CONFIGS_DIR}/common/validation_none"
-
-testing:
-  _include: "{CONFIGS_DIR}/common/testing_none"
+evaluation:
+  _include: "{CONFIGS_DIR}/common/evaluation_none"
 
 buffer:
   _include: "{CONFIGS_DIR}/buffers/10k"

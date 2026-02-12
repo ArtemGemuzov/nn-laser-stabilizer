@@ -22,8 +22,5 @@ training:
 exploration:
   _include: "{CONFIGS_DIR}/common/exploration_random_pendulum"
 
-validation:
-  _include: "{CONFIGS_DIR}/common/validation_pendulum"
-
-testing:
-  _include: "{CONFIGS_DIR}/common/testing_pendulum"
+evaluation:
+  _include: "{CONFIGS_DIR}/common/evaluation_pendulum"

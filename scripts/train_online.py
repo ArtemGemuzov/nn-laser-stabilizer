@@ -1,3 +1,4 @@
+from typing import Callable, Dict
 from functools import partial
 from pathlib import Path
 import time
@@ -10,28 +11,28 @@ from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.collector.collector import make_collector_from_config
-from nn_laser_stabilizer.rl.envs.env_wrapper import get_spaces_from_config, make_env_from_config
+from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper, get_spaces_from_config, make_env_from_config
 from nn_laser_stabilizer.rl.algorithms.factory import build_algorithm
 from nn_laser_stabilizer.rl.policy.policy import Policy
 
 
-def validate(
+def evaluate(
     policy: Policy,
-    env_factory,
-    num_steps: int = 100,
-) -> np.ndarray:
+    env_factory: Callable[[], TorchEnvWrapper],
+    num_steps: int,
+) -> Dict[str, float]:
     policy.eval()
     env = env_factory()
     
-    rewards = []
+    rewards = np.empty(num_steps)
+
     obs, _ = env.reset()
     options = {}  
-    
-    for _ in range(num_steps):
+    for i in range(num_steps):
         action, options = policy.act(obs, options) 
         obs, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
-        rewards.append(reward)
+        rewards[i] = reward
         
         if done:
             options = {}
@@ -39,8 +40,13 @@ def validate(
     
     env.close()
     policy.train()
-    
-    return np.array(rewards)
+    return {
+        "episodes": rewards.size,
+        "reward_mean": rewards.mean(),
+        "reward_sum": rewards.sum(),
+        "reward_max": rewards.max(),
+        "reward_min": rewards.min()
+    }
 
 
 @experiment(
@@ -98,12 +104,9 @@ def main(context: ExperimentContext):
     log_frequency = context.config.training.log_frequency
     logging_enabled = log_frequency > 0
 
-    validation_frequency = context.config.validation.frequency
-    validation_num_steps = context.config.validation.num_steps
-    validation_enabled = validation_num_steps > 0 and validation_frequency > 0
-
-    testing_num_steps = context.config.testing.num_steps
-    testing_enabled = testing_num_steps > 0
+    evaluation_frequency = context.config.evaluation.frequency
+    evaluation_num_steps = context.config.evaluation.num_steps
+    evaluation_enabled = evaluation_num_steps > 0 and evaluation_frequency > 0
 
     env_config = context.config.env
     collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
@@ -141,24 +144,16 @@ def main(context: ExperimentContext):
                         f"step: {metrics_str} buffer_size={len(buffer)} step={step} time={timestamp}"
                     )
                 
-                if validation_enabled and step % validation_frequency == 0:
-                    rewards = validate(
+                if evaluation_enabled and step % evaluation_frequency == 0:
+                    eval_metrics = evaluate(
                         policy,
                         lambda: make_env_from_config(env_config),
-                        num_steps=validation_num_steps,
+                        num_steps=evaluation_num_steps,
                     )
+                    eval_metrics_str = " ".join(f"{k}={v}" for k, v in eval_metrics.items())
                     train_logger.log(
-                        f"validation: episodes={rewards.size} reward_mean={rewards.mean()} "
-                        f"reward_sum={rewards.sum()} step={step} time={time.time()}"
+                        f"evaluation: {eval_metrics_str} step={step} time={time.time()}"
                     )
-            
-            if testing_enabled:
-                context.logger.log("Testing...")
-                test_rewards = validate(policy, lambda: make_env_from_config(env_config), num_steps=testing_num_steps)
-                train_logger.log(
-                    f"testing: episodes={test_rewards.size} reward_mean={test_rewards.mean()} "
-                    f"reward_sum={test_rewards.sum()} time={time.time()}"
-                )
             
             context.logger.log("Training completed.")
             context.logger.log(f"Final buffer size: {len(buffer)}")
