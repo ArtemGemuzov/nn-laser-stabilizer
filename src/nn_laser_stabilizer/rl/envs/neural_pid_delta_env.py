@@ -169,7 +169,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
             port=config.args.port,
             timeout=config.args.timeout,
             baudrate=config.args.baudrate,
-            setpoint=config.args.setpoint,  # TODO: setpoint из конфига надо делить на 10
+            setpoint=config.args.setpoint / 10,  # TODO: setpoint из конфига надо делить на 10
             auto_determine_setpoint=config.args.auto_determine_setpoint,
             setpoint_determination_steps=config.args.setpoint_determination_steps,
             setpoint_determination_max_value=config.args.setpoint_determination_max_value,
