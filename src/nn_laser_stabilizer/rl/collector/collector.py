@@ -166,11 +166,14 @@ class AsyncCollector(BaseCollector):
 
     def ensure(self, min_size: int) -> None:
         self._check_running()
+        
         while len(self.buffer) < min_size:
             self._connection.poll_worker_error()
             time.sleep(self._check_interval)
 
     def collect(self, num_steps: int) -> None:
+        self._check_running()
+
         if num_steps <= 0:
             return
         self.ensure(len(self.buffer) + num_steps)
@@ -218,17 +221,6 @@ def make_collector_from_config(
     policy: Policy,
     seed: Optional[int] = None,
 ) -> BaseCollector:
-    """Create a collector from config.
-
-    Args:
-        collector_config: Collector configuration (must have ``is_async``).
-        env_factory: Callable that creates a new environment instance.
-            For sync -- called once immediately to obtain the env.
-            For async -- passed to the worker process.
-        buffer: Replay buffer to collect into.
-        policy: Policy used for action selection.
-        seed: Random seed for the async worker process.
-    """
     if collector_config.is_async:
         return AsyncCollector(
             buffer=buffer,
