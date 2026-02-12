@@ -5,7 +5,7 @@ args:
   baudrate: 115200
   log_connection: false
 
-  log_dir: "env_logs"
+  log_dir: "."
   log_file: env.jsonl
 
   setpoint: 1200
@@ -20,7 +20,7 @@ args:
   reset_value: 2000
   reset_steps: 1000
 
-  process_variable_max: 1200
+  process_variable_max: 1023
 
 normalize_obs: true
 normalize_reward: true

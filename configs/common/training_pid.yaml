@@ -3,4 +3,4 @@ sync_start_step: 2500
 num_steps: -1
 log_frequency: 1
 log_dir: "train_logs"
-log_file: train.log
+log_file: train.jsonl

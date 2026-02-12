@@ -1,0 +1,36 @@
+seed: 1
+
+env:
+  _include: "{CONFIGS_DIR}/envs/neural_pid_delta"
+
+training:
+  train_start_step: 5_000        
+  sync_start_step: 5_000        
+  num_steps: -1
+  log_frequency: 1
+  log_dir: "."
+  log_file: train.jsonl
+
+exploration:
+  type: pid
+  steps: 20_000
+  kp: 3.5
+  ki: 11.0
+  kd: 0.002
+  dt: 0.005
+  max_delta: 30.0
+
+collector:
+  _include: "{CONFIGS_DIR}/collectors/async"
+
+evaluation:
+  _include: "{CONFIGS_DIR}/common/evaluation_none"
+
+buffer:
+  _include: "{CONFIGS_DIR}/buffers/100k"
+
+sampler:
+  _include: "{CONFIGS_DIR}/samplers/single"
+
+algorithm:
+  _include: "{CONFIGS_DIR}/algorithms/td3_neural_controller"

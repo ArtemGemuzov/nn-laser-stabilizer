@@ -1,6 +1,6 @@
 train_start_step: 5_000        
-sync_start_step: 15_000        
+sync_start_step: 5_000        
 num_steps: -1
 log_frequency: 1
-log_dir: "train_logs"
-log_file: train.log
+log_dir: "."
+log_file: train.jsonl

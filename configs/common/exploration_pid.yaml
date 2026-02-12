@@ -1,5 +1,5 @@
 type: pid
-steps: 10_000
+steps: 20_000
 kp: 3.5
 ki: 11.0
 kd: 0.002
