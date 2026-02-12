@@ -1,4 +1,5 @@
 from typing import Callable, Optional, Any, Dict
+from abc import ABC, abstractmethod
 from functools import partial
 import time
 
@@ -12,40 +13,96 @@ from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
 from nn_laser_stabilizer.rl.collector.utils import collect_step, CollectorWorkerError
 
 
-def _policy_factory(policy : Policy):
+class BaseCollector(ABC):
+    def __init__(self, buffer: ReplayBuffer):
+        self.buffer: ReplayBuffer = buffer
+        self._running = False
+
+    def start(self) -> None:
+        self._check_not_running()
+        self._on_start()
+        self._running = True
+
+    @abstractmethod
+    def _on_start(self) -> None:
+        ...
+
+    @abstractmethod
+    def ensure(self, min_size: int) -> None:
+        ...
+
+    @abstractmethod
+    def collect(self, num_steps: int) -> None:
+        ...
+
+    def sync(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        if not self._running:
+            return
+        self._on_stop()
+        self._running = False
+
+    @abstractmethod
+    def _on_stop(self) -> None:
+        ...
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
+    def _check_running(self) -> None:
+        if not self._running:
+            raise RuntimeError("Collector is not running")
+
+    def _check_not_running(self) -> None:
+        if self._running:
+            raise RuntimeError("Collector is already running")
+
+
+def _policy_factory(policy: Policy):
     return policy.clone()
 
 
-class SyncCollector:
+class SyncCollector(BaseCollector):
     def __init__(
         self,
         buffer: ReplayBuffer,
         env: TorchEnvWrapper,
         policy: Policy,
     ):
-        self.buffer : ReplayBuffer = buffer
-        self._env : TorchEnvWrapper = env
-        self._policy : Policy = policy
-        
+        super().__init__(buffer)
+        self._env: TorchEnvWrapper = env
+        self._policy: Policy = policy
+
         self._current_observation: Optional[torch.Tensor] = None
         self._options: Dict[str, Any] = {}
-        self._running = False
-    
-    def start(self) -> None:
-        if self._running:
-            raise RuntimeError("Collector is already running")
-        
+
+    def _on_start(self) -> None:
         self._policy.eval()
         self._policy.warmup(self._env.observation_space)
-        
+
         self._current_observation, self._options = self._env.reset()
         assert self._current_observation is not None
-       
-        self._running = True
-    
+
+    def ensure(self, min_size: int) -> None:
+        self._check_running()
+        assert self._current_observation is not None
+        while len(self.buffer) < min_size:
+            self._current_observation, self._options = collect_step(
+                self._policy,
+                self._env,
+                self._current_observation,
+                self.buffer,
+                self._options,
+            )
+
     def collect(self, num_steps: int) -> None:
         self._check_running()
-        
         assert self._current_observation is not None
         for _ in range(num_steps):
             self._current_observation, self._options = collect_step(
@@ -55,68 +112,50 @@ class SyncCollector:
                 self.buffer,
                 self._options,
             )
-    
-    def stop(self) -> None:
-        if not self._running:
-            return
-        
+
+    def _on_stop(self) -> None:
         if self._env is not None:
             self._env.close()
-          
-        self._running = False
-    
-    def __enter__(self):
-        self.start()
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop()
-
-    def _check_running(self) -> None:
-        if not self._running:
-            raise RuntimeError("Collector is not running")
 
 
-class AsyncCollector:
+class AsyncCollector(BaseCollector):
     READY_TIMEOUT_SEC = 600.0
     WEIGHT_UPDATE_DONE_TIMEOUT_SEC = 10.0
     PROCESS_JOIN_TIMEOUT_SEC = 5.0
-    
+
     def __init__(
         self,
         buffer: ReplayBuffer,
         policy: Policy,
         env_factory: Callable[[], TorchEnvWrapper],
         seed: Optional[int] = None,
+        check_interval: float = 0.1,
     ):
-        self.buffer = buffer
-        
-        self.env_factory = env_factory
-        self.policy = policy
-        self.seed = seed
-        
+        super().__init__(buffer)
+
+        self._env_factory = env_factory
+        self._policy: Policy = policy
+        self._seed = seed
+        self._check_interval = check_interval
+
         self._connection, self._child_connection = CollectorConnection.create_pair()
-        
+
         self._process: Optional[CollectorWorker] = None
-        self._running = False
-         
-    def start(self) -> None:
-        if self._running:
-            raise RuntimeError("Collector is already running")
-        
+
+    def _on_start(self) -> None:
         self.buffer.share_memory()
-        self.policy.share_memory()
-        
-        shared_state_dict = self.policy.state_dict()
-        policy_factory = partial(_policy_factory, policy=self.policy)
-        
+        self._policy.share_memory()
+
+        shared_state_dict = self._policy.state_dict()
+        policy_factory = partial(_policy_factory, policy=self._policy)
+
         self._process = CollectorWorker(
             buffer=self.buffer,
-            env_factory=self.env_factory,
+            env_factory=self._env_factory,
             policy_factory=policy_factory,
             connection=self._child_connection,
             shared_state_dict=shared_state_dict,
-            seed=self.seed,
+            seed=self._seed,
         )
         self._process.start()
 
@@ -124,51 +163,83 @@ class AsyncCollector:
             raise RuntimeError("Failed to start collector process")
 
         self._connection.wait_for_ready(timeout=AsyncCollector.READY_TIMEOUT_SEC)
-        
-        self._running = True 
-    
-    def collect(self, num_steps: int, check_interval: float = 0.1) -> None:
+
+    def ensure(self, min_size: int) -> None:
         self._check_running()
-        
-        while len(self.buffer) < num_steps:
+        while len(self.buffer) < min_size:
             self._connection.poll_worker_error()
-            time.sleep(check_interval)
-    
+            time.sleep(self._check_interval)
+
+    def collect(self, num_steps: int) -> None:
+        if num_steps <= 0:
+            return
+        self.ensure(len(self.buffer) + num_steps)
+
     def sync(self) -> None:
         self._check_running()
-        
+
         self._connection.poll_worker_error()
-        
+
         self._connection.request_weight_update()
-        self._connection.wait_for_weight_update_done(timeout=AsyncCollector.WEIGHT_UPDATE_DONE_TIMEOUT_SEC)
-    
-    def stop(self, wait_for_shutdown: bool = True) -> None:
-        if not self._running:
-            return
-        
+        self._connection.wait_for_weight_update_done(
+            timeout=AsyncCollector.WEIGHT_UPDATE_DONE_TIMEOUT_SEC
+        )
+
+    def _on_stop(self) -> None:
+        self._shutdown(wait_for_shutdown=True)
+
+    def _shutdown(self, wait_for_shutdown: bool) -> None:
         self._connection.poll_worker_error()
 
         self._connection.send_shutdown()
         if wait_for_shutdown:
-            self._connection.wait_for_shutdown_complete(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
-        
+            self._connection.wait_for_shutdown_complete(
+                timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC
+            )
+
         if self._process is not None:
             self._process.stop(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)
             self._process = None
-        
-        self._running = False
-    
-    def __enter__(self):
-        self.start()
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is KeyboardInterrupt or CollectorWorkerError:
-            self.stop(wait_for_shutdown=False)
-        else:
-            self.stop(wait_for_shutdown=True)
 
-    def _check_running(self) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb):
         if not self._running:
-            raise RuntimeError("Collector is not running")
-        
+            return
+        if exc_type is KeyboardInterrupt or CollectorWorkerError:
+            self._shutdown(wait_for_shutdown=False)
+        else:
+            self._shutdown(wait_for_shutdown=True)
+        self._running = False
+
+
+def make_collector_from_config(
+    collector_config,
+    env_factory: Callable[[], TorchEnvWrapper],
+    buffer: ReplayBuffer,
+    policy: Policy,
+    seed: Optional[int] = None,
+) -> BaseCollector:
+    """Create a collector from config.
+
+    Args:
+        collector_config: Collector configuration (must have ``is_async``).
+        env_factory: Callable that creates a new environment instance.
+            For sync -- called once immediately to obtain the env.
+            For async -- passed to the worker process.
+        buffer: Replay buffer to collect into.
+        policy: Policy used for action selection.
+        seed: Random seed for the async worker process.
+    """
+    if collector_config.is_async:
+        return AsyncCollector(
+            buffer=buffer,
+            policy=policy,
+            env_factory=env_factory,
+            seed=seed,
+        )
+    else:
+        env = env_factory()
+        return SyncCollector(
+            buffer=buffer,
+            env=env,
+            policy=policy,
+        )

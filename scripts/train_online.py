@@ -1,4 +1,3 @@
-from typing import cast
 from functools import partial
 from pathlib import Path
 import time
@@ -10,7 +9,7 @@ from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
-from nn_laser_stabilizer.rl.collector.collector import SyncCollector, AsyncCollector
+from nn_laser_stabilizer.rl.collector.collector import make_collector_from_config
 from nn_laser_stabilizer.rl.envs.env_wrapper import get_spaces_from_config, make_env_from_config
 from nn_laser_stabilizer.rl.algorithms.factory import build_algorithm
 from nn_laser_stabilizer.rl.policy.policy import Policy
@@ -59,8 +58,6 @@ def main(context: ExperimentContext):
         prefix=TRAIN_LOG_PREFIX
     )
     
-    is_async = context.config.collector.is_async
-    
     observation_space, action_space = get_spaces_from_config(context.config.env, seed=context.seed)
     observation_dim = observation_space.dim
     action_dim = action_space.dim
@@ -85,23 +82,15 @@ def main(context: ExperimentContext):
         exploration_config=context.config.exploration,
     ).train()
     
-    if is_async:
-        context.logger.log("Starting async collector...")
-        env_factory = partial(make_env_from_config, env_config=context.config.env, seed=context.seed)
-        collector = AsyncCollector(
-            buffer=buffer,
-            policy=policy,
-            env_factory=env_factory,
-            seed=context.seed,
-        )
-    else:
-        context.logger.log("Creating synchronous collector...")
-        collector_env = make_env_from_config(context.config.env)
-        collector = SyncCollector(
-            buffer=buffer,
-            env=collector_env,
-            policy=policy,
-        )
+    env_factory = partial(make_env_from_config, env_config=context.config.env, seed=context.seed)
+    
+    collector = make_collector_from_config(
+        collector_config=context.config.collector,
+        env_factory=env_factory,
+        buffer=buffer,
+        policy=policy,
+        seed=context.seed,
+    )
 
     num_steps = context.config.training.num_steps
     infinite_steps = num_steps == -1
@@ -117,41 +106,33 @@ def main(context: ExperimentContext):
     testing_enabled = testing_num_steps > 0
 
     env_config = context.config.env
-    if is_async:
-        sync_frequency = context.config.collector.sync_frequency
-    else:
-        collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
+    collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
+    sync_frequency = context.config.collector.sync_frequency
 
     train_start_step = context.config.training.train_start_step
     sync_start_step = context.config.training.sync_start_step
     
     with collector:
         try:
-            if is_async:
-                context.logger.log("Collector started. Waiting for data accumulation...")
-            else:
-                context.logger.log("Collector started. Initial data collection...")
+            context.logger.log("Collector started. Initial data collection...")
             
-            collector.collect(train_start_step)
+            collector.ensure(train_start_step)
             
-            if not is_async:
-                context.logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
-            
+            context.logger.log(f"Initial data collection completed. Buffer size: {len(buffer)}")
             context.logger.log("Training started")
 
             step = 0
             while infinite_steps or step < num_steps:
                 step += 1
 
-                if not is_async:
-                    collector.collect(collect_steps_per_iteration)
+                collector.collect(collect_steps_per_iteration)
                 
                 batch = sampler.sample()
 
                 metrics = learner.update_step(batch)
                 
-                if is_async and step >= sync_start_step and step % sync_frequency == 0:
-                    cast(AsyncCollector, collector).sync()
+                if step >= sync_start_step and step % sync_frequency == 0:
+                    collector.sync()
                     
                 if logging_enabled and step % log_frequency == 0:
                     timestamp = time.time()

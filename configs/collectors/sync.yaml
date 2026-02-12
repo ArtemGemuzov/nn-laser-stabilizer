@@ -1,2 +1,3 @@
 is_async: false
 collect_steps_per_iteration: 10
+sync_frequency: 1
