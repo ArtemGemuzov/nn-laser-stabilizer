@@ -43,7 +43,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
         self._step: int = 0
 
-        self._process_variable_max = float(process_variable_max)
+        self._process_variable_max = process_variable_max / 10 # TODO: process_varibale надо делить на 10
         self._reset_value = reset_value
         self._reset_steps = reset_steps
         self._current_control_output = BoundedValue(control_min, control_max, 0)
@@ -55,7 +55,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
             high=np.array([1.0], dtype=np.float32),
             dtype=np.float32,
         )
-        
+
         pv_max = float(process_variable_max)
         self.observation_space = gym.spaces.Box(
             low=np.array([-pv_max, -pv_max, -pv_max], dtype=np.float32),
