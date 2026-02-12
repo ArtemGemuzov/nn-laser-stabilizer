@@ -4,6 +4,7 @@ import math
 import torch
 
 from nn_laser_stabilizer.config.config import Config
+from nn_laser_stabilizer.pid import PIDDelta
 from nn_laser_stabilizer.rl.envs.box import Box
 from nn_laser_stabilizer.rl.model.actor import Actor
 from nn_laser_stabilizer.rl.policy.policy import Policy
@@ -297,4 +298,115 @@ class OrnsteinUhlenbeckExplorationPolicy(Policy):
             sigma=sigma,
             mu=mu,
             dt=dt,
+        )
+
+
+class PIDExplorationPolicy(Policy):
+    CUR_ERROR_KEY = "env.cur_error"
+    PREV_ERROR_KEY = "env.prev_error"
+    PREV_PREV_ERROR_KEY = "env.prev_prev_error"
+
+    def __init__(
+        self,
+        actor: Actor,
+        exploration_steps: int,
+        pid: PIDDelta,
+        max_delta: float,
+    ):
+        self._actor = actor
+        self.exploration_steps = exploration_steps
+        self.action_space = actor.action_space
+
+        self._pid = pid
+        self._max_delta = max_delta
+
+        self._exploration_step_count = 0
+
+    def _compute_pid_action(
+        self, cur_error: float, prev_error: float, prev_prev_error: float,
+    ) -> torch.Tensor:
+        delta = self._pid.compute_from_errors(cur_error, prev_error, prev_prev_error)
+        action_value = torch.tensor([delta / self._max_delta], dtype=torch.float32)
+        return torch.clamp(action_value, -1.0, 1.0)
+
+    def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
+        if self._exploration_step_count < self.exploration_steps:
+            self._exploration_step_count += 1
+
+            cur_error = float(options[self.CUR_ERROR_KEY])
+            prev_error = float(options[self.PREV_ERROR_KEY])
+            prev_prev_error = float(options[self.PREV_PREV_ERROR_KEY])
+
+            action = self._compute_pid_action(cur_error, prev_error, prev_prev_error)
+            return action, options
+        else:
+            return self._actor.act(observation, options)
+
+    def clone(self) -> "PIDExplorationPolicy":
+        cloned_actor = self._actor.clone()
+        pid = PIDDelta(
+            kp=self._pid.kp,
+            ki=self._pid.ki,
+            kd=self._pid.kd,
+            dt=self._pid.dt,
+        )
+        return PIDExplorationPolicy(
+            actor=cloned_actor,
+            exploration_steps=self.exploration_steps,
+            pid=pid,
+            max_delta=self._max_delta,
+        )
+
+    def share_memory(self) -> "PIDExplorationPolicy":
+        self._actor.share_memory()
+        return self
+
+    def state_dict(self) -> dict[str, torch.Tensor]:
+        return self._actor.state_dict()
+
+    def load_state_dict(self, state_dict):
+        return self._actor.load_state_dict(state_dict)
+
+    def train(self, mode: bool = True) -> "PIDExplorationPolicy":
+        self._actor.train(mode)
+        return self
+
+    def eval(self) -> "PIDExplorationPolicy":
+        self._actor.eval()
+        return self
+
+    def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
+        self._actor.eval()
+        for _ in range(num_steps):
+            fake_obs = observation_space.sample()
+            self._actor.act(fake_obs, {})
+
+    @classmethod
+    def from_config(
+        cls,
+        exploration_config: Config,
+        *,
+        actor: Actor,
+    ) -> "PIDExplorationPolicy":
+        steps = int(exploration_config.steps)
+        kp = float(exploration_config.kp)
+        ki = float(exploration_config.ki)
+        kd = float(exploration_config.kd)
+        dt = float(exploration_config.dt)
+        max_delta = float(exploration_config.max_delta)
+
+        if steps < 0:
+            raise ValueError("exploration.steps must be >= 0 for PID exploration")
+        if dt <= 0.0:
+            raise ValueError("exploration.dt must be > 0 for PID exploration")
+        if max_delta <= 0.0:
+            raise ValueError("exploration.max_delta must be > 0 for PID exploration")
+
+        pid = PIDDelta(kp=kp, ki=ki, kd=kd, dt=dt)
+
+        return cls(
+            actor=actor,
+            exploration_steps=steps,
+            pid=pid,
+            max_delta=max_delta,
         )

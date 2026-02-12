@@ -6,6 +6,7 @@ from nn_laser_stabilizer.rl.policy.deterministic import DeterministicPolicy
 from nn_laser_stabilizer.rl.policy.exploration import (
     NoisyExplorationPolicy,
     OrnsteinUhlenbeckExplorationPolicy,
+    PIDExplorationPolicy,
     RandomExplorationPolicy,
 )
 
@@ -32,6 +33,11 @@ def make_policy_from_config(
         )
     elif exploration_type == ExplorationType.OU:
         return OrnsteinUhlenbeckExplorationPolicy.from_config(
+            exploration_config=exploration_config,
+            actor=actor,
+        )
+    elif exploration_type == ExplorationType.PID:
+        return PIDExplorationPolicy.from_config(
             exploration_config=exploration_config,
             actor=actor,
         )

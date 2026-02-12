@@ -16,6 +16,7 @@ class ExplorationType(BaseEnum):
     RANDOM = "random"
     NOISY = "noisy"
     OU = "ou"
+    PID = "pid"
 
 
 class AlgorithmType(BaseEnum):
