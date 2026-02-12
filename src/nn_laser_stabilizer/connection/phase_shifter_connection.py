@@ -53,6 +53,8 @@ class LoggingConnectionToPhaseShifter(ConnectionToPhaseShifter):
         return process_variable
 
     def exchange(self, *, control_output: int) -> int:
-        self.send_command(control_output=control_output)
-        return self.read_response()
+        self._phase_shifter.send_command(control_output=control_output)
+        process_variable = self._phase_shifter.read_response()
+        self._logger.log(f"exchange: control_output={control_output} process_variable={process_variable}")
+        return process_variable
 
