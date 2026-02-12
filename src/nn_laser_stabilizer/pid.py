@@ -139,15 +139,14 @@ class PIDDelta:
     def compute(self, process_variable: float, setpoint: float) -> float:
         error = process_variable - setpoint
 
-        delta = (
-            self._c0 * error
-            + self._c1 * self._prev_error
-            + self._c2 * self._prev_prev_error
-        )
+        delta = self.compute_from_errors(error, self._prev_error, self._prev_prev_error)
 
         self._prev_prev_error = self._prev_error
         self._prev_error = error
         return delta
+
+    def compute_from_errors(self, error: float, prev_error: float, prev_prev_error: float) -> float:
+        return self._c0 * error + self._c1 * prev_error + self._c2 * prev_prev_error
 
     def __call__(self, process_variable: float, setpoint: float) -> float:
         return self.compute(process_variable, setpoint)
