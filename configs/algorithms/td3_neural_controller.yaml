@@ -1,7 +1,7 @@
 type: td3
-gamma: 0.98
-policy_noise: 0.1
-noise_clip: 0.25
+gamma: 0.95
+policy_noise: 0.05
+noise_clip: 0.125
 tau: 0.005
 policy_freq: 2
 

@@ -1,1 +1,3 @@
 name: PendulumNoVelEnv
+normalize_obs: true
+normalize_reward: false

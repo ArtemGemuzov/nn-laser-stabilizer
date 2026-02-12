@@ -8,13 +8,13 @@ buffer:
   _include: "{CONFIGS_DIR}/buffers/100k"
 
 sampler:
-  _include: "{CONFIGS_DIR}/samplers/sequence"
+  _include: "{CONFIGS_DIR}/samplers/single"
 
 collector:
   _include: "{CONFIGS_DIR}/collectors/sync"
 
 algorithm:
-  _include: "{CONFIGS_DIR}/algorithms/td3_pendulum"
+  _include: "{CONFIGS_DIR}/algorithms/td3_default"
 
 training:
   _include: "{CONFIGS_DIR}/common/training_pendulum"
