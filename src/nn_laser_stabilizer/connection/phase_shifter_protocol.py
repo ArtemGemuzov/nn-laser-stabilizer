@@ -30,7 +30,9 @@ class PhaseShifterProtocol:
             )
         
         try:
-            pv = int(parts[0])
+            process_variable_multiplied_by_10 = float(parts[0])
+            process_variable = process_variable_multiplied_by_10 / 10 # TODO: process_variable надо делить на 10 и ограничивать
+            pv = min(int(process_variable), 1023)
         except ValueError as e:
             raise ValueError(f"Error parsing PhaseShifter response values: {e}")
         return pv

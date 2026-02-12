@@ -10,10 +10,7 @@ from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
 from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
-from nn_laser_stabilizer.normalize import (
-    denormalize_from_minus1_plus1,
-    normalize_to_01,
-)
+from nn_laser_stabilizer.normalize import denormalize_from_minus1_plus1
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
@@ -34,11 +31,6 @@ class NeuralPIDDeltaEnv(BaseEnv):
     ):
         super().__init__()
 
-        self._normalize_pv = partial(
-            normalize_to_01,
-            min_val=0.0,
-            max_val=float(process_variable_max),
-        )
         self._denormalize_delta = partial(
             denormalize_from_minus1_plus1,
             min_val=-float(max_control_delta),
@@ -51,23 +43,23 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
         self._step: int = 0
 
-        self._setpoint_norm = self._normalize_pv(backend.setpoint)
+        self._process_variable_max = float(process_variable_max)
         self._reset_value = reset_value
         self._reset_steps = reset_steps
         self._current_control_output = BoundedValue(control_min, control_max, 0)
         self._error_prev: float = 0.0
-        self._raw_error_prev: float = 0.0
         self._error_prev_prev: float = 0.0
-        self._raw_error_prev_prev: float = 0.0
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
             high=np.array([1.0], dtype=np.float32),
             dtype=np.float32,
         )
+        
+        pv_max = float(process_variable_max)
         self.observation_space = gym.spaces.Box(
-            low=np.array([-1.0, -1.0, -1.0], dtype=np.float32),
-            high=np.array([1.0, 1.0, 1.0], dtype=np.float32),
+            low=np.array([-pv_max, -pv_max, -pv_max], dtype=np.float32),
+            high=np.array([pv_max, pv_max, pv_max], dtype=np.float32),
             dtype=np.float32,
         )
 
@@ -83,24 +75,20 @@ class NeuralPIDDeltaEnv(BaseEnv):
     def _build_observation(
         self, process_variable: float, control_output: int
     ) -> tuple[np.ndarray, dict]:
-        process_variable_norm = self._normalize_pv(float(process_variable))
-        error = self._setpoint_norm - process_variable_norm
-        raw_error = float(self._backend.setpoint - process_variable)
+        error = float(self._backend.setpoint - process_variable)
 
         observation = np.array(
             [error, self._error_prev, self._error_prev_prev],
             dtype=np.float32,
         )
         info = {
-            "env.cur_error": raw_error,
-            "env.prev_error": self._raw_error_prev,
-            "env.prev_prev_error": self._raw_error_prev_prev,
+            "env.cur_error": error,
+            "env.prev_error": self._error_prev,
+            "env.prev_prev_error": self._error_prev_prev,
         }
 
         self._error_prev_prev = self._error_prev
-        self._raw_error_prev_prev = self._raw_error_prev
         self._error_prev = error
-        self._raw_error_prev = raw_error
 
         return observation, info
 
@@ -150,11 +138,8 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._step_interval_tracker.reset()
         self._error_prev = 0.0
         self._error_prev_prev = 0.0
-        self._raw_error_prev = 0.0
-        self._raw_error_prev_prev = 0.0
 
         self._backend.reset()
-        self._setpoint_norm = self._normalize_pv(self._backend.setpoint)
         self._current_control_output.value = self._reset_value
 
         info = {}
@@ -183,7 +168,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
             port=config.args.port,
             timeout=config.args.timeout,
             baudrate=config.args.baudrate,
-            setpoint=config.args.setpoint,
+            setpoint=config.args.setpoint,  # TODO: setpoint из конфига надо делить на 10
             auto_determine_setpoint=config.args.auto_determine_setpoint,
             setpoint_determination_steps=config.args.setpoint_determination_steps,
             setpoint_determination_max_value=config.args.setpoint_determination_max_value,
