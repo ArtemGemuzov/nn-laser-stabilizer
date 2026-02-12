@@ -26,7 +26,7 @@ class BCLearner(Learner):
         loss: BCLoss,
     ) -> "BCLearner":
         actor_lr = float(algorithm_config.actor.optimizer.lr)
-        actor_optimizer = Optimizer(agent._actor.parameters(), lr=actor_lr)
+        actor_optimizer = Optimizer(agent.actor.parameters(), lr=actor_lr)
 
         return cls(
             agent=agent,
@@ -37,9 +37,6 @@ class BCLearner(Learner):
     def update_step(self, batch: tuple[Tensor, ...]) -> dict[str, float]:
         obs, actions, *_ = batch
 
-        output = self._agent.forward_train(obs, actions, Tensor(), Tensor(), Tensor())
-
-        actor_losses = self._loss.actor_loss(output)
-        self._actor_optimizer.step(actor_losses["actor_loss"])
-
-        return {"actor_loss": actor_losses["actor_loss"].item()}
+        loss = self._loss.loss(obs, actions)
+        self._actor_optimizer.step(loss)
+        return {"actor_loss": loss.item()}

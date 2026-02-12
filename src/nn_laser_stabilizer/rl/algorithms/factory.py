@@ -7,9 +7,7 @@ from nn_laser_stabilizer.rl.algorithms.td3.agent import TD3Agent
 from nn_laser_stabilizer.rl.algorithms.td3.loss import TD3Loss
 from nn_laser_stabilizer.rl.algorithms.td3.learner import TD3Learner
 
-from nn_laser_stabilizer.rl.algorithms.td3bc.agent import TD3BCAgent
 from nn_laser_stabilizer.rl.algorithms.td3bc.loss import TD3BCLoss
-from nn_laser_stabilizer.rl.algorithms.td3bc.learner import TD3BCLearner
 
 from nn_laser_stabilizer.rl.algorithms.bc.agent import BCAgent
 from nn_laser_stabilizer.rl.algorithms.bc.loss import BCLoss
@@ -29,25 +27,25 @@ def build_algorithm(
 
     if algorithm_type == AlgorithmType.TD3:
         agent = TD3Agent.from_config(algorithm_config, observation_space, action_space)
-        loss = TD3Loss.from_config(algorithm_config)
+        loss = TD3Loss.from_config(algorithm_config, agent)
         learner = TD3Learner.from_config(algorithm_config, agent, loss)
         return agent, learner
 
     elif algorithm_type == AlgorithmType.TD3BC:
-        agent = TD3BCAgent.from_config(algorithm_config, observation_space, action_space)
-        loss = TD3BCLoss.from_config(algorithm_config)
-        learner = TD3BCLearner.from_config(algorithm_config, agent, loss)
+        agent = TD3Agent.from_config(algorithm_config, observation_space, action_space)
+        loss = TD3BCLoss.from_config(algorithm_config, agent)
+        learner = TD3Learner.from_config(algorithm_config, agent, loss)
         return agent, learner
 
     elif algorithm_type == AlgorithmType.BC:
         agent = BCAgent.from_config(algorithm_config, observation_space, action_space)
-        loss = BCLoss.from_config(algorithm_config)
+        loss = BCLoss.from_config(algorithm_config, agent)
         learner = BCLearner.from_config(algorithm_config, agent, loss)
         return agent, learner
 
     elif algorithm_type == AlgorithmType.SAC:
         agent = SACAgent.from_config(algorithm_config, observation_space, action_space)
-        loss = SACLoss.from_config(algorithm_config)
+        loss = SACLoss.from_config(algorithm_config, agent)
         learner = SACLearner.from_config(algorithm_config, agent, loss)
         return agent, learner
 

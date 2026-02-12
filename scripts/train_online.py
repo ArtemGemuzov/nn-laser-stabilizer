@@ -73,6 +73,7 @@ def main(context: ExperimentContext):
         obs_dim=observation_dim,
         action_dim=action_dim,
     )    
+
     sampler = make_sampler_from_config(
         buffer=buffer,
         sampler_config=context.config.sampler
@@ -84,7 +85,7 @@ def main(context: ExperimentContext):
         action_space=action_space,
     )
 
-    policy = agent.policy(
+    policy = agent.exploration_policy(
         exploration_config=context.config.exploration,
     ).train()
     
@@ -146,7 +147,7 @@ def main(context: ExperimentContext):
                 
                 if evaluation_enabled and step % evaluation_frequency == 0:
                     eval_metrics = evaluate(
-                        policy,
+                        agent.default_policy().eval(),
                         lambda: make_env_from_config(env_config),
                         num_steps=evaluation_num_steps,
                     )

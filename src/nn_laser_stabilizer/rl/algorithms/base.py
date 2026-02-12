@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
 from torch import Tensor
 
@@ -20,20 +19,10 @@ class Agent(ABC):
     ) -> "Agent": ...
 
     @abstractmethod
-    def forward_train(
-        self,
-        observations: Tensor,
-        actions: Tensor,
-        rewards: Tensor,
-        next_observations: Tensor,
-        dones: Tensor,
-    ) -> dict[str, Any]: ...
+    def exploration_policy(self, exploration_config: Config) -> Policy: ...
 
     @abstractmethod
-    def forward_action(self, observation: Tensor) -> Tensor: ...
-
-    @abstractmethod
-    def policy(self, exploration_config: Config) -> Policy: ...
+    def default_policy(self) -> Policy: ...
 
     @abstractmethod
     def save_models(self, models_dir: Path) -> None: ...

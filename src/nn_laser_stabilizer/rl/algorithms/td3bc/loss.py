@@ -1,33 +1,55 @@
-from typing import Any
-
+import torch
 import torch.nn.functional as F
 from torch import Tensor
 
 from nn_laser_stabilizer.config.config import Config
+from nn_laser_stabilizer.rl.algorithms.td3.agent import TD3Agent
 from nn_laser_stabilizer.rl.algorithms.td3.loss import TD3Loss
 
 
 class TD3BCLoss(TD3Loss):
-    def __init__(self, gamma: float, alpha: float):
-        super().__init__(gamma=gamma)
+    EPSILON = 1e-8
+
+    def __init__(
+        self,
+        agent: TD3Agent,
+        gamma: float,
+        policy_noise: float,
+        noise_clip: float,
+        alpha: float,
+    ):
+        super().__init__(agent=agent, gamma=gamma, policy_noise=policy_noise, noise_clip=noise_clip)
         self._alpha = alpha
 
     @classmethod
-    def from_config(cls, algorithm_config: Config) -> "TD3BCLoss":
+    def from_config(cls, algorithm_config: Config, agent: TD3Agent) -> "TD3BCLoss":
         gamma = float(algorithm_config.gamma)
+        policy_noise = float(algorithm_config.policy_noise)
+        noise_clip = float(algorithm_config.noise_clip)
         alpha = float(algorithm_config.alpha)
+
         if gamma <= 0.0:
             raise ValueError("algorithm.gamma must be > 0")
-        return cls(gamma=gamma, alpha=alpha)
 
-    def actor_loss(self, output: dict[str, Any]) -> dict[str, Tensor]:
-        actor_q_value = output["actor_q_value"]
-        actor_actions = output["actor_actions"]
-        dataset_actions = output["dataset_actions"]
-        lambda_coef = output["lambda_coef"]
+        return cls(
+            agent=agent,
+            gamma=gamma,
+            policy_noise=policy_noise,
+            noise_clip=noise_clip,
+            alpha=alpha,
+        )
 
-        td3_term = -lambda_coef * actor_q_value.mean()
-        bc_term = self._alpha * F.mse_loss(actor_actions, dataset_actions)
+    def actor_loss(self, obs: Tensor, actions: Tensor) -> dict[str, Tensor]:
+        agent = self._agent
+        actor_actions, _ = agent.actor(obs)
+        q_value, _ = agent.critic1(obs, actor_actions)
+
+        with torch.no_grad():
+            q_dataset, _ = agent.critic1(obs, actions)
+            lambda_coef = 1.0 / (torch.abs(q_dataset).mean().item() + self.EPSILON)
+
+        td3_term = -lambda_coef * q_value.mean()
+        bc_term = self._alpha * F.mse_loss(actor_actions, actions)
         actor_loss = td3_term + bc_term
 
         return {

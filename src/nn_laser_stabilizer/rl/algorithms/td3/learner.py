@@ -44,18 +44,18 @@ class TD3Learner(Learner):
         actor_lr = float(algorithm_config.actor.optimizer.lr)
         critic_lr = float(algorithm_config.critic.optimizer.lr)
 
-        actor_optimizer = Optimizer(agent._actor.parameters(), lr=actor_lr)
+        actor_optimizer = Optimizer(agent.actor.parameters(), lr=actor_lr)
         critic_optimizer = Optimizer(
-            list(agent._critic1.parameters()) + list(agent._critic2.parameters()),
+            list(agent.critic1.parameters()) + list(agent.critic2.parameters()),
             lr=critic_lr,
         )
 
         soft_updater = SoftUpdater(
             pairs=build_soft_update_pairs(
                 module_pairs=(
-                    (agent._actor_target, agent._actor),
-                    (agent._critic1_target, agent._critic1),
-                    (agent._critic2_target, agent._critic2),
+                    (agent.actor_target, agent.actor),
+                    (agent.critic1_target, agent.critic1),
+                    (agent.critic2_target, agent.critic2),
                 )
             ),
             tau=tau,
@@ -77,23 +77,18 @@ class TD3Learner(Learner):
     def update_step(self, batch: tuple[Tensor, ...]) -> dict[str, float]:
         obs, actions, rewards, next_obs, dones = batch
 
-        output = self._agent.forward_train(obs, actions, rewards, next_obs, dones)
-
-        # --- critic update ---
-        critic_losses = self._loss.critic_loss(output)
-        total_critic_loss = critic_losses["loss_q1"] + critic_losses["loss_q2"]
-        self._critic_optimizer.step(total_critic_loss)
+        loss_q1, loss_q2 = self._loss.critic_loss(obs, actions, rewards, next_obs, dones)
+        self._critic_optimizer.step(loss_q1 + loss_q2)
 
         metrics: dict[str, float] = {
-            "loss_q1": critic_losses["loss_q1"].item(),
-            "loss_q2": critic_losses["loss_q2"].item(),
+            "loss_q1": loss_q1.item(),
+            "loss_q2": loss_q2.item(),
         }
 
-        # --- actor update (every policy_freq steps) ---
         if self._should_update_actor_and_target():
-            actor_losses = self._loss.actor_loss(output)
-            self._actor_optimizer.step(actor_losses["actor_loss"])
+            actor_loss = self._loss.actor_loss(obs)
+            self._actor_optimizer.step(actor_loss)
             self._soft_updater.update()
-            metrics["actor_loss"] = actor_losses["actor_loss"].item()
 
+            metrics["actor_loss"] = actor_loss.item()
         return metrics
