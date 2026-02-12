@@ -1,4 +1,4 @@
-from typing import Callable, Protocol, Tuple
+from typing import Callable, Protocol
 
 from nn_laser_stabilizer.rl.envs.setpoint import determine_setpoint
 from nn_laser_stabilizer.hardware.connection import create_connection
@@ -14,8 +14,8 @@ class PlantBackend(Protocol):
     def setpoint(self) -> int:
         ...
 
-    def reset(self) -> Tuple[int, int, int]:
-        """Сбросить установку к началу эпизода; возвращает (process_variable, setpoint, control_output)."""
+    def reset(self) -> None:
+        """Подготовить установку к началу эпизода (открыть соединение, определить setpoint)."""
         ...
 
     def exchange(self, control_output: int) -> int:
@@ -46,9 +46,6 @@ class ExperimentalPlantBackend:
         # Параметры диапазона управления
         control_min: int,
         control_max: int,
-        # Сброс: фиксированное значение и число шагов в начале эпизода
-        reset_value: int,
-        reset_steps: int,
         # Логирование соединения
         log_connection: bool,
         # Логгер верхнего уровня
@@ -63,9 +60,6 @@ class ExperimentalPlantBackend:
 
         self._control_min = control_min
         self._control_max = control_max
-
-        self._reset_value = int(reset_value)
-        self._reset_steps = int(reset_steps)
 
         if self._auto_determine_setpoint and self._setpoint_determination_steps <= 1:
             raise ValueError(
@@ -110,19 +104,11 @@ class ExperimentalPlantBackend:
         # TODO: Заменить print на ConsoleLogger для унифицированного вывода в консоль
         print(f"Setpoint determined: {self._setpoint} (min_pv={min_pv_int}, max_pv={max_pv_int})")
 
-    def reset(self) -> tuple[int, int, int]:
+    def reset(self) -> None:
         self._pid_connection.open()
 
         if self._auto_determine_setpoint and not self._setpoint_determined:
             self._determine_setpoint()
-
-        process_variable = 0
-        for _ in range(self._reset_steps):
-            process_variable = self._pid_connection.exchange(
-                control_output=self._reset_value
-            )
-
-        return process_variable, self._setpoint, self._reset_value
 
     def exchange(self, control_output: int) -> int:
         return self._pid_connection.exchange(control_output=control_output)
@@ -135,11 +121,9 @@ class MockPlantBackend:
     def __init__(
         self,
         *,
-        reset_fn: Callable[[], tuple[int, int, int]],
         exchange_fn: Callable[[int], int],
         setpoint: int,
     ):
-        self._reset_fn = reset_fn
         self._exchange_fn = exchange_fn
         self._setpoint = setpoint
 
@@ -147,8 +131,8 @@ class MockPlantBackend:
     def setpoint(self) -> int:
         return self._setpoint
 
-    def reset(self) -> tuple[int, int, int]:
-        return self._reset_fn()
+    def reset(self) -> None:
+        pass
 
     def exchange(self, control_output: int) -> int:
         return self._exchange_fn(control_output)

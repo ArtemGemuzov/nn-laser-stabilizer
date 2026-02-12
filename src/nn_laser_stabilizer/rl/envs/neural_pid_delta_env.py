@@ -28,6 +28,8 @@ class NeuralPIDDeltaEnv(BaseEnv):
         control_max: int,
         max_control_delta: int,
         process_variable_max: int,
+        reset_value: int,
+        reset_steps: int,
     ):
         super().__init__()
 
@@ -52,9 +54,13 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._step: int = 0
 
         self._setpoint_norm = self._normalize_pv(backend.setpoint)
+        self._reset_value = reset_value
+        self._reset_steps = reset_steps
         self._current_control_output = BoundedValue(control_min, control_max, 0)
         self._error_prev: float = 0.0
+        self._raw_error_prev: float = 0.0
         self._error_prev_prev: float = 0.0
+        self._raw_error_prev_prev: float = 0.0
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
@@ -81,17 +87,23 @@ class NeuralPIDDeltaEnv(BaseEnv):
     ) -> tuple[np.ndarray, dict]:
         process_variable_norm = self._normalize_pv(float(process_variable))
         error = self._setpoint_norm - process_variable_norm
+        raw_error = float(self._backend.setpoint - process_variable)
+
         observation = np.array(
             [error, self._error_prev, self._error_prev_prev],
             dtype=np.float32,
         )
         info = {
-            "env.cur_error": error,
-            "env.prev_error": self._error_prev,
-            "env.prev_prev_error": self._error_prev_prev,
+            "env.cur_error": raw_error,
+            "env.prev_error": self._raw_error_prev,
+            "env.prev_prev_error": self._raw_error_prev_prev,
         }
+
         self._error_prev_prev = self._error_prev
+        self._raw_error_prev_prev = self._raw_error_prev
         self._error_prev = error
+        self._raw_error_prev = raw_error
+
         return observation, info
 
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
@@ -135,17 +147,21 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._step_interval_tracker.reset()
         self._error_prev = 0.0
         self._error_prev_prev = 0.0
+        self._raw_error_prev = 0.0
+        self._raw_error_prev_prev = 0.0
 
-        process_variable, setpoint, control_output = self._backend.reset()
-        self._setpoint_norm = self._normalize_pv(setpoint)
-        self._current_control_output.value = control_output
+        self._backend.reset()
+        self._setpoint_norm = self._normalize_pv(self._backend.setpoint)
+        self._current_control_output.value = self._reset_value
 
-        observation, info = self._build_observation(process_variable, control_output)
+        info = {}
+        for _ in range(self._reset_steps):
+            process_variable = self._apply_control(self._reset_value)
+            observation, info = self._build_observation(process_variable, self._reset_value)
 
         log_line = (
             "reset: "
-            f"process_variable={process_variable} setpoint={setpoint} "
-            f"error={observation[0]} control_output={control_output}"
+            f"setpoint={self._backend.setpoint}"
         )
         self._env_logger.log(log_line)
 
@@ -171,8 +187,6 @@ class NeuralPIDDeltaEnv(BaseEnv):
             setpoint_determination_factor=config.args.setpoint_determination_factor,
             control_min=config.args.control_min,
             control_max=config.args.control_max,
-            reset_value=config.args.reset_value,
-            reset_steps=config.args.reset_steps,
             log_connection=config.args.log_connection,
             base_logger=base_logger,
         )
@@ -183,4 +197,6 @@ class NeuralPIDDeltaEnv(BaseEnv):
             control_max=config.args.control_max,
             max_control_delta=config.args.max_control_delta,
             process_variable_max=config.args.process_variable_max,
+            reset_value=config.args.reset_value,
+            reset_steps=config.args.reset_steps,
         )
