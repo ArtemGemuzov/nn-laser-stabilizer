@@ -11,7 +11,6 @@ from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
 from nn_laser_stabilizer.normalize import (
     denormalize_from_minus1_plus1,
-    normalize_to_minus1_plus1,
     normalize_to_01,
 )
 from nn_laser_stabilizer.time import CallIntervalTracker
@@ -41,11 +40,6 @@ class NeuralPIDDeltaEnv(BaseEnv):
             denormalize_from_minus1_plus1,
             min_val=-float(max_control_delta),
             max_val=float(max_control_delta),
-        )
-        self._normalize_reward = partial(
-            normalize_to_minus1_plus1,
-            min_val=-1.0,
-            max_val=0.0,
         )
 
         self._base_logger = base_logger
@@ -84,20 +78,25 @@ class NeuralPIDDeltaEnv(BaseEnv):
 
     def _build_observation(
         self, process_variable: float, control_output: int
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, dict]:
         process_variable_norm = self._normalize_pv(float(process_variable))
         error = self._setpoint_norm - process_variable_norm
         observation = np.array(
             [error, self._error_prev, self._error_prev_prev],
             dtype=np.float32,
         )
+        info = {
+            "env.cur_error": error,
+            "env.prev_error": self._error_prev,
+            "env.prev_prev_error": self._error_prev_prev,
+        }
         self._error_prev_prev = self._error_prev
         self._error_prev = error
-        return observation
+        return observation, info
 
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
         error = float(observation[0])
-        return self._normalize_reward(-abs(error))
+        return -abs(error)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         step_interval = self._step_interval_tracker.tick()
@@ -108,7 +107,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         control_output = self._update_control_output(delta)
         process_variable = self._apply_control(control_output)
 
-        observation = self._build_observation(process_variable, control_output)
+        observation, info = self._build_observation(process_variable, control_output)
         reward = self._compute_reward(observation, action)
 
         log_line = (
@@ -123,7 +122,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._env_logger.log(log_line)
 
         terminated = truncated = False
-        return observation, reward, terminated, truncated, {}
+        return observation, reward, terminated, truncated, info
 
     def reset(
         self,
@@ -141,7 +140,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._setpoint_norm = self._normalize_pv(setpoint)
         self._current_control_output.value = control_output
 
-        observation = self._build_observation(process_variable, control_output)
+        observation, info = self._build_observation(process_variable, control_output)
 
         log_line = (
             "reset: "
@@ -150,7 +149,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         )
         self._env_logger.log(log_line)
 
-        return observation, {}
+        return observation, info
 
     def close(self) -> None:
         self._backend.close()

@@ -21,3 +21,6 @@ args:
   reset_steps: 1000
 
   process_variable_max: 1200
+
+normalize_obs: true
+normalize_reward: true
