@@ -57,13 +57,14 @@ def collect_step(
         options = {}
     action, options = policy.act(obs, options)
     
-    next_obs, reward, terminated, truncated, _ = env.step(action)
+    next_obs, reward, terminated, truncated, info = env.step(action)
     done = terminated or truncated
     
     buffer.add(obs, action, reward, next_obs, done)
     
     if done:
         options = {}
-        next_obs, _ = env.reset()
+        next_obs, info = env.reset()
     
+    options.update(info)
     return next_obs, options
