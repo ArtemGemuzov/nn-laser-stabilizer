@@ -6,7 +6,7 @@ from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
-from nn_laser_stabilizer.rl.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, collect_step
+from nn_laser_stabilizer.rl.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, collect_step, warmup_step
 
 
 class CollectorWorker: 
@@ -20,6 +20,7 @@ class CollectorWorker:
         connection: CollectorConnection,
         shared_state_dict: dict,
         seed: Optional[int] = None,
+        warmup_steps: int = 0,
     ):
         self.buffer = buffer
         self.env_factory = env_factory
@@ -27,6 +28,7 @@ class CollectorWorker:
         self.connection = connection
         self.shared_state_dict = shared_state_dict
         self.seed = seed
+        self.warmup_steps = warmup_steps
         
         self._process = mp.Process(target=self._run, name=CollectorWorker.PROCESS_NAME)
     
@@ -49,10 +51,13 @@ class CollectorWorker:
             policy.eval()
             policy.warmup(env.observation_space)
 
-            self.connection.send_worker_ready()
-
             obs, _ = env.reset()
             options = {}
+
+            self.connection.send_worker_ready()
+
+            for _ in range(self.warmup_steps):
+                obs, options = warmup_step(policy, env, obs, options)
             
             while True:
                 if self.connection.poll():

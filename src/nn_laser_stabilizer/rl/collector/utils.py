@@ -46,6 +46,37 @@ class CollectorWorkerError(Exception):
         super().__init__(message)
 
 
+def _env_step(
+    policy: Policy,
+    env: TorchEnvWrapper,
+    obs: torch.Tensor,
+    options: dict[str, Any] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, dict[str, Any]]:
+    if options is None:
+        options = {}
+    action, options = policy.act(obs, options)
+
+    next_obs, reward, terminated, truncated, info = env.step(action)
+    done = terminated or truncated
+
+    if done:
+        options = {}
+        next_obs, info = env.reset()
+
+    options.update(info)
+    return obs, action, reward, next_obs, done, options
+
+
+def warmup_step(
+    policy: Policy,
+    env: TorchEnvWrapper,
+    obs: torch.Tensor,
+    options: dict[str, Any] | None = None,
+) -> tuple[torch.Tensor, dict[str, Any]]:
+    _, _, _, next_obs, _, options = _env_step(policy, env, obs, options)
+    return next_obs, options
+
+
 def collect_step(
     policy: Policy,
     env: TorchEnvWrapper,
@@ -53,18 +84,6 @@ def collect_step(
     buffer: ReplayBuffer,
     options: dict[str, Any] | None = None,
 ) -> tuple[torch.Tensor, dict[str, Any]]:
-    if options is None:
-        options = {}
-    action, options = policy.act(obs, options)
-    
-    next_obs, reward, terminated, truncated, info = env.step(action)
-    done = terminated or truncated
-    
+    obs, action, reward, next_obs, done, options = _env_step(policy, env, obs, options)
     buffer.add(obs, action, reward, next_obs, done)
-    
-    if done:
-        options = {}
-        next_obs, info = env.reset()
-    
-    options.update(info)
     return next_obs, options

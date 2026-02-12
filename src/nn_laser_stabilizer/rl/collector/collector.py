@@ -10,7 +10,7 @@ from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.collector.worker import CollectorWorker
 from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
-from nn_laser_stabilizer.rl.collector.utils import collect_step, CollectorWorkerError
+from nn_laser_stabilizer.rl.collector.utils import collect_step, warmup_step, CollectorWorkerError
 
 
 class BaseCollector(ABC):
@@ -74,10 +74,12 @@ class SyncCollector(BaseCollector):
         buffer: ReplayBuffer,
         env: TorchEnvWrapper,
         policy: Policy,
+        warmup_steps: int = 0,
     ):
         super().__init__(buffer)
         self._env: TorchEnvWrapper = env
         self._policy: Policy = policy
+        self._warmup_steps = warmup_steps
 
         self._current_observation: Optional[torch.Tensor] = None
         self._options: Dict[str, Any] = {}
@@ -88,6 +90,14 @@ class SyncCollector(BaseCollector):
 
         self._current_observation, self._options = self._env.reset()
         assert self._current_observation is not None
+
+        for _ in range(self._warmup_steps):
+            self._current_observation, self._options = warmup_step(
+                self._policy,
+                self._env,
+                self._current_observation,
+                self._options,
+            )
 
     def ensure(self, min_size: int) -> None:
         self._check_running()
@@ -130,6 +140,7 @@ class AsyncCollector(BaseCollector):
         env_factory: Callable[[], TorchEnvWrapper],
         seed: Optional[int] = None,
         check_interval: float = 0.1,
+        warmup_steps: int = 0,
     ):
         super().__init__(buffer)
 
@@ -137,6 +148,7 @@ class AsyncCollector(BaseCollector):
         self._policy: Policy = policy
         self._seed = seed
         self._check_interval = check_interval
+        self._warmup_steps = warmup_steps
 
         self._connection, self._child_connection = CollectorConnection.create_pair()
 
@@ -156,6 +168,7 @@ class AsyncCollector(BaseCollector):
             connection=self._child_connection,
             shared_state_dict=shared_state_dict,
             seed=self._seed,
+            warmup_steps=self._warmup_steps,
         )
         self._process.start()
 
@@ -221,12 +234,14 @@ def make_collector_from_config(
     policy: Policy,
     seed: Optional[int] = None,
 ) -> BaseCollector:
+    warmup_steps = int(collector_config.get("warmup_steps", 0))
     if collector_config.is_async:
         return AsyncCollector(
             buffer=buffer,
             policy=policy,
             env_factory=env_factory,
             seed=seed,
+            warmup_steps=warmup_steps,
         )
     else:
         env = env_factory()
@@ -234,4 +249,5 @@ def make_collector_from_config(
             buffer=buffer,
             env=env,
             policy=policy,
+            warmup_steps=warmup_steps,
         )
