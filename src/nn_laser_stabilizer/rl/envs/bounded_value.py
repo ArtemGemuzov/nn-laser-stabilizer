@@ -22,6 +22,8 @@ class BoundedValue(Generic[T]):
     def value(self, value: T) -> None:
         self._value = self._clip(value)
 
-    def add(self, delta: T) -> T:
-        self._value = self._clip(self._value + delta)
-        return self._value
+    def add(self, delta: T) -> tuple[T, bool]:
+        raw = self._value + delta
+        self._value = self._clip(raw)
+        clipped = raw != self._value
+        return self._value, clipped

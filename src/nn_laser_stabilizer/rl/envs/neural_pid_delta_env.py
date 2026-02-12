@@ -66,7 +66,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
     def _unpack_action_value(self, action: np.ndarray) -> float:
         return float(action[0])
 
-    def _update_control_output(self, delta: float) -> int:
+    def _update_control_output(self, delta: float) -> tuple[int, bool]:
         return self._current_control_output.add(int(round(delta)))
 
     def _apply_control(self, control_output: int) -> int:
@@ -102,7 +102,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
 
         delta_norm = self._unpack_action_value(action)
         delta = self._denormalize_delta(delta_norm)
-        control_output = self._update_control_output(delta)
+        control_output, terminated = self._update_control_output(delta)
         process_variable = self._apply_control(control_output)
 
         observation, info = self._build_observation(process_variable, control_output)
@@ -121,10 +121,11 @@ class NeuralPIDDeltaEnv(BaseEnv):
             "delta": delta,
             "control_output": control_output,
             "reward": reward,
+            "terminated": terminated,
             "step_interval_us": step_interval,
         }))
 
-        terminated = truncated = False
+        truncated = False
         return observation, reward, terminated, truncated, info
 
     def reset(
