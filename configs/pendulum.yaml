@@ -1,11 +1,11 @@
-experiment_name: pendulum
+experiment_name: pendulum-v1
 seed: 42
 
 env:
   _include: "{CONFIGS_DIR}/envs/pendulum"
 
 buffer:
-  _include: "{CONFIGS_DIR}/buffers/100k"
+  _include: "{CONFIGS_DIR}/buffers/1000k"
 
 sampler:
   _include: "{CONFIGS_DIR}/samplers/single"
@@ -14,7 +14,7 @@ collector:
   _include: "{CONFIGS_DIR}/collectors/sync"
 
 algorithm:
-  _include: "{CONFIGS_DIR}/algorithms/td3_default"
+  _include: "{CONFIGS_DIR}/algorithms/sac_default"
 
 training:
   _include: "{CONFIGS_DIR}/common/training_pendulum"
