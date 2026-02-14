@@ -14,7 +14,7 @@ from nn_laser_stabilizer.normalize import denormalize_from_minus1_plus1
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
-class NeuralPIDDeltaEnv(BaseEnv):
+class NeuralControllerDeltaEnv(BaseEnv):
     LOG_SOURCE = "env"
 
     def __init__(
@@ -28,6 +28,9 @@ class NeuralPIDDeltaEnv(BaseEnv):
         process_variable_max: int,
         reset_value: int,
         reset_steps: int,
+        observe_prev_error: bool,
+        observe_prev_prev_error: bool,
+        observe_control_output: bool,
     ):
         super().__init__()
 
@@ -46,9 +49,15 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._process_variable_max = process_variable_max
         self._reset_value = reset_value
         self._reset_steps = reset_steps
+        self._control_min = control_min
+        self._control_max = control_max
         self._current_control_output = BoundedValue(control_min, control_max, 0)
         self._error_prev: float = 0.0
         self._error_prev_prev: float = 0.0
+
+        self._observe_prev_error = observe_prev_error
+        self._observe_prev_prev_error = observe_prev_prev_error
+        self._observe_control_output = observe_control_output
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
@@ -57,9 +66,21 @@ class NeuralPIDDeltaEnv(BaseEnv):
         )
 
         pv_max = float(process_variable_max)
+        obs_low = [-pv_max]
+        obs_high = [pv_max]
+        if observe_prev_error:
+            obs_low.append(-pv_max)
+            obs_high.append(pv_max)
+        if observe_prev_prev_error:
+            obs_low.append(-pv_max)
+            obs_high.append(pv_max)
+        if observe_control_output:
+            obs_low.append(float(control_min))
+            obs_high.append(float(control_max))
+
         self.observation_space = gym.spaces.Box(
-            low=np.array([-pv_max, -pv_max, -pv_max], dtype=np.float32),
-            high=np.array([pv_max, pv_max, pv_max], dtype=np.float32),
+            low=np.array(obs_low, dtype=np.float32),
+            high=np.array(obs_high, dtype=np.float32),
             dtype=np.float32,
         )
 
@@ -77,10 +98,15 @@ class NeuralPIDDeltaEnv(BaseEnv):
     ) -> tuple[np.ndarray, dict]:
         error = float(self._backend.setpoint - process_variable)
 
-        observation = np.array(
-            [error, self._error_prev, self._error_prev_prev],
-            dtype=np.float32,
-        )
+        components = [error]
+        if self._observe_prev_error:
+            components.append(self._error_prev)
+        if self._observe_prev_prev_error:
+            components.append(self._error_prev_prev)
+        if self._observe_control_output:
+            components.append(float(control_output))
+
+        observation = np.array(components, dtype=np.float32)
         info = {
             "env.cur_error": error,
             "env.prev_error": self._error_prev,
@@ -114,9 +140,9 @@ class NeuralPIDDeltaEnv(BaseEnv):
             "step": self._step,
             "process_variable": process_variable,
             "setpoint": self._backend.setpoint,
-            "error": float(observation[0]),
-            "error_prev": float(observation[1]),
-            "error_prev_prev": float(observation[2]),
+            "error": info["env.cur_error"],
+            "error_prev": info["env.prev_error"],
+            "error_prev_prev": info["env.prev_prev_error"],
             "delta_norm": delta_norm,
             "delta": delta,
             "control_output": control_output,
@@ -161,7 +187,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
         self._logger.close()
 
     @classmethod
-    def from_config(cls, config: Config) -> "NeuralPIDDeltaEnv":
+    def from_config(cls, config: Config) -> "NeuralControllerDeltaEnv":
         logger = AsyncFileLogger(
             log_dir=config.args.log_dir, log_file=config.args.log_file
         )
@@ -188,4 +214,7 @@ class NeuralPIDDeltaEnv(BaseEnv):
             process_variable_max=config.args.process_variable_max, # TODO: process_varibale надо делить на 10
             reset_value=config.args.reset_value,
             reset_steps=config.args.reset_steps,
+            observe_prev_error=bool(config.args.observe_prev_error),
+            observe_prev_prev_error=bool(config.args.observe_prev_prev_error),
+            observe_control_output=bool(config.args.observe_control_output),
         )

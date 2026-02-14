@@ -1,7 +1,7 @@
 seed: 1
 
 env:
-  name: NeuralPIDDeltaEnv
+  name: NeuralControllerDeltaEnv
   args:
     port: COM3
     timeout: 0.1
@@ -25,6 +25,10 @@ env:
     reset_steps: 1000
 
     process_variable_max: 10230
+
+    observe_prev_error: true
+    observe_prev_prev_error: true
+    observe_control_output: true
 
   normalize_obs: true
   normalize_reward: true

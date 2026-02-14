@@ -3,21 +3,29 @@ args:
   port: COM3
   timeout: 0.1
   baudrate: 115200
-  log_connection: false
+  log_connection: true
 
-  log_dir: "env_logs"
-  log_file: env_delta.log
+  log_dir: "."
+  log_file: env.jsonl
 
-  setpoint: 700
+  setpoint: 1200
+  
   auto_determine_setpoint: false
   setpoint_determination_steps: 6000
   setpoint_determination_max_value: 2000
   setpoint_determination_factor: 0.1
 
   control_min: 0
-  control_max: 3000
-  max_control_delta: 150
+  control_max: 4095
+  max_control_delta: 30
   reset_value: 2000
   reset_steps: 1000
 
-  process_variable_max: 1200
+  process_variable_max: 10230
+
+  observe_prev_error: true
+  observe_prev_prev_error: true
+  observe_control_output: true
+
+normalize_obs: true
+normalize_reward: true
