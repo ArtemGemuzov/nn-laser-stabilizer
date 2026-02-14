@@ -14,7 +14,7 @@ from nn_laser_stabilizer.logger import NoOpLogger
 from nn_laser_stabilizer.normalize import normalize_to_minus1_plus1
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
-from nn_laser_stabilizer.rl.envs.neural_pid_delta_env import NeuralControllerDeltaEnv
+from nn_laser_stabilizer.rl.envs.neural_controller_delta_env import NeuralControllerDeltaEnv
 from nn_laser_stabilizer.rl.envs.plant_backend import MockPlantBackend
 
 
