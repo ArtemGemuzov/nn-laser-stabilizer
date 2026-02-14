@@ -85,7 +85,7 @@ class SyncCollector(BaseCollector):
         self._options: Dict[str, Any] = {}
 
     def _on_start(self) -> None:
-        self._policy.eval()
+        self._policy.train()
         self._policy.warmup(self._env.observation_space)
 
         self._current_observation, self._options = self._env.reset()

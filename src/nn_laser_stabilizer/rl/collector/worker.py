@@ -48,7 +48,7 @@ class CollectorWorker:
             env = self.env_factory()
             
             policy = self.policy_factory()
-            policy.eval()
+            policy.train()
             policy.warmup(env.observation_space)
 
             observation, options = env.reset()
