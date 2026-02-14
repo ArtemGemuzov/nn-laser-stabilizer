@@ -62,7 +62,8 @@ class SACLoss:
         x_t = normal.rsample()
         action_space = self._agent.action_space
         actions = tanh_squash(x_t, action_space.low, action_space.high)
-        log_prob = gaussian_log_prob(normal, x_t)
+        action_scale = (action_space.high - action_space.low) / 2.0
+        log_prob = gaussian_log_prob(normal, x_t, action_scale)
         return actions, log_prob
 
     def critic_loss(

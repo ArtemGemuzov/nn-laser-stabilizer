@@ -18,9 +18,10 @@ def tanh_squash(raw_action: torch.Tensor, low: torch.Tensor, high: torch.Tensor)
 def gaussian_log_prob(
     normal: torch.distributions.Normal,
     raw_action: torch.Tensor,
+    action_scale: torch.Tensor,
 ) -> torch.Tensor:
     log_prob = normal.log_prob(raw_action)
-    log_prob = log_prob - torch.log(1.0 - torch.tanh(raw_action).pow(2) + 1e-6)
+    log_prob = log_prob - torch.log(action_scale * (1.0 - torch.tanh(raw_action).pow(2)) + 1e-6)
     return log_prob.sum(dim=-1, keepdim=True)
 
 
@@ -41,7 +42,8 @@ class GaussianPolicy(Policy):
         normal = torch.distributions.Normal(mean, std)
         x_t = normal.rsample()
         action = tanh_squash(x_t, self._action_space.low, self._action_space.high)
-        log_prob = gaussian_log_prob(normal, x_t)
+        action_scale = (self._action_space.high - self._action_space.low) / 2.0
+        log_prob = gaussian_log_prob(normal, x_t, action_scale)
         return action, log_prob
 
     def deterministic_action(self, observation: torch.Tensor) -> torch.Tensor:
@@ -49,6 +51,7 @@ class GaussianPolicy(Policy):
         mean, _log_std = raw.chunk(2, dim=-1)
         return tanh_squash(mean, self._action_space.low, self._action_space.high)
 
+    @torch.no_grad()
     def act(
         self, observation: torch.Tensor, options: dict[str, Any]
     ) -> tuple[torch.Tensor, dict[str, Any]]:
