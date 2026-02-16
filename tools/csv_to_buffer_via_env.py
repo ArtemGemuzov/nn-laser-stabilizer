@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 
 from nn_laser_stabilizer.config.config import find_and_load_config
-from nn_laser_stabilizer.paths import get_data_dir
+from nn_laser_stabilizer.paths import find_project_root
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.logger import NoOpLogger
@@ -17,45 +17,63 @@ from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.envs.neural_controller import ActionType, NeuralController
 from nn_laser_stabilizer.rl.envs.plant_backend import MockPlantBackend
 
+BUFFER_RESET_STEPS = 3
+
+
+def _load_dataframe(path: Path) -> pd.DataFrame:
+    suffix = path.suffix.lower()
+    if suffix == ".csv":
+        return pd.read_csv(path)
+    elif suffix in (".jsonl", ".json"):
+        return pd.read_json(path, lines=True)
+    else:
+        raise ValueError(
+            f"Unsupported file format: '{suffix}'. "
+            f"Expected .csv, .jsonl, or .json"
+        )
+
 
 def _make_extra_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description=(
-            "Convert CSV to replay buffer via delta env "
-            "NeuralPIDDeltaEnv with MockPlantBackend."
-        ),
+        description="Convert data log to replay buffer via NeuralController with MockPlantBackend.",
     )
     parser.add_argument(
         "--env-config",
         type=str,
         required=True,
-        help="Path to environment config (e.g. envs/neural_controller or neural_controller).",
+        help="Path to environment config (e.g. envs/neural_controller).",
     )
     parser.add_argument(
-        "--csv-path",
+        "--data",
         type=str,
         required=True,
-        help="Path to CSV file (process_variable, control_output columns).",
+        help="Path to data file (.csv or .jsonl) with process_variable and control_output columns.",
     )
     parser.add_argument(
         "--output",
         type=str,
         default="replay_buffer.pth",
-        help="Path to output .pth buffer file. Default: <experiment_dir>/replay_buffer.pth",
+        help="Path to output .pth buffer file. Default: replay_buffer.pth",
+    )
+    parser.add_argument(
+        "--skip-warmup",
+        action="store_true",
+        default=False,
+        help="Filter out rows where is_warming_up is true.",
     )
     return parser
 
 
 @experiment(
-    experiment_name="csv_to_buffer_via_env", 
+    experiment_name="csv_to_buffer_via_env",
     extra_parser=_make_extra_parser()
 )
 def main(context: ExperimentContext) -> None:
     cli = context.config.cli
     env_config_path = Path(cli.env_config)
-    csv_path = Path(cli.csv_path)
-    if not csv_path.is_absolute():
-        csv_path = (get_data_dir() / csv_path).resolve()
+    data_path = Path(cli.data)
+    if not data_path.is_absolute():
+        data_path = (find_project_root() / data_path).resolve()
 
     env_config = find_and_load_config(env_config_path)
     env_args = env_config.args
@@ -78,29 +96,27 @@ def main(context: ExperimentContext) -> None:
         max_val=float(max_action_delta),
     )
 
-    if not csv_path.exists():
-        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+    if not data_path.exists():
+        raise FileNotFoundError(f"Data file not found: {data_path}")
 
-    df = pd.read_csv(csv_path)
+    df = _load_dataframe(data_path)
+    context.logger.log(f"Loaded {len(df)} rows from {data_path}")
+
+    if cli.skip_warmup and "is_warming_up" in df.columns:
+        warmup_count = df["is_warming_up"].sum()
+        df = df[~df["is_warming_up"]].reset_index(drop=True)
+        context.logger.log(f"Filtered out {warmup_count} warmup rows, {len(df)} rows remaining")
+
     num_rows = len(df)
     if num_rows < 3:
         raise ValueError(
-            f"CSV must have at least 3 rows for one transition via env, got {num_rows}"
+            f"Data must have at least 3 rows for one transition via env, got {num_rows}"
         )
 
     process_variables = df["process_variable"].to_numpy(dtype=np.int64)
     control_outputs = df["control_output"].to_numpy(dtype=np.int64)
     n = len(process_variables)
-    index = 1
-
-    def reset_fn() -> tuple[int, int, int]:
-        nonlocal index
-        index = 1
-        return (
-            int(process_variables[1]),
-            setpoint,
-            int(control_outputs[0]),
-        )
+    index = 0
 
     def exchange_fn(control_output: int) -> int:
         nonlocal index
@@ -111,7 +127,6 @@ def main(context: ExperimentContext) -> None:
         return result
 
     backend = MockPlantBackend(
-        reset_fn=reset_fn,
         exchange_fn=exchange_fn,
         setpoint=setpoint,
     )
@@ -122,8 +137,8 @@ def main(context: ExperimentContext) -> None:
         control_min=control_min,
         control_max=control_max,
         process_variable_max=process_variable_max,
-        reset_value=int(env_args.reset_value),
-        reset_steps=int(env_args.reset_steps),
+        reset_value=int(control_outputs[0]),
+        reset_steps=BUFFER_RESET_STEPS,
         observe_prev_error=bool(env_args.get("observe_prev_error", True)),
         observe_prev_prev_error=bool(env_args.get("observe_prev_prev_error", True)),
         observe_control_output=bool(env_args.get("observe_control_output", True)),
@@ -134,7 +149,8 @@ def main(context: ExperimentContext) -> None:
 
     obs_dim = env.observation_space.dim
     action_dim = env.action_space.dim
-    num_steps = num_rows - 2
+    offset = BUFFER_RESET_STEPS - 1
+    num_steps = num_rows - BUFFER_RESET_STEPS - 1
     buffer = ReplayBuffer(
         capacity=num_steps,
         obs_dim=obs_dim,
@@ -143,13 +159,11 @@ def main(context: ExperimentContext) -> None:
 
     obs, _ = env.reset()
     for step_idx in range(num_steps):
-        control_prev = int(control_outputs[step_idx])
-        control_curr = int(control_outputs[step_idx + 1])
+        data_idx = offset + step_idx
+        control_prev = int(control_outputs[data_idx])
+        control_curr = int(control_outputs[data_idx + 1])
         delta = control_curr - control_prev
-        if delta > max_action_delta:
-            delta = max_action_delta
-        elif delta < -max_action_delta:
-            delta = -max_action_delta
+        delta = max(-max_action_delta, min(max_action_delta, delta))
         delta_norm = normalize_delta(float(delta))
         action = torch.tensor([delta_norm], dtype=torch.float32)
 
@@ -172,7 +186,6 @@ def main(context: ExperimentContext) -> None:
     context.logger.log(
         f"Buffer saved: {output_path} (size={len(buffer)}, capacity={buffer.capacity})"
     )
-    context.logger.log("csv_to_buffer_via_env: done.")
 
 
 if __name__ == "__main__":
