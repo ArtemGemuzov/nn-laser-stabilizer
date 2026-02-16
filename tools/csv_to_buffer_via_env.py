@@ -14,7 +14,7 @@ from nn_laser_stabilizer.logger import NoOpLogger
 from nn_laser_stabilizer.normalize import normalize_to_minus1_plus1
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
-from nn_laser_stabilizer.rl.envs.neural_controller_delta import NeuralControllerDelta
+from nn_laser_stabilizer.rl.envs.neural_controller import ActionType, NeuralController
 from nn_laser_stabilizer.rl.envs.plant_backend import MockPlantBackend
 
 
@@ -62,14 +62,21 @@ def main(context: ExperimentContext) -> None:
 
     control_min = int(env_args.control_min)
     control_max = int(env_args.control_max)
-    max_control_delta = int(env_args.max_control_delta)
-    normalize_delta = partial(
-        normalize_to_minus1_plus1,
-        min_val=-float(max_control_delta),
-        max_val=float(max_control_delta),
-    )
     process_variable_max = int(env_args.process_variable_max)
     setpoint = int(env_args.setpoint)
+
+    action_type = ActionType(str(env_args.action.type))
+    if action_type != ActionType.DELTA:
+        raise ValueError(
+            f"csv_to_buffer_via_env supports only action type "
+            f"'{ActionType.DELTA.value}', got '{action_type.value}'"
+        )
+    max_action_delta = int(env_args.action.max_delta)
+    normalize_delta = partial(
+        normalize_to_minus1_plus1,
+        min_val=-float(max_action_delta),
+        max_val=float(max_action_delta),
+    )
 
     if not csv_path.exists():
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
@@ -109,13 +116,19 @@ def main(context: ExperimentContext) -> None:
         setpoint=setpoint,
     )
     base_logger = NoOpLogger()
-    base_env = NeuralControllerDelta(
-        max_control_delta=max_control_delta,
+    base_env = NeuralController(
         backend=backend,
         base_logger=base_logger,
         control_min=control_min,
         control_max=control_max,
         process_variable_max=process_variable_max,
+        reset_value=int(env_args.reset_value),
+        reset_steps=int(env_args.reset_steps),
+        observe_prev_error=bool(env_args.get("observe_prev_error", True)),
+        observe_prev_prev_error=bool(env_args.get("observe_prev_prev_error", True)),
+        observe_control_output=bool(env_args.get("observe_control_output", True)),
+        action_type=action_type,
+        max_action_delta=max_action_delta,
     )
     env = TorchEnvWrapper(base_env)
 
@@ -133,10 +146,10 @@ def main(context: ExperimentContext) -> None:
         control_prev = int(control_outputs[step_idx])
         control_curr = int(control_outputs[step_idx + 1])
         delta = control_curr - control_prev
-        if delta > max_control_delta:
-            delta = max_control_delta
-        elif delta < -max_control_delta:
-            delta = -max_control_delta
+        if delta > max_action_delta:
+            delta = max_action_delta
+        elif delta < -max_action_delta:
+            delta = -max_action_delta
         delta_norm = normalize_delta(float(delta))
         action = torch.tensor([delta_norm], dtype=torch.float32)
 

@@ -1,23 +1,27 @@
+import json
+from enum import Enum
 from functools import partial
 from typing import Optional
 
 import numpy as np
 import gymnasium as gym
 
-from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
+from nn_laser_stabilizer.logger import AsyncFileLogger, Logger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
+from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
-from nn_laser_stabilizer.normalize import (
-    denormalize_from_minus1_plus1,
-    normalize_to_minus1_plus1,
-    normalize_to_01,
-)
+from nn_laser_stabilizer.normalize import denormalize_from_minus1_plus1
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
+class ActionType(Enum):
+    DELTA = "delta"
+    ABSOLUTE = "absolute"
+
+
 class NeuralController(BaseEnv):
-    LOG_PREFIX = "ENV"
+    LOG_SOURCE = "NeuralControllerDelta"
 
     def __init__(
         self,
@@ -27,94 +31,154 @@ class NeuralController(BaseEnv):
         control_min: int,
         control_max: int,
         process_variable_max: int,
+        reset_value: int,
+        reset_steps: int,
+        observe_prev_error: bool,
+        observe_prev_prev_error: bool,
+        observe_control_output: bool,
+        action_type: ActionType,
+        max_action_delta: int = 0,
     ):
         super().__init__()
 
-        self._normalize_pv = partial(
-            normalize_to_01,
-            min_val=0.0,
-            max_val=float(process_variable_max),
-        )
-        self._normalize_control = partial(
-            normalize_to_minus1_plus1,
-            min_val=float(control_min),
-            max_val=float(control_max),
-        )
-        self._denormalize_control = partial(
-            denormalize_from_minus1_plus1,
-            min_val=float(control_min),
-            max_val=float(control_max),
-        )
-        self._normalize_reward = partial(
-            normalize_to_minus1_plus1,
-            min_val=-1.0,
-            max_val=0.0,
-        )
+        self._action_type = action_type
 
-        self._base_logger = base_logger
-        self._env_logger = PrefixedLogger(self._base_logger, NeuralController.LOG_PREFIX)
+        if action_type == ActionType.DELTA:
+            if max_action_delta <= 0:
+                raise ValueError(
+                    "max_action_delta must be > 0 for action type 'delta'"
+                )
+            self._denormalize_action = partial(
+                denormalize_from_minus1_plus1,
+                min_val=-float(max_action_delta),
+                max_val=float(max_action_delta),
+            )
+        elif action_type == ActionType.ABSOLUTE:
+            self._denormalize_action = partial(
+                denormalize_from_minus1_plus1,
+                min_val=float(control_min),
+                max_val=float(control_max),
+            )
+
+        self._logger = base_logger
         self._backend = backend
 
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
         self._step: int = 0
 
-        self._setpoint_norm = self._normalize_pv(backend.setpoint)
+        self._process_variable_max = process_variable_max
+        self._reset_value = reset_value
+        self._reset_steps = reset_steps
+        self._control_min = control_min
+        self._control_max = control_max
+        self._current_control_output = BoundedValue(control_min, control_max, 0)
+        self._error_prev: float = 0.0
+        self._error_prev_prev: float = 0.0
+
+        self._observe_prev_error = observe_prev_error
+        self._observe_prev_prev_error = observe_prev_prev_error
+        self._observe_control_output = observe_control_output
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
             high=np.array([1.0], dtype=np.float32),
             dtype=np.float32,
         )
+
+        pv_max = float(process_variable_max)
+        obs_low = [-pv_max]
+        obs_high = [pv_max]
+        if observe_prev_error:
+            obs_low.append(-pv_max)
+            obs_high.append(pv_max)
+        if observe_prev_prev_error:
+            obs_low.append(-pv_max)
+            obs_high.append(pv_max)
+        if observe_control_output:
+            obs_low.append(float(control_min))
+            obs_high.append(float(control_max))
+
         self.observation_space = gym.spaces.Box(
-            low=np.array([-1.0, -1.0], dtype=np.float32),
-            high=np.array([1.0, 1.0], dtype=np.float32),
+            low=np.array(obs_low, dtype=np.float32),
+            high=np.array(obs_high, dtype=np.float32),
             dtype=np.float32,
         )
 
     def _unpack_action_value(self, action: np.ndarray) -> float:
         return float(action[0])
 
+    def _apply_action(self, action_value: float) -> tuple[int, bool]:
+        int_value = int(round(action_value))
+        if self._action_type == ActionType.DELTA:
+            return self._current_control_output.add(int_value)
+        else:
+            self._current_control_output.value = int_value
+            actual = self._current_control_output.value
+            return actual, False
+
     def _apply_control(self, control_output: int) -> int:
         return self._backend.exchange(control_output)
 
     def _build_observation(
         self, process_variable: float, control_output: int
-    ) -> np.ndarray:
-        process_variable_norm = self._normalize_pv(process_variable)
-        error = self._setpoint_norm - process_variable_norm
-        control_output_norm = self._normalize_control(control_output)
-        return np.array(
-            [error, control_output_norm],
-            dtype=np.float32,
-        )
+    ) -> tuple[np.ndarray, dict]:
+        error = float(self._backend.setpoint - process_variable)
+
+        components = [error]
+        if self._observe_prev_error:
+            components.append(self._error_prev)
+        if self._observe_prev_prev_error:
+            components.append(self._error_prev_prev)
+        if self._observe_control_output:
+            components.append(float(control_output))
+
+        observation = np.array(components, dtype=np.float32)
+        info = {
+            "env.cur_error": error,
+            "env.prev_error": self._error_prev,
+            "env.prev_prev_error": self._error_prev_prev,
+        }
+
+        self._error_prev_prev = self._error_prev
+        self._error_prev = error
+
+        return observation, info
 
     def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
         error = float(observation[0])
-        return self._normalize_reward(-abs(error))
+        return -abs(error)
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         step_interval = self._step_interval_tracker.tick()
         self._step += 1
 
-        control_output_norm = self._unpack_action_value(action)
-        control_output = int(round(self._denormalize_control(control_output_norm)))
+        action_norm = self._unpack_action_value(action)
+        action_value = self._denormalize_action(action_norm)
+        control_output, terminated = self._apply_action(action_value)
         process_variable = self._apply_control(control_output)
 
-        observation = self._build_observation(process_variable, control_output)
+        observation, info = self._build_observation(process_variable, control_output)
         reward = self._compute_reward(observation, action)
 
-        log_line = (
-            "step: "
-            f"step={self._step} "
-            f"process_variable={process_variable} setpoint={self._backend.setpoint} error={observation[0]} "
-            f"control_output_norm={control_output_norm} control_output={control_output} "
-            f"reward={reward} "
-            f"step_interval={step_interval}us"
-        )
-        self._env_logger.log(log_line)
+        self._logger.log(json.dumps({
+            "source": self.LOG_SOURCE,
+            "event": "step",
+            "step": self._step,
+            "process_variable": process_variable,
+            "setpoint": self._backend.setpoint,
+            "error": info["env.cur_error"],
+            "error_prev": info["env.prev_error"],
+            "error_prev_prev": info["env.prev_prev_error"],
+            "action_norm": action_norm,
+            "action_value": action_value,
+            "control_output": control_output,
+            "reward": reward,
+            "terminated": terminated,
+            "step_interval_us": step_interval,
+        }))
 
-        terminated = truncated = False
-        return observation, reward, terminated, truncated, {}
+        truncated = False
+        return observation, reward, terminated, truncated, info
 
     def reset(
         self,
@@ -125,48 +189,64 @@ class NeuralController(BaseEnv):
 
         self._step = 0
         self._step_interval_tracker.reset()
+        self._error_prev = 0.0
+        self._error_prev_prev = 0.0
 
-        process_variable, setpoint, control_output = self._backend.reset()
-        self._setpoint_norm = self._normalize_pv(setpoint)
+        self._backend.reset()
+        self._current_control_output.value = self._reset_value
 
-        observation = self._build_observation(process_variable, control_output)
+        info = {}
+        for _ in range(self._reset_steps):
+            process_variable = self._apply_control(self._reset_value)
+            observation, info = self._build_observation(process_variable, self._reset_value)
 
-        log_line = (
-            "reset: "
-            f"process_variable={process_variable} setpoint={setpoint} error={observation[0]} "
-            f"control_output={control_output}"
-        )
-        self._env_logger.log(log_line)
+        self._logger.log(json.dumps({
+            "source": self.LOG_SOURCE,
+            "event": "reset",
+            "setpoint": self._backend.setpoint,
+        }))
 
-        return observation, {}
+        return observation, info
 
     def close(self) -> None:
         self._backend.close()
-        self._base_logger.close()
+        self._logger.close()
 
     @classmethod
     def from_config(cls, config: Config) -> "NeuralController":
-        base_logger = AsyncFileLogger(log_dir=config.args.log_dir, log_file=config.args.log_file)
+        logger = AsyncFileLogger(
+            log_dir=config.args.log_dir, log_file=config.args.log_file
+        )
         backend = ExperimentalPlantBackend(
             port=config.args.port,
             timeout=config.args.timeout,
             baudrate=config.args.baudrate,
-            setpoint=config.args.setpoint,
+            setpoint=config.args.setpoint / 10,  # TODO: process_varibale из конфига надо делить на 10
             auto_determine_setpoint=config.args.auto_determine_setpoint,
             setpoint_determination_steps=config.args.setpoint_determination_steps,
             setpoint_determination_max_value=config.args.setpoint_determination_max_value,
             setpoint_determination_factor=config.args.setpoint_determination_factor,
             control_min=config.args.control_min,
             control_max=config.args.control_max,
-            reset_value=config.args.reset_value,
-            reset_steps=config.args.reset_steps,
             log_connection=config.args.log_connection,
-            base_logger=base_logger,
+            base_logger=logger,
         )
+
+        action_config = config.args.action
+        action_type = ActionType(str(action_config.type))
+        max_action_delta = int(action_config.get("max_delta", 0))
+
         return cls(
             backend=backend,
-            base_logger=base_logger,
+            base_logger=logger,
             control_min=config.args.control_min,
             control_max=config.args.control_max,
-            process_variable_max=config.args.process_variable_max,
+            process_variable_max=config.args.process_variable_max, # TODO: process_varibale надо делить на 10
+            reset_value=config.args.reset_value,
+            reset_steps=config.args.reset_steps,
+            observe_prev_error=bool(config.args.observe_prev_error),
+            observe_prev_prev_error=bool(config.args.observe_prev_prev_error),
+            observe_control_output=bool(config.args.observe_control_output),
+            action_type=action_type,
+            max_action_delta=max_action_delta,
         )

@@ -1,7 +1,7 @@
 seed: 1
 
 env:
-  name: NeuralControllerDeltaEnv
+  name: NeuralController
   args:
     port: COM3
     timeout: 0.1
@@ -20,9 +20,12 @@ env:
 
     control_min: 0
     control_max: 4095
-    max_control_delta: 30
     reset_value: 2000
     reset_steps: 1000
+
+    action:
+      type: delta
+      max_delta: 30
 
     process_variable_max: 10230
 
@@ -30,8 +33,8 @@ env:
     observe_prev_prev_error: true
     observe_control_output: true
 
-  normalize_obs: true
-  normalize_reward: true
+    normalize_obs: true
+    normalize_reward: true
 
 training:
   train_start_step: 5_000        
