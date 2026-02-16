@@ -38,10 +38,17 @@ class NeuralController(BaseEnv):
         observe_control_output: bool,
         action_type: ActionType,
         max_action_delta: int = 0,
+        action_penalty: float = 0.0,
     ):
         super().__init__()
 
         self._action_type = action_type
+        self._action_penalty = action_penalty
+
+        if action_penalty > 0 and action_type != ActionType.DELTA:
+            raise ValueError(
+                "action_penalty requires action type 'delta'"
+            )
 
         if action_type == ActionType.DELTA:
             if max_action_delta <= 0:
@@ -144,9 +151,14 @@ class NeuralController(BaseEnv):
 
         return observation, info
 
-    def _compute_reward(self, observation: np.ndarray, action: np.ndarray) -> float:
+    def _compute_reward(
+        self, observation: np.ndarray, action_norm: float
+    ) -> float:
         error = float(observation[0])
-        return -abs(error)
+        cost = abs(error)
+        if self._action_penalty > 0:
+            cost += self._action_penalty * abs(action_norm)
+        return -cost
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         step_interval = self._step_interval_tracker.tick()
@@ -154,11 +166,12 @@ class NeuralController(BaseEnv):
 
         action_norm = self._unpack_action_value(action)
         action_value = self._denormalize_action(action_norm)
+
         control_output, terminated = self._apply_action(action_value)
         process_variable = self._apply_control(control_output)
 
         observation, info = self._build_observation(process_variable, control_output)
-        reward = self._compute_reward(observation, action)
+        reward = self._compute_reward(observation, action_norm)
 
         self._logger.log(json.dumps({
             "source": self.LOG_SOURCE,
@@ -236,6 +249,9 @@ class NeuralController(BaseEnv):
         action_type = ActionType(str(action_config.type))
         max_action_delta = int(action_config.get("max_delta", 0))
 
+        reward_config = config.args.get("reward", {})
+        action_penalty = float(reward_config.get("action_penalty", 0.0))
+
         return cls(
             backend=backend,
             base_logger=logger,
@@ -249,4 +265,5 @@ class NeuralController(BaseEnv):
             observe_control_output=bool(config.args.observe_control_output),
             action_type=action_type,
             max_action_delta=max_action_delta,
+            action_penalty=action_penalty,
         )

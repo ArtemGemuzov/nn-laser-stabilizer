@@ -30,6 +30,9 @@ args:
   observe_prev_prev_error: true
   observe_control_output: true
 
+  reward:
+    action_penalty: 0.0
+
 normalize_obs: true
 normalize_reward: true
 
