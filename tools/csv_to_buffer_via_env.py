@@ -14,7 +14,7 @@ from nn_laser_stabilizer.logger import NoOpLogger
 from nn_laser_stabilizer.normalize import normalize_to_minus1_plus1
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
-from nn_laser_stabilizer.rl.envs.neural_controller_delta_env import NeuralControllerDeltaEnv
+from nn_laser_stabilizer.rl.envs.neural_controller_delta import NeuralControllerDelta
 from nn_laser_stabilizer.rl.envs.plant_backend import MockPlantBackend
 
 
@@ -109,7 +109,7 @@ def main(context: ExperimentContext) -> None:
         setpoint=setpoint,
     )
     base_logger = NoOpLogger()
-    base_env = NeuralControllerDeltaEnv(
+    base_env = NeuralControllerDelta(
         max_control_delta=max_control_delta,
         backend=backend,
         base_logger=base_logger,

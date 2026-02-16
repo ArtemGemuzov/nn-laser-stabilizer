@@ -16,7 +16,7 @@ from nn_laser_stabilizer.normalize import (
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
-class NeuralControllerEnv(BaseEnv):
+class NeuralController(BaseEnv):
     LOG_PREFIX = "ENV"
 
     def __init__(
@@ -52,7 +52,7 @@ class NeuralControllerEnv(BaseEnv):
         )
 
         self._base_logger = base_logger
-        self._env_logger = PrefixedLogger(self._base_logger, NeuralControllerEnv.LOG_PREFIX)
+        self._env_logger = PrefixedLogger(self._base_logger, NeuralController.LOG_PREFIX)
         self._backend = backend
 
         self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
@@ -145,7 +145,7 @@ class NeuralControllerEnv(BaseEnv):
         self._base_logger.close()
 
     @classmethod
-    def from_config(cls, config: Config) -> "NeuralControllerEnv":
+    def from_config(cls, config: Config) -> "NeuralController":
         base_logger = AsyncFileLogger(log_dir=config.args.log_dir, log_file=config.args.log_file)
         backend = ExperimentalPlantBackend(
             port=config.args.port,

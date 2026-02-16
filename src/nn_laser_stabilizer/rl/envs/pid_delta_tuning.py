@@ -17,7 +17,7 @@ from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 
 
-class PidDeltaTuningEnv(BaseEnv):
+class PidDeltaTuning(BaseEnv):
     LOG_PREFIX = "ENV"
 
     def __init__(
@@ -87,7 +87,7 @@ class PidDeltaTuningEnv(BaseEnv):
         self._action_weight = action_weight
 
         self._base_logger = base_logger
-        self._env_logger = PrefixedLogger(self._base_logger, PidDeltaTuningEnv.LOG_PREFIX)
+        self._env_logger = PrefixedLogger(self._base_logger, PidDeltaTuning.LOG_PREFIX)
         self._backend = backend
 
         self._kp = BoundedValue[float](kp_min, kp_max, kp_start)
@@ -239,7 +239,7 @@ class PidDeltaTuningEnv(BaseEnv):
         self._base_logger.close()
 
     @classmethod
-    def from_config(cls, config: Config) -> "PidDeltaTuningEnv":
+    def from_config(cls, config: Config) -> "PidDeltaTuning":
         base_logger = AsyncFileLogger(log_dir=config.args.log_dir, log_file=config.args.log_file)
         backend = ExperimentalPidLoopBackend(
             logger=base_logger,

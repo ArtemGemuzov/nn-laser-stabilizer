@@ -1,4 +1,4 @@
-name: NeuralControllerDeltaEnv
+name: NeuralControllerDelta
 args:
   port: COM3
   timeout: 0.1

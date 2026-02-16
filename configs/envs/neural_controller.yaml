@@ -1,4 +1,4 @@
-name: NeuralControllerEnv
+name: NeuralController
 args:
   port: localhost:8080
   timeout: 0.1

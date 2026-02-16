@@ -1,4 +1,4 @@
-name: PidDeltaTuningEnv
+name: PidDeltaTuning
 args:
   port: COM3
   timeout: 0.1

@@ -14,7 +14,7 @@ from nn_laser_stabilizer.normalize import denormalize_from_minus1_plus1
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
-class NeuralControllerDeltaEnv(BaseEnv):
+class NeuralControllerDelta(BaseEnv):
     LOG_SOURCE = "env"
 
     def __init__(
@@ -187,7 +187,7 @@ class NeuralControllerDeltaEnv(BaseEnv):
         self._logger.close()
 
     @classmethod
-    def from_config(cls, config: Config) -> "NeuralControllerDeltaEnv":
+    def from_config(cls, config: Config) -> "NeuralControllerDelta":
         logger = AsyncFileLogger(
             log_dir=config.args.log_dir, log_file=config.args.log_file
         )

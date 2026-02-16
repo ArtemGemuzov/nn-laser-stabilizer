@@ -7,7 +7,7 @@ from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
 
 
-class PendulumNoVelEnv(BaseEnv):
+class PendulumNoVel(BaseEnv):
     def __init__(self):
         super().__init__()
         
@@ -39,5 +39,5 @@ class PendulumNoVelEnv(BaseEnv):
         self.env.close()
 
     @classmethod
-    def from_config(cls, config: Config) -> "PendulumNoVelEnv":
+    def from_config(cls, config: Config) -> "PendulumNoVel":
         return cls()
