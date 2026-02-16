@@ -1,0 +1,6 @@
+type: bc
+actor:
+  network:
+    _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+  optimizer:
+    lr: 0.001
