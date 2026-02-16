@@ -50,7 +50,9 @@ class MLPActor(Actor):
     def forward(self, observation: torch.Tensor, options: dict[str, Any] | None = None) -> tuple[torch.Tensor, dict[str, Any]]:
         if options is None:
             options = {}
-        action = self.scaler(self.net_body(observation))
+        pre_tanh = self.net_body(observation)
+        action = self.scaler(pre_tanh)
+        options['pre_tanh'] = pre_tanh
         return action, options
 
     @classmethod
@@ -130,16 +132,20 @@ class LSTMActor(Actor):
         
         batch_size, seq_len, hidden_size = lstm_out.shape
         lstm_out_flat = lstm_out.reshape(-1, hidden_size)  # (batch_size * seq_len, lstm_hidden_size)
-        actions_flat = self.net_body(lstm_out_flat)  # (batch_size * seq_len, action_dim)
-        actions_flat = self.scaler(actions_flat)  # (batch_size * seq_len, action_dim)
+        pre_tanh_flat = self.net_body(lstm_out_flat)  # (batch_size * seq_len, action_dim)
+        actions_flat = self.scaler(pre_tanh_flat)  # (batch_size * seq_len, action_dim)
         actions = actions_flat.reshape(batch_size, seq_len, -1)  # (batch_size, seq_len, action_dim)
+        pre_tanh = pre_tanh_flat.reshape(batch_size, seq_len, -1)  # (batch_size, seq_len, action_dim)
         
         if was_1d:
             actions = actions.squeeze(0).squeeze(0)  # (action_dim)
+            pre_tanh = pre_tanh.squeeze(0).squeeze(0)
         elif was_2d:
             actions = actions.squeeze(1)  # (batch_size, action_dim)
+            pre_tanh = pre_tanh.squeeze(1)
         
         options['hidden_state'] = hidden_state
+        options['pre_tanh'] = pre_tanh
         return actions, options
 
     @classmethod

@@ -33,7 +33,7 @@ class GaussianPolicy(Policy):
 
     def sample(
         self, observation: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         raw = self._net(observation)
         mean, log_std = raw.chunk(2, dim=-1)
         log_std = log_std.clamp(LOG_STD_MIN, LOG_STD_MAX)
@@ -44,23 +44,27 @@ class GaussianPolicy(Policy):
         action = tanh_squash(x_t, self._action_space.low, self._action_space.high)
         action_scale = (self._action_space.high - self._action_space.low) / 2.0
         log_prob = gaussian_log_prob(normal, x_t, action_scale)
-        return action, log_prob
+        return action, log_prob, x_t
 
-    def deterministic_action(self, observation: torch.Tensor) -> torch.Tensor:
+    def deterministic_action(
+        self, observation: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         raw = self._net(observation)
         mean, _log_std = raw.chunk(2, dim=-1)
-        return tanh_squash(mean, self._action_space.low, self._action_space.high)
+        action = tanh_squash(mean, self._action_space.low, self._action_space.high)
+        return action, mean
 
     @torch.no_grad()
     def act(
         self, observation: torch.Tensor, options: dict[str, Any]
     ) -> tuple[torch.Tensor, dict[str, Any]]:
         if self._training:
-            action, log_prob = self.sample(observation)
-            options = {**options, "log_prob": log_prob}
+            action, log_prob, pre_tanh = self.sample(observation)
+            options = {**options, "log_prob": log_prob, "pre_tanh": pre_tanh}
             return action, options
         else:
-            action = self.deterministic_action(observation)
+            action, pre_tanh = self.deterministic_action(observation)
+            options = {**options, "pre_tanh": pre_tanh}
             return action, options
 
     def clone(self) -> "GaussianPolicy":
