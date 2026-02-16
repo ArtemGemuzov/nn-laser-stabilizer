@@ -10,6 +10,7 @@ from nn_laser_stabilizer.logger import AsyncFileLogger, Logger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
 from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
+from nn_laser_stabilizer.rl.envs.arx_plant_backend import ARXPlantBackend
 from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
 from nn_laser_stabilizer.normalize import denormalize_from_minus1_plus1
 from nn_laser_stabilizer.time import CallIntervalTracker
@@ -225,25 +226,51 @@ class NeuralController(BaseEnv):
         self._backend.close()
         self._logger.close()
 
+    @staticmethod
+    def _create_backend(config: Config, logger: Logger) -> PlantBackend:
+        backend_config = config.args.get("backend", {})
+        backend_type = str(backend_config.get("type", "experimental"))
+
+        if backend_type == "arx":
+            disturbances = [
+                (float(d["freq"]), float(d["amp"]))
+                for d in backend_config.disturbances
+            ]
+            return ARXPlantBackend(
+                setpoint=int(config.args.setpoint),
+                a=[float(x) for x in backend_config.a],
+                b=[float(x) for x in backend_config.b],
+                c0=float(backend_config.c0),
+                disturbances=disturbances,
+                noise_std=float(backend_config.get("noise_std", 0.0)),
+                dt=float(backend_config.get("dt", 0.005)),
+                pv_min=float(backend_config.get("pv_min", 0.0)),
+                pv_max=float(backend_config.get("pv_max", 1023.0)),
+            )
+        elif backend_type == "experimental":
+            return ExperimentalPlantBackend(
+                port=backend_config.port,
+                timeout=backend_config.timeout,
+                baudrate=backend_config.baudrate,
+                setpoint=config.args.setpoint / 10,  # TODO: process_variable из конфига надо делить на 10
+                auto_determine_setpoint=backend_config.auto_determine_setpoint,
+                setpoint_determination_steps=backend_config.setpoint_determination_steps,
+                setpoint_determination_max_value=backend_config.setpoint_determination_max_value,
+                setpoint_determination_factor=backend_config.setpoint_determination_factor,
+                control_min=config.args.control_min,
+                control_max=config.args.control_max,
+                log_connection=backend_config.log_connection,
+                base_logger=logger,
+            )
+        else:
+            raise ValueError(f"Unknown backend type: '{backend_type}'")
+
     @classmethod
     def from_config(cls, config: Config) -> "NeuralController":
         logger = AsyncFileLogger(
             log_dir=config.args.log_dir, log_file=config.args.log_file
         )
-        backend = ExperimentalPlantBackend(
-            port=config.args.port,
-            timeout=config.args.timeout,
-            baudrate=config.args.baudrate,
-            setpoint=config.args.setpoint / 10,  # TODO: process_varibale из конфига надо делить на 10
-            auto_determine_setpoint=config.args.auto_determine_setpoint,
-            setpoint_determination_steps=config.args.setpoint_determination_steps,
-            setpoint_determination_max_value=config.args.setpoint_determination_max_value,
-            setpoint_determination_factor=config.args.setpoint_determination_factor,
-            control_min=config.args.control_min,
-            control_max=config.args.control_max,
-            log_connection=config.args.log_connection,
-            base_logger=logger,
-        )
+        backend = cls._create_backend(config, logger)
 
         action_config = config.args.action
         action_type = ActionType(str(action_config.type))
@@ -257,7 +284,7 @@ class NeuralController(BaseEnv):
             base_logger=logger,
             control_min=config.args.control_min,
             control_max=config.args.control_max,
-            process_variable_max=config.args.process_variable_max, # TODO: process_varibale надо делить на 10
+            process_variable_max=config.args.process_variable_max,  # TODO: process_variable надо делить на 10
             reset_value=config.args.reset_value,
             reset_steps=config.args.reset_steps,
             observe_prev_error=bool(config.args.observe_prev_error),
