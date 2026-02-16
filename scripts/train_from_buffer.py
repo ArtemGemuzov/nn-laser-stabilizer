@@ -1,10 +1,11 @@
 import argparse
+import json
 import time
 from pathlib import Path
 
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
+from nn_laser_stabilizer.logger import SyncFileLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.envs.env_wrapper import get_spaces_from_config
@@ -28,7 +29,8 @@ def main(context: ExperimentContext) -> None:
     if not buffer_path.exists():
         raise FileNotFoundError(f"Buffer file not found: {buffer_path}")
 
-    TRAIN_LOG_PREFIX = "TRAIN"
+    LOG_SOURCE = Path(__file__).stem
+
     context.logger.log(f"Loading buffer: {buffer_path}")
     buffer = ReplayBuffer.load(buffer_path)
     context.logger.log(f"Buffer loaded. Size: {len(buffer)} / capacity={buffer.capacity}")
@@ -44,10 +46,7 @@ def main(context: ExperimentContext) -> None:
     sampler = make_sampler_from_config(buffer=buffer, sampler_config=config.sampler)
 
     train_log_dir = Path(config.training.log_dir)
-    train_logger = PrefixedLogger(
-        logger=SyncFileLogger(log_dir=train_log_dir, log_file=config.training.log_file),
-        prefix=TRAIN_LOG_PREFIX,
-    )
+    train_logger = SyncFileLogger(log_dir=train_log_dir, log_file=config.training.log_file)
 
     try:
         num_steps = config.training.num_steps
@@ -64,11 +63,14 @@ def main(context: ExperimentContext) -> None:
             metrics = learner.update_step(batch)
 
             if logging_enabled and step % log_frequency == 0:
-                timestamp = time.time()
-                metrics_str = " ".join(f"{k}={v}" for k, v in metrics.items())
-                train_logger.log(
-                    f"step: {metrics_str} buffer_size={len(buffer)} step={step} time={timestamp}"
-                )
+                train_logger.log(json.dumps({
+                    "source": LOG_SOURCE,
+                    "event": "step",
+                    "step": step,
+                    "buffer_size": len(buffer),
+                    "time": time.time(),
+                    **metrics,
+                }))
 
         context.logger.log("Training from buffer completed.")
     finally:
