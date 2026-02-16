@@ -2,7 +2,6 @@ type: sac
 gamma: 0.99
 tau: 0.005
 initial_alpha: 0.2
-auto_alpha: true
 
 actor:
   network:

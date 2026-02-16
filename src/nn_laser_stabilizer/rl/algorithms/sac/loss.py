@@ -20,13 +20,11 @@ class SACLoss:
         gamma: float,
         log_alpha: nn.Parameter,
         target_entropy: float,
-        auto_alpha: bool,
     ):
         self._agent = agent
         self._gamma = gamma
         self.log_alpha = log_alpha
         self._target_entropy = target_entropy
-        self._auto_alpha = auto_alpha
 
     @property
     def alpha(self) -> Tensor:
@@ -36,7 +34,6 @@ class SACLoss:
     def from_config(cls, algorithm_config: Config, agent: SACAgent) -> "SACLoss":
         gamma = float(algorithm_config.gamma)
         initial_alpha = float(algorithm_config.initial_alpha)
-        auto_alpha = bool(algorithm_config.auto_alpha)
 
         if gamma <= 0.0:
             raise ValueError("algorithm.gamma must be > 0")
@@ -49,7 +46,6 @@ class SACLoss:
             gamma=gamma,
             log_alpha=log_alpha,
             target_entropy=target_entropy,
-            auto_alpha=auto_alpha,
         )
 
     def _sample_actions(self, observations: Tensor) -> tuple[Tensor, Tensor]:

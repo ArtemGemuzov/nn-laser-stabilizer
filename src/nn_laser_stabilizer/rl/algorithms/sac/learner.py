@@ -15,7 +15,7 @@ class SACLearner(Learner):
         loss: SACLoss,
         actor_optimizer: Optimizer,
         critic_optimizer: Optimizer,
-        alpha_optimizer: Optimizer | None,
+        alpha_optimizer: Optimizer,
         soft_updater: SoftUpdater,
     ):
         self._agent = agent
@@ -45,10 +45,8 @@ class SACLearner(Learner):
             lr=critic_lr,
         )
 
-        alpha_optimizer = None
-        if loss._auto_alpha:
-            alpha_lr = float(algorithm_config.alpha_optimizer.lr)
-            alpha_optimizer = Optimizer([loss.log_alpha], lr=alpha_lr)
+        alpha_lr = float(algorithm_config.alpha_optimizer.lr)
+        alpha_optimizer = Optimizer([loss.log_alpha], lr=alpha_lr)
 
         soft_updater = SoftUpdater(
             pairs=build_soft_update_pairs(
@@ -84,11 +82,11 @@ class SACLearner(Learner):
             "actor_loss": actor_result["actor_loss"].item(),
         }
 
-        if self._alpha_optimizer is not None:
-            alpha_loss = self._loss.alpha_loss(actor_result["actor_log_prob"])
-            self._alpha_optimizer.step(alpha_loss)
-            metrics["alpha_loss"] = alpha_loss.item()
-            metrics["alpha"] = self._loss.alpha.item()
+        alpha_loss = self._loss.alpha_loss(actor_result["actor_log_prob"])
+        self._alpha_optimizer.step(alpha_loss)
+        metrics["alpha_loss"] = alpha_loss.item()
+
+        metrics["alpha"] = self._loss.alpha.item()
 
         self._soft_updater.update()
 
