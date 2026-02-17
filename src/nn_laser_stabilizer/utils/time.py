@@ -2,7 +2,6 @@ from typing import Optional
 import time
 
 
-
 class CallIntervalTracker: 
     def __init__(self, time_multiplier: float = 1.0):
         """
