@@ -129,13 +129,15 @@ class Config:
         return value
     
     def to_dict(self) -> dict[str, Any]:
-        def convert(value) -> Any:
+        def convert(value: Any) -> Any:
             if isinstance(value, Config):
                 return {k: convert(v) for k, v in value._data.items()}
             elif isinstance(value, dict):
                 return {k: convert(v) for k, v in value.items()}
             elif isinstance(value, list):
                 return [convert(item) for item in value]
+            elif isinstance(value, Path):
+                return str(value)
             return value
         return convert(self._data)
     
