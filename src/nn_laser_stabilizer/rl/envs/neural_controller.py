@@ -246,6 +246,7 @@ class NeuralController(BaseEnv):
                 dt=float(backend_config.get("dt", 0.005)),
                 pv_min=float(backend_config.get("pv_min", 0.0)),
                 pv_max=float(backend_config.get("pv_max", 1023.0)),
+                logger=logger,
             )
         elif backend_type == "experimental":
             return ExperimentalPlantBackend(

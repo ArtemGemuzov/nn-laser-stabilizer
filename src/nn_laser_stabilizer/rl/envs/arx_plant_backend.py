@@ -1,6 +1,10 @@
+import json
 import math
+from typing import Optional
 
 import numpy as np
+
+from nn_laser_stabilizer.logger import Logger
 
 
 class ARXPlantBackend:
@@ -11,6 +15,8 @@ class ARXPlantBackend:
 
     Возмущение — сумма синусоид с рандомизированными фазами + белый шум.
     """
+
+    LOG_SOURCE = "arx_plant"
 
     def __init__(
         self,
@@ -24,6 +30,7 @@ class ARXPlantBackend:
         dt: float,
         pv_min: float = 0.0,
         pv_max: float = 1023.0,
+        logger: Optional[Logger] = None,
     ):
         self._setpoint = setpoint
         self._a = list(a)
@@ -34,6 +41,7 @@ class ARXPlantBackend:
         self._dt = dt
         self._pv_min = pv_min
         self._pv_max = pv_max
+        self._logger = logger
 
         self._na = len(a)
         self._nb = len(b)
@@ -84,7 +92,20 @@ class ARXPlantBackend:
         if len(self._co_history) > self._nb + 100:
             self._co_history = self._co_history[-(self._nb + 10):]
 
-        return int(round(pv))
+        process_variable = int(round(pv))
+
+        if self._logger is not None:
+            self._logger.log(json.dumps({
+                "source": self.LOG_SOURCE,
+                "event": "exchange",
+                "step": self._step,
+                "control_output": control_output,
+                "process_variable": process_variable,
+                "disturbance": round(disturbance, 4),
+                "pv_raw": round(pv, 4),
+            }))
+
+        return process_variable
 
     def close(self) -> None:
         pass
