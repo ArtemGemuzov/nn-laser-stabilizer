@@ -51,7 +51,7 @@ def evaluate(
 
 
 @experiment(
-    experiment_name="neural_controller-v1", 
+    experiment_name="neural_controller-v2", 
     config_name="neural_controller"
 )
 def main(context: ExperimentContext):
