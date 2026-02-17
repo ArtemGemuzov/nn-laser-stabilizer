@@ -12,7 +12,10 @@ from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
 from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.rl.envs.arx_plant_backend import ARXPlantBackend
 from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
-from nn_laser_stabilizer.utils.normalize import denormalize_from_minus1_plus1
+from nn_laser_stabilizer.utils.normalize import (
+    denormalize_from_minus1_plus1,
+    normalize_to_minus1_plus1,
+)
 from nn_laser_stabilizer.utils.time import CallIntervalTracker
 
 
@@ -45,6 +48,7 @@ class NeuralController(BaseEnv):
         action_type: ActionType,
         max_action_delta: int = 0,
         action_penalty: float = 0.0,
+        normalize_obs: bool = False,
     ):
         super().__init__()
 
@@ -91,6 +95,7 @@ class NeuralController(BaseEnv):
         self._observe_prev_error = observe_prev_error
         self._observe_prev_prev_error = observe_prev_prev_error
         self._observe_control_output = observe_control_output
+        self._normalize_obs = normalize_obs
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
@@ -98,24 +103,38 @@ class NeuralController(BaseEnv):
             dtype=np.float32,
         )
 
-        pv_max = float(process_variable_max)
-        obs_low = [-pv_max]
-        obs_high = [pv_max]
+        obs_dim = 1
         if observe_prev_error:
-            obs_low.append(-pv_max)
-            obs_high.append(pv_max)
+            obs_dim += 1
         if observe_prev_prev_error:
-            obs_low.append(-pv_max)
-            obs_high.append(pv_max)
+            obs_dim += 1
         if observe_control_output:
-            obs_low.append(float(control_min))
-            obs_high.append(float(control_max))
+            obs_dim += 1
 
-        self.observation_space = gym.spaces.Box(
-            low=np.array(obs_low, dtype=np.float32),
-            high=np.array(obs_high, dtype=np.float32),
-            dtype=np.float32,
-        )
+        if normalize_obs:
+            self.observation_space = gym.spaces.Box(
+                low=np.full(obs_dim, -1.0, dtype=np.float32),
+                high=np.full(obs_dim, 1.0, dtype=np.float32),
+                dtype=np.float32,
+            )
+        else:
+            pv_max = float(process_variable_max)
+            obs_low = [-pv_max]
+            obs_high = [pv_max]
+            if observe_prev_error:
+                obs_low.append(-pv_max)
+                obs_high.append(pv_max)
+            if observe_prev_prev_error:
+                obs_low.append(-pv_max)
+                obs_high.append(pv_max)
+            if observe_control_output:
+                obs_low.append(float(control_min))
+                obs_high.append(float(control_max))
+            self.observation_space = gym.spaces.Box(
+                low=np.array(obs_low, dtype=np.float32),
+                high=np.array(obs_high, dtype=np.float32),
+                dtype=np.float32,
+            )
 
     def _unpack_action_value(self, action: np.ndarray) -> float:
         return float(action[0])
@@ -157,11 +176,30 @@ class NeuralController(BaseEnv):
 
         return observation, info
 
+    def _normalize_observation(self, observation: np.ndarray) -> np.ndarray:
+        pv_max = float(self._process_variable_max)
+        idx = 0
+        observation[idx] /= pv_max
+        idx += 1
+        if self._observe_prev_error:
+            observation[idx] /= pv_max
+            idx += 1
+        if self._observe_prev_prev_error:
+            observation[idx] /= pv_max
+            idx += 1
+        if self._observe_control_output:
+            observation[idx] = normalize_to_minus1_plus1(
+                float(observation[idx]),
+                min_val=float(self._control_min),
+                max_val=float(self._control_max),
+            )
+        return observation
+
     def _compute_reward(
         self, observation: np.ndarray, action_norm: float
     ) -> float:
         error = float(observation[0])
-        cost = abs(error)
+        cost = abs(error) ** 2
         if self._action_penalty > 0:
             cost += self._action_penalty * abs(action_norm)
         return -cost
@@ -177,6 +215,10 @@ class NeuralController(BaseEnv):
         process_variable = self._apply_control(control_output)
 
         observation, info = self._build_observation(process_variable, control_output)
+
+        if self._normalize_obs:
+            observation = self._normalize_observation(observation)
+
         reward = self._compute_reward(observation, action_norm)
 
         self._logger.log(json.dumps({
@@ -218,6 +260,9 @@ class NeuralController(BaseEnv):
         for _ in range(self._reset_steps):
             process_variable = self._apply_control(self._reset_value)
             observation, info = self._build_observation(process_variable, self._reset_value)
+
+        if self._normalize_obs:
+            observation = self._normalize_observation(observation)
 
         self._logger.log(json.dumps({
             "source": self.LOG_SOURCE,
@@ -299,4 +344,5 @@ class NeuralController(BaseEnv):
             action_type=action_type,
             max_action_delta=max_action_delta,
             action_penalty=action_penalty,
+            normalize_obs=bool(config.args.get("normalize_obs", False)),
         )
