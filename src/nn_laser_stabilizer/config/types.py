@@ -1,4 +1,4 @@
-from nn_laser_stabilizer.enum import BaseEnum
+from nn_laser_stabilizer.utils.enum import BaseEnum
 
 
 class NetworkType(BaseEnum):

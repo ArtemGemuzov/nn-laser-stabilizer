@@ -8,8 +8,8 @@ from nn_laser_stabilizer.hardware.connection import create_connection
 from nn_laser_stabilizer.connection.phase_shifter_connection import ConnectionToPhaseShifter
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.logger import SyncFileLogger
-from nn_laser_stabilizer.pid import PIDDelta
+from nn_laser_stabilizer.utils.logger import SyncFileLogger
+from nn_laser_stabilizer.utils.pid import PIDDelta
 
 
 _running = True

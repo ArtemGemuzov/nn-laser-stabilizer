@@ -2,7 +2,7 @@ from typing import Any, Optional
 from pathlib import Path
 import yaml
 
-from nn_laser_stabilizer.paths import get_configs_dir
+from nn_laser_stabilizer.utils.paths import get_configs_dir
 
 
 def _substitute_placeholders(data: Any, variables: dict[str, Any]) -> Any:

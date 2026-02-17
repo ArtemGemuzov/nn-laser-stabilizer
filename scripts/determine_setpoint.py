@@ -3,7 +3,7 @@ from nn_laser_stabilizer.connection.pid_connection import ConnectionToPid, Loggi
 from nn_laser_stabilizer.rl.envs.setpoint import determine_setpoint
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.logger import AsyncFileLogger
+from nn_laser_stabilizer.utils.logger import AsyncFileLogger
 
 
 @experiment(

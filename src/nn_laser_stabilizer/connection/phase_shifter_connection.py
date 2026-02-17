@@ -2,7 +2,7 @@ import json
 
 from nn_laser_stabilizer.hardware.connection import BaseConnection
 from nn_laser_stabilizer.connection.phase_shifter_protocol import PhaseShifterProtocol
-from nn_laser_stabilizer.logger import Logger
+from nn_laser_stabilizer.utils.logger import Logger
 
 
 class ConnectionToPhaseShifter:

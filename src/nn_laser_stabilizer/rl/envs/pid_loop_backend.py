@@ -9,7 +9,7 @@ from nn_laser_stabilizer.connection.pid_connection import (
     LoggingConnectionToPid,
     ConnectionToPidProtocol
 )
-from nn_laser_stabilizer.logger import Logger, PrefixedLogger
+from nn_laser_stabilizer.utils.logger import Logger, PrefixedLogger
 
 
 class PidLoopBackend(Protocol):

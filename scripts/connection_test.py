@@ -17,7 +17,7 @@ from nn_laser_stabilizer.connection.phase_shifter_connection import (
 )
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.logger import SyncFileLogger
+from nn_laser_stabilizer.utils.logger import SyncFileLogger
 
 
 @experiment(

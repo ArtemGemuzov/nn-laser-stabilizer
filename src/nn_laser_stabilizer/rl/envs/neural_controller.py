@@ -5,15 +5,15 @@ from typing import Optional
 import numpy as np
 import gymnasium as gym
 
-from nn_laser_stabilizer.enum import BaseEnum
-from nn_laser_stabilizer.logger import AsyncFileLogger, Logger
+from nn_laser_stabilizer.utils.enum import BaseEnum
+from nn_laser_stabilizer.utils.logger import AsyncFileLogger, Logger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
 from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
 from nn_laser_stabilizer.rl.envs.arx_plant_backend import ARXPlantBackend
 from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
-from nn_laser_stabilizer.normalize import denormalize_from_minus1_plus1
-from nn_laser_stabilizer.time import CallIntervalTracker
+from nn_laser_stabilizer.utils.normalize import denormalize_from_minus1_plus1
+from nn_laser_stabilizer.utils.time import CallIntervalTracker
 
 
 class BackendType(BaseEnum):

@@ -6,7 +6,7 @@ from nn_laser_stabilizer.connection.phase_shifter_connection import (
     ConnectionToPhaseShifter,
     LoggingConnectionToPhaseShifter,
 )
-from nn_laser_stabilizer.logger import Logger, PrefixedLogger
+from nn_laser_stabilizer.utils.logger import Logger, PrefixedLogger
 
 
 class PlantBackend(Protocol):

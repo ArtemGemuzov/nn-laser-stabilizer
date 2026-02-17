@@ -5,7 +5,7 @@ from typing import Optional
 
 import numpy as np
 
-from nn_laser_stabilizer.logger import Logger
+from nn_laser_stabilizer.utils.logger import Logger
 
 
 class ARXPlantBackend:

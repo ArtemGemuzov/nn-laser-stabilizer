@@ -4,7 +4,7 @@ from pathlib import Path
 
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.logger import SyncFileLogger, PrefixedLogger
+from nn_laser_stabilizer.utils.logger import SyncFileLogger, PrefixedLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.envs.env_wrapper import get_spaces_from_config

@@ -8,12 +8,12 @@ import gymnasium as gym
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
 from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
-from nn_laser_stabilizer.normalize import (
+from nn_laser_stabilizer.utils.normalize import (
     denormalize_from_minus1_plus1,
     normalize_to_minus1_plus1,
 )
 from nn_laser_stabilizer.rl.envs.pid_loop_backend import ExperimentalPidLoopBackend, PidLoopBackend
-from nn_laser_stabilizer.logger import AsyncFileLogger, Logger, PrefixedLogger
+from nn_laser_stabilizer.utils.logger import AsyncFileLogger, Logger, PrefixedLogger
 from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 
 
