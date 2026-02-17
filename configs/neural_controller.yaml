@@ -26,16 +26,21 @@ env:
 
     action:
       type: delta
-      max_delta: 30
+      max_delta: 25
 
-    process_variable_max: 10230
+    process_variable_max: 2000
 
     observe_prev_error: true
     observe_prev_prev_error: true
-    observe_control_output: true
+    observe_control_output: false
 
-  normalize_obs: true
-  normalize_reward: true
+    normalize_obs: true
+
+    reward:
+      action_penalty: 0.0
+
+  normalize_obs: false
+  normalize_reward: false
 
 training:
   train_start_step: 5_000        
@@ -47,12 +52,12 @@ training:
 
 exploration:
   type: pid
-  steps: 20_000
+  steps: 25_000
   kp: 3.5
   ki: 11.0
   kd: 0.002
   dt: 0.005
-  max_delta: 30.0
+  max_delta: 25.0
 
 collector:
   _include: "{CONFIGS_DIR}/collectors/async"
@@ -61,10 +66,10 @@ evaluation:
   _include: "{CONFIGS_DIR}/common/evaluation_none"
 
 buffer:
-  _include: "{CONFIGS_DIR}/buffers/100k"
+  _include: "{CONFIGS_DIR}/buffers/1000k"
 
 sampler:
   _include: "{CONFIGS_DIR}/samplers/single"
 
 algorithm:
-  _include: "{CONFIGS_DIR}/algorithms/td3_neural_controller"
+  _include: "{CONFIGS_DIR}/algorithms/sac_default"
