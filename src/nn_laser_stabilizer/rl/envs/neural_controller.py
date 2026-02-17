@@ -27,7 +27,7 @@ class ActionType(BaseEnum):
 
 
 class NeuralController(BaseEnv):
-    LOG_SOURCE = "NeuralControllerDelta"
+    LOG_SOURCE = "NeuralController"
 
     def __init__(
         self,
@@ -234,7 +234,7 @@ class NeuralController(BaseEnv):
     @staticmethod
     def _create_backend(config: Config, logger: Logger) -> PlantBackend:
         backend_config = config.args.get("backend", {})
-        backend_type = BackendType.from_str(str(backend_config.typ))
+        backend_type = BackendType.from_str(str(backend_config.type))
 
         if backend_type == BackendType.ARX:
             disturbances = [
