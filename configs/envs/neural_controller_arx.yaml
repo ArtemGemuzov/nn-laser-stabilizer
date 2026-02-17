@@ -28,14 +28,16 @@ args:
     type: delta
     max_delta: 30
 
-  process_variable_max: 1023
+  process_variable_max: 500
 
   observe_prev_error: true
   observe_prev_prev_error: true
-  observe_control_output: true
+  observe_control_output: false
 
   reward:
     action_penalty: 0.0
+
+  normalize_obs: true
 
 normalize_obs: false
 normalize_reward: false
