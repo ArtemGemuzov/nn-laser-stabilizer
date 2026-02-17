@@ -83,7 +83,7 @@ def main(context: ExperimentContext) -> None:
     process_variable_max = int(env_args.process_variable_max)
     setpoint = int(env_args.setpoint)
 
-    action_type = ActionType(str(env_args.action.type))
+    action_type = ActionType.from_str(str(env_args.action.type))
     if action_type != ActionType.DELTA:
         raise ValueError(
             f"csv_to_buffer_via_env supports only action type "

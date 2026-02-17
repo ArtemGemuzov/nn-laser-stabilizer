@@ -1,5 +1,6 @@
 import json
 import math
+from collections import deque
 from typing import Optional
 
 import numpy as np
@@ -46,8 +47,8 @@ class ARXPlantBackend:
         self._na = len(a)
         self._nb = len(b)
 
-        self._pv_history: list[float] = []
-        self._co_history: list[int] = []
+        self._pv_history: deque[float] = deque(maxlen=self._na)
+        self._co_history: deque[int] = deque(maxlen=max(self._nb - 1, 1))
         self._disturbance_phases: list[float] = []
         self._step = 0
 
@@ -56,8 +57,8 @@ class ARXPlantBackend:
         return self._setpoint
 
     def reset(self) -> None:
-        self._pv_history = [float(self._setpoint)] * self._na
-        self._co_history = [0] * self._nb
+        self._pv_history = deque([float(self._setpoint)] * self._na, maxlen=self._na)
+        self._co_history = deque([0] * max(self._nb - 1, 1), maxlen=max(self._nb - 1, 1))
         self._step = 0
         self._disturbance_phases = [
             np.random.uniform(0, 2 * math.pi)
@@ -86,11 +87,6 @@ class ARXPlantBackend:
 
         self._pv_history.append(pv)
         self._co_history.append(control_output)
-
-        if len(self._pv_history) > self._na + 100:
-            self._pv_history = self._pv_history[-(self._na + 10):]
-        if len(self._co_history) > self._nb + 100:
-            self._co_history = self._co_history[-(self._nb + 10):]
 
         process_variable = int(round(pv))
 

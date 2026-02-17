@@ -1,11 +1,11 @@
 import json
-from enum import Enum
 from functools import partial
 from typing import Optional
 
 import numpy as np
 import gymnasium as gym
 
+from nn_laser_stabilizer.enum import BaseEnum
 from nn_laser_stabilizer.logger import AsyncFileLogger, Logger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
@@ -16,7 +16,12 @@ from nn_laser_stabilizer.normalize import denormalize_from_minus1_plus1
 from nn_laser_stabilizer.time import CallIntervalTracker
 
 
-class ActionType(Enum):
+class BackendType(BaseEnum):
+    EXPERIMENTAL = "experimental"
+    ARX = "arx"
+
+
+class ActionType(BaseEnum):
     DELTA = "delta"
     ABSOLUTE = "absolute"
 
@@ -229,9 +234,9 @@ class NeuralController(BaseEnv):
     @staticmethod
     def _create_backend(config: Config, logger: Logger) -> PlantBackend:
         backend_config = config.args.get("backend", {})
-        backend_type = str(backend_config.get("type", "experimental"))
+        backend_type = BackendType.from_str(str(backend_config.typ))
 
-        if backend_type == "arx":
+        if backend_type == BackendType.ARX:
             disturbances = [
                 (float(d["freq"]), float(d["amp"]))
                 for d in backend_config.disturbances
@@ -248,7 +253,7 @@ class NeuralController(BaseEnv):
                 pv_max=float(backend_config.get("pv_max", 1023.0)),
                 logger=logger,
             )
-        elif backend_type == "experimental":
+        elif backend_type == BackendType.EXPERIMENTAL:
             return ExperimentalPlantBackend(
                 port=backend_config.port,
                 timeout=backend_config.timeout,
@@ -264,7 +269,7 @@ class NeuralController(BaseEnv):
                 base_logger=logger,
             )
         else:
-            raise ValueError(f"Unknown backend type: '{backend_type}'")
+            raise ValueError(f"Unknown backend type: '{backend_type.value}'")
 
     @classmethod
     def from_config(cls, config: Config) -> "NeuralController":
@@ -274,7 +279,7 @@ class NeuralController(BaseEnv):
         backend = cls._create_backend(config, logger)
 
         action_config = config.args.action
-        action_type = ActionType(str(action_config.type))
+        action_type = ActionType.from_str(str(action_config.type))
         max_action_delta = int(action_config.get("max_delta", 0))
 
         reward_config = config.args.get("reward", {})
