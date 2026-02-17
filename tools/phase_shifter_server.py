@@ -58,14 +58,16 @@ def _make_extra_parser() -> argparse.ArgumentParser:
 
 
 @experiment(
-    experiment_name="phase_shifter_server", 
+    experiment_name="phase_shifter_server",
     extra_parser=_make_extra_parser()
 )
 def main(context: ExperimentContext) -> None:
     config = context.config
     cli = context.config.cli
     env_args = config.env.args
-    host, port = parse_socket_port(env_args.port)
+    backend_config = env_args.backend
+
+    host, port = parse_socket_port(backend_config.port)
 
     delay = float(cli.delay)
     noise_std = float(cli.noise_std)
