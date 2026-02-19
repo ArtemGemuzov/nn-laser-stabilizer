@@ -44,12 +44,16 @@ class NeuralController(BaseEnv):
         action_type: ActionType,
         max_action_delta: int = 0,
         action_penalty: float = 0.0,
+        control_penalty: float = 0.0,
         normalize_obs: bool = False,
     ):
         super().__init__()
 
         self._action_type = action_type
         self._action_penalty = action_penalty
+        self._control_penalty = control_penalty
+        self._control_midpoint = (control_min + control_max) / 2.0
+        self._control_half_range = (control_max - control_min) / 2.0
 
         if action_penalty > 0 and action_type != ActionType.DELTA:
             raise ValueError(
@@ -189,13 +193,28 @@ class NeuralController(BaseEnv):
         return observation
 
     def _compute_reward(
-        self, observation: np.ndarray, action_norm: float
-    ) -> float:
-        error = float(observation[0])
-        cost = abs(error) ** 2
+        self, observation: np.ndarray, action_norm: float, control_output: int
+    ) -> dict[str, float]:
+        # TODO: есть проблема с нормализацией PV
+        error = float(np.clip(observation[0], -1, 1)) 
+        error_cost = abs(error) ** 2
+
+        action_cost = 0.0
         if self._action_penalty > 0:
-            cost += self._action_penalty * abs(action_norm)
-        return -cost
+            action_cost = self._action_penalty * abs(action_norm)
+
+        control_cost = 0.0
+        if self._control_penalty > 0:
+            deviation = abs(control_output - self._control_midpoint) / self._control_half_range
+            control_cost = self._control_penalty * deviation
+
+        total_cost = error_cost + action_cost + control_cost
+        return {
+            "cost_rror": error_cost,
+            "cost_action": action_cost,
+            "cost_control": control_cost,
+            "reward": -total_cost,
+        }
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         action_norm = self._unpack_action_value(action)
@@ -209,20 +228,20 @@ class NeuralController(BaseEnv):
         if self._normalize_obs:
             observation = self._normalize_observation(observation)
 
-        reward = self._compute_reward(observation, action_norm)
+        reward_info = self._compute_reward(observation, action_norm, control_output)
 
+        info.update(reward_info)
         info.update({
             "process_variable": process_variable,
             "setpoint": self._backend.setpoint,
             "action_norm": action_norm,
             "action_value": action_value,
             "control_output": control_output,
-            "reward": reward,
             "terminated": terminated,
         })
 
         truncated = False
-        return observation, reward, terminated, truncated, info
+        return observation, reward_info["reward"], terminated, truncated, info
 
     def reset(
         self,
@@ -306,6 +325,7 @@ class NeuralController(BaseEnv):
 
         reward_config = config.args.get("reward", {})
         action_penalty = float(reward_config.get("action_penalty", 0.0))
+        control_penalty = float(reward_config.get("control_penalty", 0.0))
 
         return cls(
             backend=backend,
@@ -321,5 +341,6 @@ class NeuralController(BaseEnv):
             action_type=action_type,
             max_action_delta=max_action_delta,
             action_penalty=action_penalty,
+            control_penalty=control_penalty,
             normalize_obs=bool(config.args.get("normalize_obs", False)),
         )
