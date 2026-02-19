@@ -5,6 +5,7 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
+from nn_laser_stabilizer.utils.logger import Logger
 
 
 class PendulumNoVel(BaseEnv):
@@ -39,5 +40,7 @@ class PendulumNoVel(BaseEnv):
         self.env.close()
 
     @classmethod
-    def from_config(cls, config: Config) -> "PendulumNoVel":
+    def from_config(
+        cls, config: Config, logger: Logger | None = None
+    ) -> "PendulumNoVel":
         return cls()

@@ -4,7 +4,7 @@ from pathlib import Path
 from torch import Tensor
 
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.rl.envs.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
 
 

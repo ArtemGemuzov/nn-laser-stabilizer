@@ -3,11 +3,8 @@ from typing import Optional
 import torch
 import numpy as np
 import gymnasium as gym
-from gymnasium.wrappers import NormalizeObservation, NormalizeReward
 
-from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.rl.envs.box import Box
-from nn_laser_stabilizer.rl.envs.envs import CUSTOM_ENV_MAP
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 
 
 class TorchEnvWrapper: 
@@ -74,48 +71,3 @@ class TorchEnvWrapper:
         if seed is not None:
             wrapped_env.set_seed(seed)
         return wrapped_env
-
-
-def _apply_normalize_wrappers(env: gym.Env, env_config: Config) -> gym.Env:
-    normalize_obs = bool(env_config.get("normalize_obs", False))
-    if normalize_obs:
-        env = NormalizeObservation(env)
-
-    normalize_reward = bool(env_config.get("normalize_reward", False))
-    if normalize_reward:
-        env = NormalizeReward(env)
-
-    return env
-
-
-def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> TorchEnvWrapper:
-    env_name = env_config.name
-    if env_name in CUSTOM_ENV_MAP:
-        env_class = CUSTOM_ENV_MAP[env_name]
-        env = env_class.from_config(env_config)
-        env = _apply_normalize_wrappers(env, env_config)
-        return TorchEnvWrapper.wrap(env, seed=seed)
-
-    args = env_config.get("args")
-    env_kwargs = args.to_dict() if args is not None else {}
-
-    try:
-        env = gym.make(env_name, **env_kwargs)
-        env = _apply_normalize_wrappers(env, env_config)
-        return TorchEnvWrapper.wrap(env, seed=seed)
-    except gym.error.UnregisteredEnv:
-        raise ValueError(
-            f"Unknown environment: '{env_name}'. "
-            f"Custom environments: {list(CUSTOM_ENV_MAP.keys())}"
-        )
-
-
-def get_spaces_from_config(
-    env_config: Config,
-    seed: Optional[int] = None,
-) -> tuple[Box, Box]:
-    env = make_env_from_config(env_config, seed=seed)
-    observation_space = env.observation_space
-    action_space = env.action_space
-    env.close()
-    return observation_space, action_space

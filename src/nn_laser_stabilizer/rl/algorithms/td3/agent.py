@@ -4,7 +4,7 @@ from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.algorithms.base import Agent
 from nn_laser_stabilizer.rl.model.actor import Actor, make_actor_from_config
 from nn_laser_stabilizer.rl.model.critic import Critic, make_critic_from_config
-from nn_laser_stabilizer.rl.envs.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.policy.deterministic import DeterministicPolicy
 from nn_laser_stabilizer.rl.policy.utils import make_policy_from_config

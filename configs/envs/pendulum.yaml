@@ -1,3 +1,1 @@
 name: Pendulum-v1
-normalize_obs: false
-normalize_reward: false

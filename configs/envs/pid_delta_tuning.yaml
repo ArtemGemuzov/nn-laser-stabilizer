@@ -1,11 +1,14 @@
 name: PidDeltaTuning
+wrappers:
+  step_tracking:
+    time_multiplier: 1e6
+  info_logging:
+    log_dir: "env_logs"
+    log_file: env.log
 args:
   port: COM3
   timeout: 0.1
   baudrate: 115200
-
-  log_dir: "env_logs"
-  log_file: env.log
 
   log_connection: true
 

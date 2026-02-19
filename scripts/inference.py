@@ -6,7 +6,7 @@ from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.rl.model.actor import load_actor_from_path
 from nn_laser_stabilizer.rl.policy.deterministic import DeterministicPolicy
-from nn_laser_stabilizer.rl.envs.env_wrapper import make_env_from_config
+from nn_laser_stabilizer.rl.envs.factory import make_env_from_config
 
 
 @experiment(

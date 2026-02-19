@@ -1,4 +1,12 @@
 name: NeuralController
+wrappers:
+  step_tracking:
+    time_multiplier: 1e6
+  info_logging:
+    log_dir: "."
+    log_file: env.jsonl
+  normalize_obs: true
+  normalize_reward: true
 args:
   backend:
     type: experimental
@@ -10,9 +18,6 @@ args:
     setpoint_determination_steps: 6000
     setpoint_determination_max_value: 2000
     setpoint_determination_factor: 0.1
-
-  log_dir: "."
-  log_file: env.jsonl
 
   setpoint: 1200
 
@@ -33,7 +38,3 @@ args:
 
   reward:
     action_penalty: 0.0
-
-normalize_obs: true
-normalize_reward: true
-

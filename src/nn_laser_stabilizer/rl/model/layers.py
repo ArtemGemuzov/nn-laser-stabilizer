@@ -3,7 +3,7 @@ from typing import Sequence
 import torch
 import torch.nn as nn
 
-from nn_laser_stabilizer.rl.envs.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 
 
 def build_mlp(

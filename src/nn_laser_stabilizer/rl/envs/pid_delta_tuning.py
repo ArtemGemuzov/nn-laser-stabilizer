@@ -1,30 +1,26 @@
 from functools import partial
 from typing import Optional
-import time
 
 import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
-from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
+from nn_laser_stabilizer.utils.bounded_value import BoundedValue
 from nn_laser_stabilizer.utils.normalize import (
     denormalize_from_minus1_plus1,
     normalize_to_minus1_plus1,
 )
 from nn_laser_stabilizer.rl.envs.pid_loop_backend import ExperimentalPidLoopBackend, PidLoopBackend
-from nn_laser_stabilizer.utils.logger import AsyncFileLogger, Logger, PrefixedLogger
+from nn_laser_stabilizer.utils.logger import Logger, NoOpLogger
 from nn_laser_stabilizer.connection.pid_protocol import PidProtocol
 
 
 class PidDeltaTuning(BaseEnv):
-    LOG_PREFIX = "ENV"
-
     def __init__(
         self,
         *,
         backend: PidLoopBackend,
-        base_logger: Logger,
         kp_min: float,
         kp_max: float,
         kp_start: float,
@@ -86,8 +82,6 @@ class PidDeltaTuning(BaseEnv):
         self._stability_weight = stability_weight
         self._action_weight = action_weight
 
-        self._base_logger = base_logger
-        self._env_logger = PrefixedLogger(self._base_logger, PidDeltaTuning.LOG_PREFIX)
         self._backend = backend
 
         self._kp = BoundedValue[float](kp_min, kp_max, kp_start)
@@ -96,8 +90,6 @@ class PidDeltaTuning(BaseEnv):
         self._kp_start = kp_start
         self._ki_start = ki_start
         self._kd_start = kd_start
-
-        self._step: int = 0
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -179,8 +171,6 @@ class PidDeltaTuning(BaseEnv):
         return 2 * total_reward + 1
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        self._step += 1
-
         delta_kp_norm, delta_ki_norm, delta_kd_norm = self._unpack_action_value(action)
         self._update_pid_params(delta_kp_norm, delta_ki_norm, delta_kd_norm)
         process_variables, control_outputs, setpoint, should_reset = self._apply_control()
@@ -190,20 +180,20 @@ class PidDeltaTuning(BaseEnv):
         )
         reward = self._compute_reward(observation, action)
 
-        log_line = (
-            f"step: step={self._step} time={time.time()} "
-            f"kp={self._kp.value:.{PidProtocol.KP_DECIMAL_PLACES}f} "
-            f"ki={self._ki.value:.{PidProtocol.KI_DECIMAL_PLACES}f} "
-            f"kd={self._kd.value:.{PidProtocol.KD_DECIMAL_PLACES}f} "
-            f"delta_kp_norm={delta_kp_norm} delta_ki_norm={delta_ki_norm} delta_kd_norm={delta_kd_norm} "
-            f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
-            f"reward={reward} should_reset={should_reset}"
-        )
-        self._env_logger.log(log_line)   
-
         terminated = should_reset
         truncated = False
-        info = {}
+        info = {
+            "kp": self._kp.value,
+            "ki": self._ki.value,
+            "kd": self._kd.value,
+            "delta_kp_norm": delta_kp_norm,
+            "delta_ki_norm": delta_ki_norm,
+            "delta_kd_norm": delta_kd_norm,
+            "error_mean_norm": float(observation[0]),
+            "error_std_norm": float(observation[1]),
+            "reward": reward,
+            "should_reset": should_reset,
+        }
         return observation, reward, terminated, truncated, info
 
     def reset(
@@ -221,28 +211,27 @@ class PidDeltaTuning(BaseEnv):
         observation = self._build_observation(
             process_variables, control_outputs, setpoint
         )
-        
-        log_line = (
-            f"reset: time={time.time()} "
-            f"kp={self._kp.value:.{PidProtocol.KP_DECIMAL_PLACES}f} "
-            f"ki={self._ki.value:.{PidProtocol.KI_DECIMAL_PLACES}f} "
-            f"kd={self._kd.value:.{PidProtocol.KD_DECIMAL_PLACES}f} "
-            f"error_mean_norm={observation[0]} error_std_norm={observation[1]} "
-        )
-        self._env_logger.log(log_line) 
 
-        info = {}
+        info = {
+            "kp": self._kp.value,
+            "ki": self._ki.value,
+            "kd": self._kd.value,
+            "error_mean_norm": float(observation[0]),
+            "error_std_norm": float(observation[1]),
+        }
         return observation, info
 
     def close(self) -> None:
         self._backend.close()
-        self._base_logger.close()
 
     @classmethod
-    def from_config(cls, config: Config) -> "PidDeltaTuning":
-        base_logger = AsyncFileLogger(log_dir=config.args.log_dir, log_file=config.args.log_file)
+    def from_config(
+        cls, config: Config, logger: Logger | None = None
+    ) -> "PidDeltaTuning":
+        if logger is None:
+            logger = NoOpLogger()
         backend = ExperimentalPidLoopBackend(
-            logger=base_logger,
+            logger=logger,
             port=config.args.port,
             timeout=config.args.timeout,
             baudrate=config.args.baudrate,
@@ -264,7 +253,6 @@ class PidDeltaTuning(BaseEnv):
         )
         return cls(
             backend=backend,
-            base_logger=base_logger,
             kp_min=config.args.kp_min,
             kp_max=config.args.kp_max,
             kp_start=config.args.kp_start,

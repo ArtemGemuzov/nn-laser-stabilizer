@@ -1,7 +1,7 @@
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.config.types import AlgorithmType
 from nn_laser_stabilizer.rl.algorithms.base import Agent, Learner
-from nn_laser_stabilizer.rl.envs.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 
 from nn_laser_stabilizer.rl.algorithms.td3.agent import TD3Agent
 from nn_laser_stabilizer.rl.algorithms.td3.loss import TD3Loss

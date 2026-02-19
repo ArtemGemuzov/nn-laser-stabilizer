@@ -1,4 +1,3 @@
-import json
 from functools import partial
 from typing import Optional
 
@@ -6,17 +5,16 @@ import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.utils.enum import BaseEnum
-from nn_laser_stabilizer.utils.logger import AsyncFileLogger, Logger
+from nn_laser_stabilizer.utils.logger import Logger, NoOpLogger
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
-from nn_laser_stabilizer.rl.envs.bounded_value import BoundedValue
+from nn_laser_stabilizer.utils.bounded_value import BoundedValue
 from nn_laser_stabilizer.rl.envs.arx_plant_backend import ARXPlantBackend
 from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
 from nn_laser_stabilizer.utils.normalize import (
     denormalize_from_minus1_plus1,
     normalize_to_minus1_plus1,
 )
-from nn_laser_stabilizer.utils.time import CallIntervalTracker
 
 
 class BackendType(BaseEnum):
@@ -30,13 +28,10 @@ class ActionType(BaseEnum):
 
 
 class NeuralController(BaseEnv):
-    LOG_SOURCE = "NeuralController"
-
     def __init__(
         self,
         *,
         backend: PlantBackend,
-        base_logger: Logger,
         control_min: int,
         control_max: int,
         process_variable_max: int,
@@ -77,11 +72,7 @@ class NeuralController(BaseEnv):
                 max_val=float(control_max),
             )
 
-        self._logger = base_logger
         self._backend = backend
-
-        self._step_interval_tracker = CallIntervalTracker(time_multiplier=1e6)
-        self._step: int = 0
 
         self._process_variable_max = process_variable_max
         self._reset_value = reset_value
@@ -205,9 +196,6 @@ class NeuralController(BaseEnv):
         return -cost
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        step_interval = self._step_interval_tracker.tick()
-        self._step += 1
-
         action_norm = self._unpack_action_value(action)
         action_value = self._denormalize_action(action_norm)
 
@@ -221,22 +209,15 @@ class NeuralController(BaseEnv):
 
         reward = self._compute_reward(observation, action_norm)
 
-        self._logger.log(json.dumps({
-            "source": self.LOG_SOURCE,
-            "event": "step",
-            "step": self._step,
+        info.update({
             "process_variable": process_variable,
             "setpoint": self._backend.setpoint,
-            "error": info["env.cur_error"],
-            "error_prev": info["env.prev_error"],
-            "error_prev_prev": info["env.prev_prev_error"],
             "action_norm": action_norm,
             "action_value": action_value,
             "control_output": control_output,
             "reward": reward,
             "terminated": terminated,
-            "step_interval_us": step_interval,
-        }))
+        })
 
         truncated = False
         return observation, reward, terminated, truncated, info
@@ -248,8 +229,6 @@ class NeuralController(BaseEnv):
     ) -> tuple[np.ndarray, dict]:
         super().reset(seed=seed)
 
-        self._step = 0
-        self._step_interval_tracker.reset()
         self._error_prev = 0.0
         self._error_prev_prev = 0.0
 
@@ -264,17 +243,12 @@ class NeuralController(BaseEnv):
         if self._normalize_obs:
             observation = self._normalize_observation(observation)
 
-        self._logger.log(json.dumps({
-            "source": self.LOG_SOURCE,
-            "event": "reset",
-            "setpoint": self._backend.setpoint,
-        }))
+        info["setpoint"] = self._backend.setpoint
 
         return observation, info
 
     def close(self) -> None:
         self._backend.close()
-        self._logger.close()
 
     @staticmethod
     def _create_backend(config: Config, logger: Logger) -> PlantBackend:
@@ -317,10 +291,11 @@ class NeuralController(BaseEnv):
             raise ValueError(f"Unknown backend type: '{backend_type.value}'")
 
     @classmethod
-    def from_config(cls, config: Config) -> "NeuralController":
-        logger = AsyncFileLogger(
-            log_dir=config.args.log_dir, log_file=config.args.log_file
-        )
+    def from_config(
+        cls, config: Config, logger: Logger | None = None
+    ) -> "NeuralController":
+        if logger is None:
+            logger = NoOpLogger()
         backend = cls._create_backend(config, logger)
 
         action_config = config.args.action
@@ -332,7 +307,6 @@ class NeuralController(BaseEnv):
 
         return cls(
             backend=backend,
-            base_logger=logger,
             control_min=config.args.control_min,
             control_max=config.args.control_max,
             process_variable_max=config.args.process_variable_max,  # TODO: process_variable надо делить на 10

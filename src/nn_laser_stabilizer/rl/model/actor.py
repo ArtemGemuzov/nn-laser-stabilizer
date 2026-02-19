@@ -8,7 +8,7 @@ from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.config.types import NetworkType
 from nn_laser_stabilizer.rl.model.layers import build_mlp
 from nn_laser_stabilizer.rl.model.model import Model
-from nn_laser_stabilizer.rl.envs.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.model.layers import Scaler
 
 

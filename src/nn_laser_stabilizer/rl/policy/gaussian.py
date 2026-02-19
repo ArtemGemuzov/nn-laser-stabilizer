@@ -3,7 +3,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from nn_laser_stabilizer.rl.envs.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
 
 LOG_STD_MIN = -20.0

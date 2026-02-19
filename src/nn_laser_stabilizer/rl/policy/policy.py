@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from nn_laser_stabilizer.rl.envs.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 
 
 class Policy(ABC):

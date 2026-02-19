@@ -3,7 +3,7 @@ from typing import Callable, Optional
 import torch.multiprocessing as mp
 
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
-from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
+from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
 from nn_laser_stabilizer.rl.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, collect_step, warmup_step

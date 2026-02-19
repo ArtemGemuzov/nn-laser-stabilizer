@@ -1,5 +1,5 @@
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.rl.envs.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.model.actor import Actor
 from nn_laser_stabilizer.rl.policy.policy import Policy
 

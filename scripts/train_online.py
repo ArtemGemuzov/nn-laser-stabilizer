@@ -12,7 +12,8 @@ from nn_laser_stabilizer.utils.logger import SyncFileLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.collector.collector import make_collector_from_config
-from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper, get_spaces_from_config, make_env_from_config
+from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
+from nn_laser_stabilizer.rl.envs.factory import get_spaces_from_config, make_env_from_config
 from nn_laser_stabilizer.rl.algorithms.factory import build_algorithm
 from nn_laser_stabilizer.rl.policy.policy import Policy
 

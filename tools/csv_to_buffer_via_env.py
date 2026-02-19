@@ -10,10 +10,9 @@ from nn_laser_stabilizer.config.config import find_and_load_config
 from nn_laser_stabilizer.utils.paths import find_project_root
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
-from nn_laser_stabilizer.utils.logger import NoOpLogger
 from nn_laser_stabilizer.utils.normalize import normalize_to_minus1_plus1
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
-from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
+from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.envs.neural_controller import ActionType, NeuralController
 from nn_laser_stabilizer.rl.envs.plant_backend import MockPlantBackend
 
@@ -130,10 +129,8 @@ def main(context: ExperimentContext) -> None:
         exchange_fn=exchange_fn,
         setpoint=setpoint,
     )
-    base_logger = NoOpLogger()
     base_env = NeuralController(
         backend=backend,
-        base_logger=base_logger,
         control_min=control_min,
         control_max=control_max,
         process_variable_max=process_variable_max,

@@ -6,7 +6,7 @@ import time
 import torch
 
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
-from nn_laser_stabilizer.rl.envs.env_wrapper import TorchEnvWrapper
+from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.collector.worker import CollectorWorker
 from nn_laser_stabilizer.rl.collector.connection import CollectorConnection

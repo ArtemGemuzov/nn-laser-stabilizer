@@ -34,7 +34,7 @@ class Model(nn.Module, ABC):
     @classmethod
     def load(cls, path: Path) -> "Model":
         import sys
-        import nn_laser_stabilizer.rl.envs.box as new_box_mod
+        import nn_laser_stabilizer.rl.envs.spaces.box as new_box_mod
 
         sys.modules['nn_laser_stabilizer.box'] = new_box_mod
 
