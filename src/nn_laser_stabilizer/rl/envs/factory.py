@@ -8,6 +8,7 @@ from nn_laser_stabilizer.rl.envs.envs import CUSTOM_ENV_MAP
 from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.envs.wrappers.step_tracking import StepTrackingWrapper
 from nn_laser_stabilizer.rl.envs.wrappers.info_logging import InfoLoggingWrapper
+from nn_laser_stabilizer.rl.envs.wrappers.reward_ema import RewardEMAWrapper
 from nn_laser_stabilizer.utils.logger import AsyncFileLogger, Logger, NoOpLogger
 
 
@@ -35,6 +36,13 @@ def _apply_wrappers(
         if step_tracking is not True:
             time_multiplier = float(step_tracking.get("time_multiplier", 1e6))
         env = StepTrackingWrapper(env, time_multiplier=time_multiplier)
+
+    reward_ema = wrappers_config.get("reward_ema", None)
+    if reward_ema is not None:
+        alpha = 0.99
+        if reward_ema is not True:
+            alpha = float(reward_ema.get("alpha", 0.3))
+        env = RewardEMAWrapper(env, alpha=alpha)
 
     info_logging = wrappers_config.get("info_logging", None)
     if info_logging is not None:
