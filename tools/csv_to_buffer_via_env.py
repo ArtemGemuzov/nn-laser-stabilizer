@@ -79,6 +79,7 @@ def main(context: ExperimentContext) -> None:
 
     control_min = int(env_args.control_min)
     control_max = int(env_args.control_max)
+    process_variable_min = int(env_args.process_variable_min)
     process_variable_max = int(env_args.process_variable_max)
     setpoint = int(env_args.setpoint)
 
@@ -133,6 +134,7 @@ def main(context: ExperimentContext) -> None:
         backend=backend,
         control_min=control_min,
         control_max=control_max,
+        process_variable_min=process_variable_min,
         process_variable_max=process_variable_max,
         reset_value=int(control_outputs[0]),
         reset_steps=BUFFER_RESET_STEPS,

@@ -28,7 +28,8 @@ args:
     type: delta
     max_delta: 30
 
-  process_variable_max: 10230
+  process_variable_min: 1000
+  process_variable_max: 2000
 
   observe_prev_error: true
   observe_prev_prev_error: true

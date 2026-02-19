@@ -34,6 +34,7 @@ class NeuralController(BaseEnv):
         backend: PlantBackend,
         control_min: int,
         control_max: int,
+        process_variable_min: int,
         process_variable_max: int,
         reset_value: int,
         reset_steps: int,
@@ -74,7 +75,9 @@ class NeuralController(BaseEnv):
 
         self._backend = backend
 
+        self._process_variable_min = process_variable_min
         self._process_variable_max = process_variable_max
+        self._pv_range = float(process_variable_max - process_variable_min)
         self._reset_value = reset_value
         self._reset_steps = reset_steps
         self._control_min = control_min
@@ -109,15 +112,15 @@ class NeuralController(BaseEnv):
                 dtype=np.float32,
             )
         else:
-            pv_max = float(process_variable_max)
-            obs_low = [-pv_max]
-            obs_high = [pv_max]
+            error_bound = self._pv_range
+            obs_low = [-error_bound]
+            obs_high = [error_bound]
             if observe_prev_error:
-                obs_low.append(-pv_max)
-                obs_high.append(pv_max)
+                obs_low.append(-error_bound)
+                obs_high.append(error_bound)
             if observe_prev_prev_error:
-                obs_low.append(-pv_max)
-                obs_high.append(pv_max)
+                obs_low.append(-error_bound)
+                obs_high.append(error_bound)
             if observe_control_output:
                 obs_low.append(float(control_min))
                 obs_high.append(float(control_max))
@@ -168,15 +171,14 @@ class NeuralController(BaseEnv):
         return observation, info
 
     def _normalize_observation(self, observation: np.ndarray) -> np.ndarray:
-        pv_max = float(self._process_variable_max)
         idx = 0
-        observation[idx] /= pv_max
+        observation[idx] /= self._pv_range
         idx += 1
         if self._observe_prev_error:
-            observation[idx] /= pv_max
+            observation[idx] /= self._pv_range
             idx += 1
         if self._observe_prev_prev_error:
-            observation[idx] /= pv_max
+            observation[idx] /= self._pv_range
             idx += 1
         if self._observe_control_output:
             observation[idx] = normalize_to_minus1_plus1(
@@ -277,7 +279,7 @@ class NeuralController(BaseEnv):
                 port=backend_config.port,
                 timeout=backend_config.timeout,
                 baudrate=backend_config.baudrate,
-                setpoint=config.args.setpoint / 10,  # TODO: process_variable из конфига надо делить на 10
+                setpoint=config.args.setpoint / 10,
                 auto_determine_setpoint=backend_config.auto_determine_setpoint,
                 setpoint_determination_steps=backend_config.setpoint_determination_steps,
                 setpoint_determination_max_value=backend_config.setpoint_determination_max_value,
@@ -309,7 +311,8 @@ class NeuralController(BaseEnv):
             backend=backend,
             control_min=config.args.control_min,
             control_max=config.args.control_max,
-            process_variable_max=config.args.process_variable_max,  # TODO: process_variable надо делить на 10
+            process_variable_min=int(config.args.process_variable_min) // 10, # TODO: переменные, относящиеся к PV надр делить на 10
+            process_variable_max=int(config.args.process_variable_max) // 10,
             reset_value=config.args.reset_value,
             reset_steps=config.args.reset_steps,
             observe_prev_error=bool(config.args.observe_prev_error),

@@ -28,6 +28,7 @@ env:
       type: delta
       max_delta: 25
 
+    process_variable_min: 1000
     process_variable_max: 2000
 
     observe_prev_error: true
