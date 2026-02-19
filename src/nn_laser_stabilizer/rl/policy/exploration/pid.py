@@ -10,9 +10,9 @@ from nn_laser_stabilizer.rl.policy.exploration.base_exploaration import BaseExpl
 
 
 class PIDExplorationPolicy(BaseExplorationPolicy):
-    CUR_ERROR_KEY = "env.cur_error"
-    PREV_ERROR_KEY = "env.prev_error"
-    PREV_PREV_ERROR_KEY = "env.prev_prev_error"
+    CUR_ERROR_KEY = "error"
+    PREV_ERROR_KEY = "prev_error"
+    PREV_PREV_ERROR_KEY = "prev_prev_error"
 
     def __init__(
         self,

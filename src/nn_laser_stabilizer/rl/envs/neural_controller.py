@@ -160,9 +160,9 @@ class NeuralController(BaseEnv):
 
         observation = np.array(components, dtype=np.float32)
         info = {
-            "env.cur_error": error,
-            "env.prev_error": self._error_prev,
-            "env.prev_prev_error": self._error_prev_prev,
+            "error": error,
+            "prev_error": self._error_prev,
+            "prev_prev_error": self._error_prev_prev,
         }
 
         self._error_prev_prev = self._error_prev
