@@ -1,5 +1,4 @@
 import torch
-
 import numpy as np
 import gymnasium as gym
 
@@ -28,23 +27,17 @@ class Box:
             dim = gym_box.shape[0]
         else:
             dim = int(np.prod(gym_box.shape))
-        
-        return cls(
-            low=gym_box.low,
-            high=gym_box.high,
-            dim=dim
-        )
-    
+
+        return cls(low=gym_box.low, high=gym_box.high, dim=dim)
+
     def sample(self) -> torch.Tensor:
         uniform = torch.rand(self.dim)
-        sample = self.low + uniform * (self.high - self.low)
-        return sample
-    
-    def contains(self, x: torch.Tensor) -> bool: 
+        return self.low + uniform * (self.high - self.low)
+
+    def contains(self, x: torch.Tensor) -> bool:
         if x.shape[-1] != self.dim:
             return False
-        
         return bool((x >= self.low).all() and (x <= self.high).all())
-    
-    def clip(self, x: torch.Tensor) -> torch.Tensor:  
+
+    def clip(self, x: torch.Tensor) -> torch.Tensor:
         return torch.clamp(x, self.low, self.high)
