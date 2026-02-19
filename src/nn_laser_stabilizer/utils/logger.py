@@ -73,16 +73,19 @@ class SyncFileLogger:
 class ConsoleLogger:
     def __init__(self, log_dir: str | Path, log_file: str):
         self._file_logger = SyncFileLogger(log_dir=log_dir, log_file=log_file)
-    
+
     def log(self, message: str) -> None:
-        self._file_logger.log(message)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}"
+        print(formatted_message, end='' if message.endswith("\n") else '\n')
+        self._file_logger.log(formatted_message)
 
     def log_dict(self, data: dict) -> None:
-        self._file_logger.log(json.dumps(data))
-    
+        raise NotImplementedError("ConsoleLogger does not support log_dict; use log() instead")
+
     def close(self) -> None:
         self._file_logger.close()
-    
+
     def __del__(self):
         self.close()
 
