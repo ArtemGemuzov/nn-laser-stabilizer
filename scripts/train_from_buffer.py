@@ -9,7 +9,7 @@ from nn_laser_stabilizer.utils.logger import SyncFileLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.envs.factory import get_spaces_from_config
-from nn_laser_stabilizer.rl.algorithms.factory import build_algorithm
+from nn_laser_stabilizer.rl.algorithms.factory import build_agent
 
 
 def _make_extra_parser() -> argparse.ArgumentParser:
@@ -37,7 +37,7 @@ def main(context: ExperimentContext) -> None:
 
     observation_space, action_space = get_spaces_from_config(config.env, seed=context.seed)
 
-    agent, learner = build_algorithm(
+    agent = build_agent(
         algorithm_config=config.algorithm,
         observation_space=observation_space,
         action_space=action_space,
@@ -60,7 +60,7 @@ def main(context: ExperimentContext) -> None:
         while infinite_steps or step < num_steps:
             step += 1
             batch = sampler.sample()
-            metrics = learner.update_step(batch)
+            metrics = agent.update_step(batch)
 
             if logging_enabled and step % log_frequency == 0:
                 train_logger.log(json.dumps({
@@ -76,7 +76,7 @@ def main(context: ExperimentContext) -> None:
     finally:
         context.logger.log("Saving models...")
         models_dir = Path("models")
-        agent.save_models(models_dir)
+        agent.save(models_dir)
         context.logger.log(f"Models saved to {models_dir}")
 
         buffer_dir = Path("data")

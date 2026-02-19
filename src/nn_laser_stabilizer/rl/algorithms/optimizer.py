@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Iterable, List, Tuple
 
 import torch
@@ -14,7 +15,13 @@ class Optimizer:
         loss.backward()
         self._optimizer.step()
         return loss.detach()
-    
+
+    def save(self, path: Path) -> None:
+        torch.save(self._optimizer.state_dict(), path)
+
+    def load(self, path: Path) -> None:
+        self._optimizer.load_state_dict(torch.load(path, map_location='cpu', weights_only=True))
+
     def __getattr__(self, name):
         return getattr(self._optimizer, name)
 

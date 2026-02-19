@@ -14,7 +14,7 @@ from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.collector.collector import make_collector_from_config
 from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.envs.factory import get_spaces_from_config, make_env_from_config
-from nn_laser_stabilizer.rl.algorithms.factory import build_algorithm
+from nn_laser_stabilizer.rl.algorithms.factory import build_agent
 from nn_laser_stabilizer.rl.policy.policy import Policy
 
 
@@ -78,7 +78,7 @@ def main(context: ExperimentContext):
         sampler_config=context.config.sampler
     )
 
-    agent, learner = build_algorithm(
+    agent = build_agent(
         algorithm_config=context.config.algorithm,
         observation_space=observation_space,
         action_space=action_space,
@@ -132,7 +132,7 @@ def main(context: ExperimentContext):
                 
                 batch = sampler.sample()
 
-                metrics = learner.update_step(batch)
+                metrics = agent.update_step(batch)
                 
                 if step >= sync_start_step and step % sync_frequency == 0:
                     collector.sync()
@@ -166,7 +166,7 @@ def main(context: ExperimentContext):
         finally:
             context.logger.log("Saving models...")
             models_dir = Path("models")
-            agent.save_models(models_dir)
+            agent.save(models_dir)
             context.logger.log(f"Models saved to {models_dir}")
             
             context.logger.log("Saving replay buffer...")

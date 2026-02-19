@@ -1,7 +1,11 @@
 from pathlib import Path
 
+import torch.nn.functional as F
+from torch import Tensor
+
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.algorithms.base import Agent
+from nn_laser_stabilizer.rl.algorithms.optimizer import Optimizer
 from nn_laser_stabilizer.rl.model.deterministic_actor import DeterministicActor
 from nn_laser_stabilizer.rl.networks.factory import make_actor_network_from_config
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
@@ -11,9 +15,15 @@ from nn_laser_stabilizer.rl.policy.factory import make_exploration_policy_from_c
 
 
 class BCAgent(Agent):
-    def __init__(self, actor: DeterministicActor, action_space: Box):
-        self.actor = actor
-        self.action_space = action_space
+    def __init__(
+        self,
+        actor: DeterministicActor,
+        action_space: Box,
+        actor_optimizer: Optimizer,
+    ):
+        self._actor = actor
+        self._action_space = action_space
+        self._actor_optimizer = actor_optimizer
 
     @classmethod
     def from_config(
@@ -31,19 +41,35 @@ class BCAgent(Agent):
         )
         actor = DeterministicActor(network=actor_network, action_space=action_space).train()
 
-        return cls(actor=actor, action_space=action_space)
+        actor_optimizer = Optimizer(actor.parameters(), lr=float(actor_config.optimizer.lr))
+
+        return cls(actor=actor, action_space=action_space, actor_optimizer=actor_optimizer)
 
     def exploration_policy(self, exploration_config: Config) -> Policy:
-        base_policy = DeterministicPolicy(actor=self.actor)
+        base_policy = DeterministicPolicy(actor=self._actor)
         return make_exploration_policy_from_config(
             policy=base_policy,
-            action_space=self.action_space,
+            action_space=self._action_space,
             exploration_config=exploration_config,
         )
 
     def default_policy(self) -> Policy:
-        return DeterministicPolicy(actor=self.actor).eval()
+        return DeterministicPolicy(actor=self._actor).eval()
 
-    def save_models(self, models_dir: Path) -> None:
-        models_dir.mkdir(parents=True, exist_ok=True)
-        self.actor.save(models_dir / 'actor.pt')
+    def update_step(self, batch: tuple[Tensor, ...]) -> dict[str, float]:
+        obs, actions, *_ = batch
+        output = self._actor(obs)
+        loss = F.mse_loss(output.action, actions)
+        self._actor_optimizer.step(loss)
+        return {"actor_loss": loss.item()}
+
+    def save(self, path: Path) -> None:
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+        self._actor.save(path / 'actor.pt')
+        self._actor_optimizer.save(path / 'actor_optimizer.pt')
+
+    def load(self, path: Path) -> None:
+        path = Path(path)
+        self._actor.load(path / 'actor.pt')
+        self._actor_optimizer.load(path / 'actor_optimizer.pt')
