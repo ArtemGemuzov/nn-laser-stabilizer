@@ -29,9 +29,9 @@ args:
 
   action:
     type: delta
-    max_delta: 30
+    max_delta: 25
 
-  process_variable_min: 0
+  process_variable_min: 100
   process_variable_max: 500
 
   observe_prev_error: true
