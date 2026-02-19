@@ -140,9 +140,9 @@ class LSTMCritic(Critic):
         elif observation.dim() == 2:
             observation = observation.unsqueeze(1)  # (batch_size, 1, obs_dim)
 
-        if was_1d == 1:
+        if was_1d:
             action = action.unsqueeze(0).unsqueeze(1)  # (1, 1, action_dim)
-        elif was_2d == 2:
+        elif was_2d:
             action = action.unsqueeze(1)  # (batch_size, 1, action_dim)
 
         lstm_out, hidden_state = self.lstm(observation, hidden_state)  # (batch_size, seq_len, lstm_hidden_size)
