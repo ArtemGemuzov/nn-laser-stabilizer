@@ -4,18 +4,22 @@ from collections import deque
 from threading import Thread
 from multiprocessing import Process, Queue, Event
 from queue import Empty, Full
-from datetime import datetime
+import json
 import time
 import re
 
 
 class Logger(Protocol):
     def log(self, message: str) -> None: ...
+    def log_dict(self, data: dict) -> None: ...
     def close(self) -> None: ...
 
 
 class NoOpLogger:
     def log(self, message: str) -> None:
+        pass
+
+    def log_dict(self, data: dict) -> None:
         pass
 
     def close(self) -> None:
@@ -29,6 +33,9 @@ class PrefixedLogger:
     
     def log(self, message: str) -> None:
         self._logger.log(f"[{self._prefix}] {message}")
+
+    def log_dict(self, data: dict) -> None:
+        self._logger.log_dict(data)
     
     def close(self) -> None:
         pass
@@ -49,6 +56,9 @@ class SyncFileLogger:
         message += "\n"
         self._file_handle.write(message)
         self._file_handle.flush()
+
+    def log_dict(self, data: dict) -> None:
+        self.log(json.dumps(data))
     
     def close(self) -> None:
         if self._closed:
@@ -65,10 +75,10 @@ class ConsoleLogger:
         self._file_logger = SyncFileLogger(log_dir=log_dir, log_file=log_file)
     
     def log(self, message: str) -> None:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        formatted_message = f"[{timestamp}] {message}"
-        print(formatted_message, end='' if message.endswith("\n") else '\n')
-        self._file_logger.log(formatted_message)
+        self._file_logger.log(message)
+
+    def log_dict(self, data: dict) -> None:
+        self._file_logger.log(json.dumps(data))
     
     def close(self) -> None:
         self._file_logger.close()
@@ -98,6 +108,9 @@ class AsyncFileLogger:
         if self._stop:
             return
         self._queue.append(message)
+
+    def log_dict(self, data: dict) -> None:
+        self.log(json.dumps(data))
 
     def _write_line(self, line: str) -> None:
         line += "\n"
@@ -154,6 +167,9 @@ class ProcessFileLogger:
             self._queue.put_nowait(message)  
         except Full:
             pass
+
+    def log_dict(self, data: dict) -> None:
+        self.log(json.dumps(data))
     
     @staticmethod
     def _worker(queue: Queue, log_file: Path, stop_event) -> None:    
@@ -184,7 +200,7 @@ class ProcessFileLogger:
         if self._process.is_alive():
             self._process.terminate()
             self._process.join(timeout=0.5)
-    
+
     def __del__(self):
         self.close()
 
