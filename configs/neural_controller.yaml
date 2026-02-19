@@ -39,8 +39,6 @@ env:
     reward:
       action_penalty: 0.0
 
-  normalize_obs: false
-  normalize_reward: false
 
 training:
   train_start_step: 5_000        

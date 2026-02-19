@@ -1,7 +1,6 @@
 from typing import Optional
 
 import gymnasium as gym
-from gymnasium.wrappers import NormalizeObservation, NormalizeReward
 
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
@@ -30,21 +29,16 @@ def _apply_wrappers(
     if wrappers_config is None:
         return env
 
-    step_tracking = wrappers_config.get("step_tracking", False)
-    if step_tracking:
+    step_tracking = wrappers_config.get("step_tracking", None)
+    if step_tracking is not None:
         time_multiplier = 1e6
         if step_tracking is not True:
             time_multiplier = float(step_tracking.get("time_multiplier", 1e6))
         env = StepTrackingWrapper(env, time_multiplier=time_multiplier)
 
-    if wrappers_config.get("info_logging", False):
+    info_logging = wrappers_config.get("info_logging", None)
+    if info_logging is not None:
         env = InfoLoggingWrapper(env, logger)
-
-    if wrappers_config.get("normalize_obs", False):
-        env = NormalizeObservation(env)
-
-    if wrappers_config.get("normalize_reward", False):
-        env = NormalizeReward(env)
 
     return env
 

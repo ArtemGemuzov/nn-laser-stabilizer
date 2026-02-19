@@ -5,8 +5,6 @@ wrappers:
   info_logging:
     log_dir: "."
     log_file: env.jsonl
-  normalize_obs: true
-  normalize_reward: true
 args:
   backend:
     type: experimental
