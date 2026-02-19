@@ -52,7 +52,7 @@ def evaluate(
 
 
 @experiment(
-    experiment_name="neural_controller-v2.1", 
+    experiment_name="neural_controller-v3", 
     config_name="neural_controller"
 )
 def main(context: ExperimentContext):
