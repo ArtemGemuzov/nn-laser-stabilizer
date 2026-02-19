@@ -14,6 +14,5 @@ class BCLoss:
         return cls(agent=agent)
 
     def loss(self, obs: Tensor, actions: Tensor) -> Tensor:
-        predicted_actions, _ = self._agent.actor(obs)
-        loss = F.mse_loss(predicted_actions, actions)
-        return loss
+        output = self._agent.actor(obs)
+        return F.mse_loss(output.action, actions)

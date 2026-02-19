@@ -39,7 +39,7 @@ class SACLearner(Learner):
         actor_lr = float(algorithm_config.actor.optimizer.lr)
         critic_lr = float(algorithm_config.critic.optimizer.lr)
 
-        actor_optimizer = Optimizer(agent.actor_net.parameters(), lr=actor_lr)
+        actor_optimizer = Optimizer(agent.actor.parameters(), lr=actor_lr)
         critic_optimizer = Optimizer(
             list(agent.critic1.parameters()) + list(agent.critic2.parameters()),
             lr=critic_lr,

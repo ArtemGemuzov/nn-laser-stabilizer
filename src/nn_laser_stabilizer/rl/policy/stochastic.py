@@ -3,13 +3,14 @@ from typing import Any
 import torch
 
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
-from nn_laser_stabilizer.rl.model.deterministic_actor import DeterministicActor
+from nn_laser_stabilizer.rl.model.stochastic_actor import StochasticActor
 from nn_laser_stabilizer.rl.policy.policy import Policy
 
 
-class DeterministicPolicy(Policy):
-    def __init__(self, actor: DeterministicActor):
+class StochasticPolicy(Policy):
+    def __init__(self, actor: StochasticActor):
         self._actor = actor
+        self._training = True
 
     @torch.no_grad()
     def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
@@ -17,12 +18,13 @@ class DeterministicPolicy(Policy):
         output = self._actor(observation, state)
         if output.state is not None:
             options['hidden_state'] = output.state
-        return output.action, options
+        action = output.action if self._training else output.mean_action
+        return action, options
 
-    def clone(self) -> "DeterministicPolicy":
-        return DeterministicPolicy(actor=self._actor.clone())
+    def clone(self) -> "StochasticPolicy":
+        return StochasticPolicy(actor=self._actor.clone())
 
-    def share_memory(self) -> "DeterministicPolicy":
+    def share_memory(self) -> "StochasticPolicy":
         self._actor.share_memory()
         return self
 
@@ -32,13 +34,13 @@ class DeterministicPolicy(Policy):
     def load_state_dict(self, state_dict):
         return self._actor.load_state_dict(state_dict)
 
-    def train(self, mode: bool = True) -> "DeterministicPolicy":
+    def train(self, mode: bool = True) -> "StochasticPolicy":
+        self._training = mode
         self._actor.train(mode)
         return self
 
-    def eval(self) -> "DeterministicPolicy":
-        self._actor.eval()
-        return self
+    def eval(self) -> "StochasticPolicy":
+        return self.train(False)
 
     def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
         self._actor.eval()

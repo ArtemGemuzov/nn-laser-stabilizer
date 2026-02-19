@@ -44,22 +44,25 @@ class TD3Loss:
         dones: Tensor,
     ) -> tuple[Tensor, Tensor]:
         agent = self._agent
-        action_space = agent.actor.action_space
 
         with torch.no_grad():
-            next_actions, _ = agent.actor_target(next_obs)
-            noise = (torch.randn_like(next_actions) * self._policy_noise).clamp(
+            target_output = agent.actor_target(next_obs)
+            noise = (torch.randn_like(target_output.action) * self._policy_noise).clamp(
                 -self._noise_clip, self._noise_clip
             )
-            next_actions = (next_actions + noise).clamp(action_space.low, action_space.high)
+            next_actions = torch.clamp(
+                target_output.action + noise,
+                agent.action_space.low,
+                agent.action_space.high,
+            )
 
-            target_q1, _ = agent.critic1_target(next_obs, next_actions)
-            target_q2, _ = agent.critic2_target(next_obs, next_actions)
+            target_q1 = agent.critic1_target(next_obs, next_actions).q_value
+            target_q2 = agent.critic2_target(next_obs, next_actions).q_value
             target_q = torch.min(target_q1, target_q2)
             target_q = rewards + self._gamma * target_q * (1.0 - dones.float())
 
-        current_q1, _ = agent.critic1(obs, actions)
-        current_q2, _ = agent.critic2(obs, actions)
+        current_q1 = agent.critic1(obs, actions).q_value
+        current_q2 = agent.critic2(obs, actions).q_value
 
         loss_q1 = F.mse_loss(current_q1, target_q)
         loss_q2 = F.mse_loss(current_q2, target_q)
@@ -68,6 +71,6 @@ class TD3Loss:
 
     def actor_loss(self, obs: Tensor) -> Tensor:
         agent = self._agent
-        actor_actions, _ = agent.actor(obs)
-        q_value, _ = agent.critic1(obs, actor_actions)
+        output = agent.actor(obs)
+        q_value = agent.critic1(obs, output.action).q_value
         return -q_value.mean()

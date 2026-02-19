@@ -41,15 +41,15 @@ class TD3BCLoss(TD3Loss):
 
     def actor_loss(self, obs: Tensor, actions: Tensor) -> dict[str, Tensor]:
         agent = self._agent
-        actor_actions, _ = agent.actor(obs)
-        q_value, _ = agent.critic1(obs, actor_actions)
+        output = agent.actor(obs)
+        q_value = agent.critic1(obs, output.action).q_value
 
         with torch.no_grad():
-            q_dataset, _ = agent.critic1(obs, actions)
+            q_dataset = agent.critic1(obs, actions).q_value
             lambda_coef = 1.0 / (torch.abs(q_dataset).mean().item() + self.EPSILON)
 
         td3_term = -lambda_coef * q_value.mean()
-        bc_term = self._alpha * F.mse_loss(actor_actions, actions)
+        bc_term = self._alpha * F.mse_loss(output.action, actions)
         actor_loss = td3_term + bc_term
 
         return {

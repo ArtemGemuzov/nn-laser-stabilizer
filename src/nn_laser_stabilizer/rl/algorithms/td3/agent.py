@@ -2,23 +2,17 @@ from pathlib import Path
 
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.algorithms.base import Agent
-from nn_laser_stabilizer.rl.model.actor import Actor, make_actor_from_config
-from nn_laser_stabilizer.rl.model.critic import Critic, make_critic_from_config
+from nn_laser_stabilizer.rl.model.deterministic_actor import DeterministicActor
+from nn_laser_stabilizer.rl.model.critic import Critic
+from nn_laser_stabilizer.rl.networks.factory import make_actor_network_from_config, make_critic_network_from_config
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.policy.deterministic import DeterministicPolicy
-from nn_laser_stabilizer.rl.policy.utils import make_policy_from_config
+from nn_laser_stabilizer.rl.policy.factory import make_exploration_policy_from_config
 
 
 class TD3Agent(Agent):
-    ACTOR_FILENAME = "actor.pth"
-    CRITIC1_FILENAME = "critic1.pth"
-    CRITIC2_FILENAME = "critic2.pth"
-    ACTOR_TARGET_FILENAME = "actor_target.pth"
-    CRITIC1_TARGET_FILENAME = "critic1_target.pth"
-    CRITIC2_TARGET_FILENAME = "critic2_target.pth"
-
-    def __init__(self, actor: Actor, critic: Critic):
+    def __init__(self, actor: DeterministicActor, critic: Critic, action_space: Box):
         self.actor = actor
         self.critic1 = critic
         self.critic2 = critic.clone(reinitialize_weights=True)
@@ -26,6 +20,8 @@ class TD3Agent(Agent):
         self.actor_target = self.actor.clone().requires_grad_(False)
         self.critic1_target = self.critic1.clone().requires_grad_(False)
         self.critic2_target = self.critic2.clone().requires_grad_(False)
+
+        self.action_space = action_space
 
     @classmethod
     def from_config(
@@ -37,23 +33,27 @@ class TD3Agent(Agent):
         actor_config = algorithm_config.actor
         critic_config = algorithm_config.critic
 
-        actor = make_actor_from_config(
+        actor_network = make_actor_network_from_config(
             network_config=actor_config.network,
-            action_space=action_space,
-            observation_space=observation_space,
-        ).train()
+            obs_dim=observation_space.dim,
+            output_dim=action_space.dim,
+        )
+        actor = DeterministicActor(network=actor_network, action_space=action_space).train()
 
-        critic = make_critic_from_config(
+        critic_network = make_critic_network_from_config(
             network_config=critic_config.network,
             obs_dim=observation_space.dim,
             action_dim=action_space.dim,
-        ).train()
+        )
+        critic = Critic(network=critic_network).train()
 
-        return cls(actor=actor, critic=critic)
+        return cls(actor=actor, critic=critic, action_space=action_space)
 
     def exploration_policy(self, exploration_config: Config) -> Policy:
-        return make_policy_from_config(
-            actor=self.actor,
+        base_policy = DeterministicPolicy(actor=self.actor)
+        return make_exploration_policy_from_config(
+            policy=base_policy,
+            action_space=self.action_space,
             exploration_config=exploration_config,
         )
 
@@ -62,9 +62,9 @@ class TD3Agent(Agent):
 
     def save_models(self, models_dir: Path) -> None:
         models_dir.mkdir(parents=True, exist_ok=True)
-        self.actor.save(models_dir / self.ACTOR_FILENAME)
-        self.critic1.save(models_dir / self.CRITIC1_FILENAME)
-        self.critic2.save(models_dir / self.CRITIC2_FILENAME)
-        self.actor_target.save(models_dir / self.ACTOR_TARGET_FILENAME)
-        self.critic1_target.save(models_dir / self.CRITIC1_TARGET_FILENAME)
-        self.critic2_target.save(models_dir / self.CRITIC2_TARGET_FILENAME)
+        self.actor.save(models_dir / 'actor.pt')
+        self.critic1.save(models_dir / 'critic1.pt')
+        self.critic2.save(models_dir / 'critic2.pt')
+        self.actor_target.save(models_dir / 'actor_target.pt')
+        self.critic1_target.save(models_dir / 'critic1_target.pt')
+        self.critic2_target.save(models_dir / 'critic2_target.pt')

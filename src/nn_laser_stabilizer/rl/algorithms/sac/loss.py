@@ -5,12 +5,6 @@ from torch import Tensor
 
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.algorithms.sac.agent import SACAgent
-from nn_laser_stabilizer.rl.policy.gaussian import (
-    tanh_squash,
-    gaussian_log_prob,
-    LOG_STD_MIN,
-    LOG_STD_MAX,
-)
 
 
 class SACLoss:
@@ -48,20 +42,6 @@ class SACLoss:
             target_entropy=target_entropy,
         )
 
-    def _sample_actions(self, observations: Tensor) -> tuple[Tensor, Tensor]:
-        raw = self._agent.actor_net(observations)
-        mean, log_std = raw.chunk(2, dim=-1)
-        log_std = log_std.clamp(LOG_STD_MIN, LOG_STD_MAX)
-        std = log_std.exp()
-
-        normal = torch.distributions.Normal(mean, std)
-        x_t = normal.rsample()
-        action_space = self._agent.action_space
-        actions = tanh_squash(x_t, action_space.low, action_space.high)
-        action_scale = (action_space.high - action_space.low) / 2.0
-        log_prob = gaussian_log_prob(normal, x_t, action_scale)
-        return actions, log_prob
-
     def critic_loss(
         self,
         obs: Tensor,
@@ -73,14 +53,14 @@ class SACLoss:
         agent = self._agent
         alpha = self.alpha.detach()
 
-        current_q1, _ = agent.critic1(obs, actions)
-        current_q2, _ = agent.critic2(obs, actions)
+        current_q1 = agent.critic1(obs, actions).q_value
+        current_q2 = agent.critic2(obs, actions).q_value
 
         with torch.no_grad():
-            next_actions, next_log_prob = self._sample_actions(next_obs)
-            target_q1, _ = agent.critic1_target(next_obs, next_actions)
-            target_q2, _ = agent.critic2_target(next_obs, next_actions)
-            target_q = torch.min(target_q1, target_q2) - alpha * next_log_prob
+            next_output = agent.actor(next_obs)
+            target_q1 = agent.critic1_target(next_obs, next_output.action).q_value
+            target_q2 = agent.critic2_target(next_obs, next_output.action).q_value
+            target_q = torch.min(target_q1, target_q2) - alpha * next_output.log_prob
             target_q = rewards + self._gamma * target_q * (1.0 - dones.float())
 
         loss_q1 = F.mse_loss(current_q1, target_q)
@@ -92,16 +72,16 @@ class SACLoss:
         agent = self._agent
         alpha = self.alpha.detach()
 
-        actor_actions, actor_log_prob = self._sample_actions(obs)
-        actor_q1, _ = agent.critic1(obs, actor_actions)
-        actor_q2, _ = agent.critic2(obs, actor_actions)
+        output = agent.actor(obs)
+        actor_q1 = agent.critic1(obs, output.action).q_value
+        actor_q2 = agent.critic2(obs, output.action).q_value
 
         min_q = torch.min(actor_q1, actor_q2)
-        actor_loss = (alpha * actor_log_prob - min_q).mean()
+        actor_loss = (alpha * output.log_prob - min_q).mean()
 
         return {
             "actor_loss": actor_loss,
-            "actor_log_prob": actor_log_prob,
+            "actor_log_prob": output.log_prob,
         }
 
     def alpha_loss(self, actor_log_prob: Tensor) -> Tensor:
