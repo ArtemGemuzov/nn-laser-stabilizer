@@ -9,6 +9,8 @@ from nn_laser_stabilizer.rl.policy.policy import Policy
 
 
 class Agent(ABC):
+    DIR_NAME: str
+
     @classmethod
     @abstractmethod
     def from_config(
@@ -27,8 +29,12 @@ class Agent(ABC):
     @abstractmethod
     def update_step(self, batch: tuple[Tensor, ...]) -> dict[str, float]: ...
 
+    @property
+    def default_path(self) -> Path:
+        return Path(self.DIR_NAME)
+
     @abstractmethod
-    def save(self, path: Path) -> None: ...
+    def save(self, path: Path | None = None) -> None: ...
 
     @abstractmethod
     def load(self, path: Path) -> None: ...

@@ -1,16 +1,21 @@
+from functools import partial
 from pathlib import Path
 
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
 from nn_laser_stabilizer.rl.algorithms.factory import build_agent
+from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
+from nn_laser_stabilizer.rl.collector.collector import make_collector_from_config
 from nn_laser_stabilizer.rl.envs.factory import make_env_from_config, get_spaces_from_config
 
 
 @experiment(
     experiment_name="inference", 
-    config_name="pid_delta_tuning-inference"
+    config_name="inference"
 )
 def main(context: ExperimentContext):
+    context.logger.log("Creating components...")
+
     env_config = context.config.env
 
     observation_space, action_space = get_spaces_from_config(env_config, seed=context.seed)
@@ -21,15 +26,31 @@ def main(context: ExperimentContext):
         action_space=action_space,
     )
 
-    models_dir = Path(context.config.inference.models_dir)
-    if not models_dir.exists():
-        raise FileNotFoundError(f"Models directory not found: {models_dir}")
+    agent_path = Path(context.config.inference.agent_path)
+    if not agent_path.exists():
+        raise FileNotFoundError(f"Agent path not found: {agent_path}")
 
-    context.logger.log(f"Loading models from: {models_dir}")
-    agent.load(models_dir)
-    context.logger.log("Models loaded successfully")
+    context.logger.log(f"Loading agent from: {agent_path}")
+    agent.load(agent_path)
+    context.logger.log("Agent loaded successfully")
 
     policy = agent.default_policy()
+
+    buffer = ReplayBuffer(
+        capacity=context.config.buffer.capacity,
+        obs_dim=observation_space.dim,
+        action_dim=action_space.dim,
+    )
+
+    env_factory = partial(make_env_from_config, env_config=env_config, seed=context.seed)
+
+    collector = make_collector_from_config(
+        collector_config=context.config.collector,
+        env_factory=env_factory,
+        buffer=buffer,
+        policy=policy,
+        seed=context.seed,
+    )
 
     num_steps = context.config.inference.num_steps
     infinite_steps = num_steps == -1
@@ -37,56 +58,32 @@ def main(context: ExperimentContext):
     log_frequency = context.config.inference.log_frequency
     logging_enabled = log_frequency > 0
 
+    collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
+
     step = 0
-    episode_reward = 0.0
-    episode_count = 0
-    options = {}
 
-    env = make_env_from_config(env_config=env_config, seed=context.seed)
+    with collector:
+        try:
+            context.logger.log("Starting inference...")
+            context.logger.log("Press Ctrl+C to stop")
 
-    context.logger.log("Starting environment...")
-    obs, _ = env.reset()
-    context.logger.log("Environment started successfully")
+            while infinite_steps or step < num_steps:
+                steps_to_collect = collect_steps_per_iteration
+                if not infinite_steps:
+                    steps_to_collect = min(steps_to_collect, num_steps - step)
 
-    context.logger.log("Starting inference...")
-    context.logger.log("Press Ctrl+C to stop")
+                collector.collect(steps_to_collect)
+                step += steps_to_collect
 
-    try:
-        while infinite_steps or step < num_steps:
-            action, options = policy.act(obs, options)
-            obs, reward, terminated, truncated, _ = env.step(action)
-            done = terminated or truncated
-
-            step += 1
-            episode_reward += reward.item()
-
-            if logging_enabled and step % log_frequency == 0:
-                context.logger.log(
-                    f"step={step} episode={episode_count} "
-                    f"episode_reward={episode_reward:.4f}"
-                )
-
-            if done:
-                episode_count += 1
-
-                if logging_enabled:
+                if logging_enabled and step % log_frequency == 0:
                     context.logger.log(
-                        f"Episode {episode_count} finished | "
-                        f"Steps: {step} | "
-                        f"Episode reward: {episode_reward:.4f}"
+                        f"step={step} buffer_size={len(buffer)}"
                     )
 
-                episode_reward = 0.0
-                options = {}
-                obs, _ = env.reset()
+        except KeyboardInterrupt:
+            context.logger.log("Interrupted by user")
 
-    finally:
-        context.logger.log("Inference finished")
-        context.logger.log(f"Total steps: {step}")
-        context.logger.log(f"Total episodes: {episode_count}")
-
-        env.close()
-
+    context.logger.log("Inference finished")
 
 if __name__ == "__main__":
     main()

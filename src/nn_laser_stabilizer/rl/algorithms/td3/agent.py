@@ -18,6 +18,8 @@ from nn_laser_stabilizer.rl.policy.factory import make_exploration_policy_from_c
 
 
 class TD3Agent(Agent):
+    DIR_NAME = "agent_td3"
+
     def __init__(
         self,
         actor: DeterministicActor,
@@ -191,8 +193,8 @@ class TD3Agent(Agent):
 
         return metrics
 
-    def save(self, path: Path) -> None:
-        path = Path(path)
+    def save(self, path: Path | None = None) -> None:
+        path = Path(path) if path is not None else self.default_path
         path.mkdir(parents=True, exist_ok=True)
         self._actor.save(path / 'actor.pt')
         self._critic1.save(path / 'critic1.pt')

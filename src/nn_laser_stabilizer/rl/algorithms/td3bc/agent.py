@@ -8,6 +8,7 @@ from nn_laser_stabilizer.rl.envs.spaces.box import Box
 
 
 class TD3BCAgent(TD3Agent):
+    DIR_NAME = "agent_td3bc"
     EPSILON = 1e-8
 
     def __init__(self, *args, alpha: float, **kwargs):

@@ -164,10 +164,9 @@ def main(context: ExperimentContext):
             context.logger.log("Training completed.")
             context.logger.log(f"Final buffer size: {len(buffer)}")
         finally:
-            context.logger.log("Saving models...")
-            models_dir = Path("models")
-            agent.save(models_dir)
-            context.logger.log(f"Models saved to {models_dir}")
+            context.logger.log("Saving agent...")
+            agent.save()
+            context.logger.log(f"Agent saved to {agent.default_path}")
             
             context.logger.log("Saving replay buffer...")
             data_dir = Path("data")

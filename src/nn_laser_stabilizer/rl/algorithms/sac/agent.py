@@ -20,6 +20,8 @@ from nn_laser_stabilizer.rl.policy.factory import make_exploration_policy_from_c
 
 
 class SACAgent(Agent):
+    DIR_NAME = "agent_sac"
+
     def __init__(
         self,
         actor: StochasticActor,
@@ -205,8 +207,8 @@ class SACAgent(Agent):
             "alpha": self.alpha.item(),
         }
 
-    def save(self, path: Path) -> None:
-        path = Path(path)
+    def save(self, path: Path | None = None) -> None:
+        path = Path(path) if path is not None else self.default_path
         path.mkdir(parents=True, exist_ok=True)
         self._actor.save(path / 'actor.pt')
         self._critic1.save(path / 'critic1.pt')

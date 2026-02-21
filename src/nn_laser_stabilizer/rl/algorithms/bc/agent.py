@@ -15,6 +15,8 @@ from nn_laser_stabilizer.rl.policy.factory import make_exploration_policy_from_c
 
 
 class BCAgent(Agent):
+    DIR_NAME = "agent_bc"
+
     def __init__(
         self,
         actor: DeterministicActor,
@@ -63,8 +65,8 @@ class BCAgent(Agent):
         self._actor_optimizer.step(loss)
         return {"actor_loss": loss.item()}
 
-    def save(self, path: Path) -> None:
-        path = Path(path)
+    def save(self, path: Path | None = None) -> None:
+        path = Path(path) if path is not None else self.default_path
         path.mkdir(parents=True, exist_ok=True)
         self._actor.save(path / 'actor.pt')
         self._actor_optimizer.save(path / 'actor_optimizer.pt')

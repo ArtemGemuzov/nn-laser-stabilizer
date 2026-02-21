@@ -74,10 +74,9 @@ def main(context: ExperimentContext) -> None:
 
         context.logger.log("Training from buffer completed.")
     finally:
-        context.logger.log("Saving models...")
-        models_dir = Path("models")
-        agent.save(models_dir)
-        context.logger.log(f"Models saved to {models_dir}")
+        context.logger.log("Saving agent...")
+        agent.save()
+        context.logger.log(f"Agent saved to {agent.default_path}")
 
         buffer_dir = Path("data")
         buffer_dir.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,55 @@
+seed: 1
+
+env:
+  name: NeuralController
+  args:
+    backend:
+      type: experimental
+      port: COM3
+      timeout: 0.1
+      baudrate: 115200
+      log_connection: true
+      auto_determine_setpoint: false
+      setpoint_determination_steps: 6000
+      setpoint_determination_max_value: 2000
+      setpoint_determination_factor: 0.1
+
+    log_dir: "."
+    log_file: env.jsonl
+
+    setpoint: 1200
+
+    control_min: 0
+    control_max: 4095
+    reset_value: 2000
+    reset_steps: 1000
+
+    action:
+      type: delta
+      max_delta: 25
+
+    process_variable_min: 1000
+    process_variable_max: 2000
+
+    observe_prev_error: true
+    observe_prev_prev_error: true
+    observe_control_output: false
+
+    normalize_obs: true
+
+    reward:
+      action_penalty: 0.0
+
+inference:
+  agent_path: path/to/experiment/agent_sac
+  num_steps: -1
+  log_frequency: -1
+
+collector:
+  _include: "{CONFIGS_DIR}/collectors/sync"
+
+buffer:
+  _include: "{CONFIGS_DIR}/buffers/10k"
+
+algorithm:
+  _include: "{CONFIGS_DIR}/algorithms/sac_default"

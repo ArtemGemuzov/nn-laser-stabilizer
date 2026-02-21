@@ -73,10 +73,9 @@ def main(context: ExperimentContext) -> None:
 
         context.logger.log("Offline training completed.")
     finally:
-        context.logger.log("Saving models...")
-        models_dir = Path("models")
-        agent.save(models_dir)
-        context.logger.log(f"Models saved to {models_dir}")
+        context.logger.log("Saving agent...")
+        agent.save()
+        context.logger.log(f"Agent saved to {agent.default_path}")
 
         train_logger.close()
 
