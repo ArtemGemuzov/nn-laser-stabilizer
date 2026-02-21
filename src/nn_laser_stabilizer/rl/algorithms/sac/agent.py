@@ -6,13 +6,12 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.config.types import NetworkType
 from nn_laser_stabilizer.rl.algorithms.base import Agent
 from nn_laser_stabilizer.rl.algorithms.optimizer import Optimizer, SoftUpdater
 from nn_laser_stabilizer.rl.algorithms.utils import build_soft_update_pairs
 from nn_laser_stabilizer.rl.model.stochastic_actor import StochasticActor
 from nn_laser_stabilizer.rl.model.critic import Critic
-from nn_laser_stabilizer.rl.networks.factory import make_actor_network_from_config, make_critic_network_from_config
+from nn_laser_stabilizer.rl.networks.factory import NetworkType, make_actor_network_from_config, make_critic_network_from_config
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.policy.stochastic import StochasticPolicy

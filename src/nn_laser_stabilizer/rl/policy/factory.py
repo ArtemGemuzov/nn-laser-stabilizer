@@ -1,5 +1,5 @@
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.config.types import ExplorationType
+from nn_laser_stabilizer.utils.enum import BaseEnum
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.policy.exploration.noisy import NoisyExplorationPolicy
@@ -7,6 +7,14 @@ from nn_laser_stabilizer.rl.policy.exploration.ornstein_uhlenbeck import Ornstei
 from nn_laser_stabilizer.rl.policy.exploration.pid import PIDExplorationPolicy
 from nn_laser_stabilizer.rl.policy.exploration.random import RandomExplorationPolicy
 
+
+class ExplorationType(BaseEnum):
+    NONE = "none"
+    RANDOM = "random"
+    NOISY = "noisy"
+    OU = "ou"
+    PID = "pid"
+    
 
 def make_exploration_policy_from_config(
     policy: Policy,

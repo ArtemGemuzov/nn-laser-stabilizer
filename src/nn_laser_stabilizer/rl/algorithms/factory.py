@@ -1,12 +1,18 @@
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.config.types import AlgorithmType
+from nn_laser_stabilizer.utils.enum import BaseEnum
 from nn_laser_stabilizer.rl.algorithms.base import Agent
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
-
 from nn_laser_stabilizer.rl.algorithms.td3.agent import TD3Agent
 from nn_laser_stabilizer.rl.algorithms.td3bc.agent import TD3BCAgent
 from nn_laser_stabilizer.rl.algorithms.bc.agent import BCAgent
 from nn_laser_stabilizer.rl.algorithms.sac.agent import SACAgent
+
+
+class AlgorithmType(BaseEnum):
+    TD3 = "td3"
+    TD3BC = "td3bc"
+    BC = "bc"
+    SAC = "sac"
 
 
 def build_agent(

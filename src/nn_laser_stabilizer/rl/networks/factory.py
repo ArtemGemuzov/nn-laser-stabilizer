@@ -1,11 +1,16 @@
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.config.types import NetworkType
+from nn_laser_stabilizer.utils.enum import BaseEnum
 from nn_laser_stabilizer.rl.networks.base import ActorNetwork, CriticNetwork
 from nn_laser_stabilizer.rl.networks.mlp_actor import MLPActorNetwork
 from nn_laser_stabilizer.rl.networks.mlp_critic import MLPCriticNetwork
 from nn_laser_stabilizer.rl.networks.lstm_actor import LSTMActorNetwork
 from nn_laser_stabilizer.rl.networks.lstm_critic import LSTMCriticNetwork
 
+
+class NetworkType(BaseEnum):
+    MLP = "mlp"
+    LSTM = "lstm"
+    
 
 def make_actor_network_from_config(
     network_config: Config,

@@ -3,8 +3,13 @@ from typing import Tuple, Union
 import torch
 
 from nn_laser_stabilizer.config.config import Config
-from nn_laser_stabilizer.config.types import SamplerType
+from nn_laser_stabilizer.utils.enum import BaseEnum
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
+
+
+class SamplerType(BaseEnum):
+    SINGLE = "single"
+    SEQUENCE = "sequence"
 
 
 class BatchSampler:
