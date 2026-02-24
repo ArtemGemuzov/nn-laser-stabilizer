@@ -3,7 +3,7 @@ from typing import Any
 import torch
 
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
-from nn_laser_stabilizer.rl.model.stochastic_actor import StochasticActor
+from nn_laser_stabilizer.rl.model.stochastic_actor import StochasticActor, StochasticActorOutput
 from nn_laser_stabilizer.rl.policy.policy import Policy
 
 
@@ -15,10 +15,21 @@ class StochasticPolicy(Policy):
     @torch.no_grad()
     def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
         state = options.get('hidden_state')
-        output = self._actor(observation, state)
+        output : StochasticActorOutput = self._actor(observation, state)
         if output.state is not None:
             options['hidden_state'] = output.state
         action = output.action if self._training else output.mean_action
+
+        options['policy_info'] = {
+            "type": self.__class__.__name__,
+            "distribution": "gaussian_tanh",
+            "mean_raw": output.mean.detach().cpu().tolist(),
+            "mean_action": output.mean_action.detach().cpu().tolist(),
+            "std": output.std.detach().cpu().tolist(),
+            "log_prob": output.log_prob.detach().cpu().tolist(),
+            "raw_action": output.raw_action.detach().cpu().tolist(),
+            "action": action.detach().cpu().tolist(),
+        }
         return action, options
 
     def clone(self) -> "StochasticPolicy":

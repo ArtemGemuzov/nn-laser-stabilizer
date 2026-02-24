@@ -3,7 +3,7 @@ from typing import Any
 import torch
 
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
-from nn_laser_stabilizer.rl.model.deterministic_actor import DeterministicActor
+from nn_laser_stabilizer.rl.model.deterministic_actor import DeterministicActor, DeterministicActorOutput
 from nn_laser_stabilizer.rl.policy.policy import Policy
 
 
@@ -14,9 +14,13 @@ class DeterministicPolicy(Policy):
     @torch.no_grad()
     def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
         state = options.get('hidden_state')
-        output = self._actor(observation, state)
+        output : DeterministicActorOutput = self._actor(observation, state)
         if output.state is not None:
             options['hidden_state'] = output.state
+        options['policy_info'] = {
+            "distribution": "deterministic",
+            "action": output.action.detach().cpu().tolist(),
+        }
         return output.action, options
 
     def clone(self) -> "DeterministicPolicy":

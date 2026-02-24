@@ -20,9 +20,14 @@ class BaseExplorationPolicy(Policy, ABC):
 
     def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
         action, options = self._inner.act(observation, options)
+        policy_info = dict(options.get("policy_info", {}))
+        policy_info["exploration_type"] = self.__class__.__name__
+        policy_info["exploration_applied"] = False
         if self._exploration_step_count < self._exploration_steps:
             self._exploration_step_count += 1
             action = self._explore(action, options)
+            policy_info["exploration_applied"] = True
+        options["policy_info"] = policy_info
         return action, options
 
     def clone(self) -> "BaseExplorationPolicy":

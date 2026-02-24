@@ -15,6 +15,9 @@ LOG_STD_MAX = 2.0
 class StochasticActorOutput:
     action: Tensor
     mean_action: Tensor
+    mean: Tensor
+    log_std: Tensor
+    std: Tensor
     log_prob: Tensor
     raw_action: Tensor
     state: HiddenState | None = None
@@ -41,25 +44,31 @@ class StochasticActor(BaseModel):
     def action_space(self) -> Box:
         return self._action_space
 
-    def forward(self, obs: Tensor, state: HiddenState | None = None) -> StochasticActorOutput:
-        net_out: NetworkOutput = self._network(obs, state)
-        mean, log_std = net_out.output.chunk(2, dim=-1)
-        log_std = log_std.clamp(LOG_STD_MIN, LOG_STD_MAX)
-        std = log_std.exp()
+    def forward(self, observation: Tensor, hidden_state: HiddenState | None = None) -> StochasticActorOutput:
+        network_output: NetworkOutput = self._network(observation, hidden_state)
 
-        normal = torch.distributions.Normal(mean, std)
-        x_t = normal.rsample()
-        action = self._scaler(x_t)
-        mean_action = self._scaler(mean)
-        action_scale = (self._action_space.high - self._action_space.low) / 2.0
-        log_prob = gaussian_log_prob(normal, x_t, action_scale)
+        action_mean, action_log_std = network_output.output.chunk(2, dim=-1)
+        action_log_std = action_log_std.clamp(LOG_STD_MIN, LOG_STD_MAX)
+        action_std = action_log_std.exp()
+
+        action_distribution = torch.distributions.Normal(action_mean, action_std)
+
+        sampled_raw_action = action_distribution.rsample()
+        scaled_action = self._scaler(sampled_raw_action)
+        scaled_mean_action = self._scaler(action_mean)
+
+        action_rescale_factor = (self._action_space.high - self._action_space.low) / 2.0
+        action_log_prob = gaussian_log_prob(action_distribution, sampled_raw_action, action_rescale_factor)
 
         return StochasticActorOutput(
-            action=action,
-            mean_action=mean_action,
-            log_prob=log_prob,
-            raw_action=x_t,
-            state=net_out.state,
+            action=scaled_action,
+            mean_action=scaled_mean_action,
+            mean=action_mean,
+            log_std=action_log_std,
+            std=action_std,
+            log_prob=action_log_prob,
+            raw_action=sampled_raw_action,
+            state=network_output.state,
         )
 
     def clone(self, reinitialize_weights: bool = False) -> "StochasticActor":
