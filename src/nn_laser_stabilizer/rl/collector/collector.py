@@ -10,7 +10,13 @@ from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.collector.worker import CollectorWorker
 from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
-from nn_laser_stabilizer.rl.collector.utils import collect_step, warmup_step, CollectorWorkerError
+from nn_laser_stabilizer.utils.logger import Logger
+from nn_laser_stabilizer.rl.collector.utils import (
+    collect_step,
+    warmup_step,
+    CollectorWorkerError,
+    make_step_logger,
+)
 
 
 class BaseCollector(ABC):
@@ -75,6 +81,7 @@ class SyncCollector(BaseCollector):
         env: TorchEnvWrapper,
         policy: Policy,
         warmup_steps: int = 0,
+        step_logging_config: dict[str, Any] | None = None,
     ):
         super().__init__(buffer)
         self._env: TorchEnvWrapper = env
@@ -83,6 +90,7 @@ class SyncCollector(BaseCollector):
 
         self._current_observation: Optional[torch.Tensor] = None
         self._options: Dict[str, Any] = {}
+        self._step_logger: Logger = make_step_logger(step_logging_config)
 
     def _on_start(self) -> None:
         self._policy.warmup(self._env.observation_space)
@@ -108,6 +116,7 @@ class SyncCollector(BaseCollector):
                 self._current_observation,
                 self.buffer,
                 self._options,
+                step_logger=self._step_logger,
             )
 
     def collect(self, num_steps: int) -> None:
@@ -120,9 +129,11 @@ class SyncCollector(BaseCollector):
                 self._current_observation,
                 self.buffer,
                 self._options,
+                step_logger=self._step_logger,
             )
 
     def _on_stop(self) -> None:
+        self._step_logger.close()
         if self._env is not None:
             self._env.close()
 
@@ -140,6 +151,7 @@ class AsyncCollector(BaseCollector):
         seed: Optional[int] = None,
         check_interval: float = 0.1,
         warmup_steps: int = 0,
+        step_logging_config: dict[str, Any] | None = None,
     ):
         super().__init__(buffer)
 
@@ -148,6 +160,7 @@ class AsyncCollector(BaseCollector):
         self._seed = seed
         self._check_interval = check_interval
         self._warmup_steps = warmup_steps
+        self._step_logging_config = step_logging_config
 
         self._connection, self._child_connection = CollectorConnection.create_pair()
 
@@ -168,6 +181,7 @@ class AsyncCollector(BaseCollector):
             shared_state_dict=shared_state_dict,
             seed=self._seed,
             warmup_steps=self._warmup_steps,
+            step_logging_config=self._step_logging_config,
         )
         self._process.start()
 
@@ -234,6 +248,9 @@ def make_collector_from_config(
     seed: Optional[int] = None,
 ) -> BaseCollector:
     warmup_steps = int(collector_config.get("warmup_steps", 0))
+    step_logging_config = collector_config.get("step_logging")
+    step_logging_dict = None if step_logging_config is None else step_logging_config.to_dict()
+
     if collector_config.is_async:
         return AsyncCollector(
             buffer=buffer,
@@ -241,6 +258,7 @@ def make_collector_from_config(
             env_factory=env_factory,
             seed=seed,
             warmup_steps=warmup_steps,
+            step_logging_config=step_logging_dict,
         )
     else:
         env = env_factory()
@@ -249,4 +267,5 @@ def make_collector_from_config(
             env=env,
             policy=policy,
             warmup_steps=warmup_steps,
+            step_logging_config=step_logging_dict,
         )

@@ -7,6 +7,7 @@ from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
 from nn_laser_stabilizer.rl.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, collect_step, warmup_step
+from nn_laser_stabilizer.rl.collector.utils import make_step_logger
 
 
 class CollectorWorker: 
@@ -21,6 +22,7 @@ class CollectorWorker:
         shared_state_dict: dict,
         seed: Optional[int] = None,
         warmup_steps: int = 0,
+        step_logging_config: dict | None = None,
     ):
         self.buffer = buffer
         self.env_factory = env_factory
@@ -29,6 +31,7 @@ class CollectorWorker:
         self.shared_state_dict = shared_state_dict
         self.seed = seed
         self.warmup_steps = warmup_steps
+        self.step_logging_config = step_logging_config
         
         self._process = mp.Process(target=self._run, name=CollectorWorker.PROCESS_NAME)
     
@@ -40,12 +43,14 @@ class CollectorWorker:
     
     def _run(self) -> None:
         env = None
+        step_logger = None
         try:
             if self.seed is not None:
                 from nn_laser_stabilizer.experiment.seed import set_seeds
                 set_seeds(self.seed)
 
             env = self.env_factory()
+            step_logger = make_step_logger(self.step_logging_config)
             
             policy = self.policy_factory()
             policy.train()
@@ -68,7 +73,14 @@ class CollectorWorker:
                         self.connection.send_shutdown_complete()
                         break 
                 
-                observation, options = collect_step(policy, env, observation, self.buffer, options)
+                observation, options = collect_step(
+                    policy=policy,
+                    env=env,
+                    obs=observation,
+                    buffer=self.buffer,
+                    options=options,
+                    step_logger=step_logger,
+                )
                     
         except KeyboardInterrupt:
             pass
@@ -78,6 +90,8 @@ class CollectorWorker:
             self.connection.send_worker_error(error_info)
         
         finally:
+            if step_logger is not None:
+                step_logger.close()
             if env is not None:
                 env.close()
 
