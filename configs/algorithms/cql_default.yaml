@@ -1,0 +1,22 @@
+type: cql
+gamma: 0.99
+tau: 0.005
+initial_alpha: 0.2
+cql_alpha: 5.0
+cql_temperature: 1.0
+cql_n_actions: 10
+
+actor:
+  network:
+    _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+  optimizer:
+    lr: 0.0003
+
+critic:
+  network:
+    _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+  optimizer:
+    lr: 0.0003
+
+alpha_optimizer:
+  lr: 0.0003

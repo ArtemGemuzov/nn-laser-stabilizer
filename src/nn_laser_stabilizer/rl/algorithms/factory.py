@@ -6,6 +6,7 @@ from nn_laser_stabilizer.rl.algorithms.td3.agent import TD3Agent
 from nn_laser_stabilizer.rl.algorithms.td3bc.agent import TD3BCAgent
 from nn_laser_stabilizer.rl.algorithms.bc.agent import BCAgent
 from nn_laser_stabilizer.rl.algorithms.sac.agent import SACAgent
+from nn_laser_stabilizer.rl.algorithms.cql.agent import CQLAgent
 
 
 class AlgorithmType(BaseEnum):
@@ -13,6 +14,7 @@ class AlgorithmType(BaseEnum):
     TD3BC = "td3bc"
     BC = "bc"
     SAC = "sac"
+    CQL = "cql"
 
 
 def build_agent(
@@ -33,6 +35,9 @@ def build_agent(
 
     elif algorithm_type == AlgorithmType.SAC:
         return SACAgent.from_config(algorithm_config, observation_space, action_space)
+
+    elif algorithm_type == AlgorithmType.CQL:
+        return CQLAgent.from_config(algorithm_config, observation_space, action_space)
 
     else:
         raise ValueError(f"Unhandled algorithm type: {algorithm_type}")
