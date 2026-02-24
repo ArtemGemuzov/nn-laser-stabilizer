@@ -230,6 +230,8 @@ class NeuralController(BaseEnv):
 
         reward_info = self._compute_reward(observation, action_norm, control_output)
 
+        truncated = False
+
         info.update(reward_info)
         info.update({
             "process_variable": process_variable,
@@ -238,9 +240,9 @@ class NeuralController(BaseEnv):
             "action_value": action_value,
             "control_output": control_output,
             "terminated": terminated,
+            "truncated": truncated
         })
 
-        truncated = False
         return observation, reward_info["reward"], terminated, truncated, info
 
     def reset(
