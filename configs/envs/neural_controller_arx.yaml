@@ -2,9 +2,6 @@ name: NeuralController
 wrappers:
   step_tracking:
     time_multiplier: 1e6
-  info_logging:
-    log_dir: "."
-    log_file: env.jsonl
   reward_ema:
     alpha: 0.5
 args:

@@ -19,7 +19,7 @@ def _create_logger(wrappers_config: Config | None) -> Logger:
     if not info_logging or info_logging is True:
         return NoOpLogger()
     return AsyncFileLogger(
-        log_dir=info_logging.log_dir,
+        log_dir=str(info_logging.get("log_dir", ".")),
         log_file=info_logging.log_file,
     )
 

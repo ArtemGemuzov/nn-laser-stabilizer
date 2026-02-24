@@ -14,9 +14,6 @@ env:
       setpoint_determination_max_value: 2000
       setpoint_determination_factor: 0.1
 
-    log_dir: "."
-    log_file: env.jsonl
-
     setpoint: 1200
 
     control_min: 0
