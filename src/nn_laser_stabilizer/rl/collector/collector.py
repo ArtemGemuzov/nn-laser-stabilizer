@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Any, Dict
+from typing import Optional, Any, Dict, Protocol
 from abc import ABC, abstractmethod
 from functools import partial
 import time
@@ -74,6 +74,11 @@ def _policy_factory(policy: Policy):
     return policy.clone()
 
 
+class EnvFactory(Protocol):
+    def __call__(self, *, logger: Logger | None) -> TorchEnvWrapper:
+        ...
+
+
 class SyncCollector(BaseCollector):
     def __init__(
         self,
@@ -147,7 +152,7 @@ class AsyncCollector(BaseCollector):
         self,
         buffer: ReplayBuffer,
         policy: Policy,
-        env_factory: Callable[[], TorchEnvWrapper],
+        env_factory: EnvFactory,
         seed: Optional[int] = None,
         check_interval: float = 0.1,
         warmup_steps: int = 0,
@@ -242,7 +247,7 @@ class AsyncCollector(BaseCollector):
 
 def make_collector_from_config(
     collector_config,
-    env_factory: Callable[[], TorchEnvWrapper],
+    env_factory: EnvFactory,
     buffer: ReplayBuffer,
     policy: Policy,
     seed: Optional[int] = None,
@@ -261,7 +266,7 @@ def make_collector_from_config(
             step_logging_config=step_logging_dict,
         )
     else:
-        env = env_factory()
+        env = env_factory(logger=None)
         return SyncCollector(
             buffer=buffer,
             env=env,

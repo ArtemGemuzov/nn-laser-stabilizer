@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable, Optional, Protocol
 
 import torch.multiprocessing as mp
 
@@ -8,6 +8,12 @@ from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
 from nn_laser_stabilizer.rl.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, collect_step, warmup_step
 from nn_laser_stabilizer.rl.collector.utils import make_step_logger
+from nn_laser_stabilizer.utils.logger import Logger
+
+
+class EnvFactory(Protocol):
+    def __call__(self, *, logger: Logger | None) -> TorchEnvWrapper:
+        ...
 
 
 class CollectorWorker: 
@@ -16,7 +22,7 @@ class CollectorWorker:
     def __init__(
         self,
         buffer: ReplayBuffer,
-        env_factory: Callable[[], TorchEnvWrapper],
+        env_factory: EnvFactory,
         policy_factory: Callable[[], Policy],
         connection: CollectorConnection,
         shared_state_dict: dict,
@@ -43,14 +49,14 @@ class CollectorWorker:
     
     def _run(self) -> None:
         env = None
-        step_logger = None
+        step_logger: Logger | None = None
         try:
             if self.seed is not None:
                 from nn_laser_stabilizer.experiment.seed import set_seeds
                 set_seeds(self.seed)
 
-            env = self.env_factory()
             step_logger = make_step_logger(self.step_logging_config)
+            env = self.env_factory(logger=step_logger)
             
             policy = self.policy_factory()
             policy.train()
@@ -90,10 +96,10 @@ class CollectorWorker:
             self.connection.send_worker_error(error_info)
         
         finally:
-            if step_logger is not None:
-                step_logger.close()
             if env is not None:
                 env.close()
+            if step_logger is not None:
+                step_logger.close()
 
     def stop(self, timeout: Optional[float] = None) -> None:
         self._process.join(timeout=timeout)

@@ -51,14 +51,18 @@ def _apply_wrappers(
     return env
 
 
-def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> TorchEnvWrapper:
+def make_env_from_config(
+    env_config: Config,
+    seed: Optional[int] = None,
+    logger: Optional[Logger] = None,
+) -> TorchEnvWrapper:
     wrappers_config = env_config.get("wrappers", None)
-    logger = _create_logger(wrappers_config)
+    env_logger = logger if logger is not None else _create_logger(wrappers_config)
 
     env_name = env_config.name
     if env_name in CUSTOM_ENV_MAP:
         env_class = CUSTOM_ENV_MAP[env_name]
-        env = env_class.from_config(env_config, logger)
+        env = env_class.from_config(env_config, env_logger)
     else:
         args = env_config.get("args")
         env_kwargs = args.to_dict() if args is not None else {}
@@ -70,7 +74,7 @@ def make_env_from_config(env_config: Config, seed: Optional[int] = None) -> Torc
                 f"Custom environments: {list(CUSTOM_ENV_MAP.keys())}"
             )
 
-    env = _apply_wrappers(env, wrappers_config, logger)
+    env = _apply_wrappers(env, wrappers_config, env_logger)
     return TorchEnvWrapper.wrap(env, seed=seed)
 
 
