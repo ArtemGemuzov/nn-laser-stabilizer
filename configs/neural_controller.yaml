@@ -2,6 +2,9 @@ seed: 1
 
 env:
   name: NeuralController
+  wrappers:
+    step_tracking:
+      time_multiplier: 1e6
   args:
     backend:
       type: experimental
