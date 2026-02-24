@@ -210,7 +210,7 @@ class NeuralController(BaseEnv):
 
         total_cost = error_cost + action_cost + control_cost
         return {
-            "cost_rror": error_cost,
+            "cost_error": error_cost,
             "cost_action": action_cost,
             "cost_control": control_cost,
             "reward": -total_cost,
