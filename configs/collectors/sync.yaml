@@ -2,7 +2,7 @@ is_async: false
 collect_steps_per_iteration: 10
 sync_frequency: 1
 step_logging:
-  enabled: false
+  enabled: true
   log_dir: "."
   log_file: "collector.jsonl"
   mode: "sync"
