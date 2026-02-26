@@ -45,6 +45,9 @@ class NeuralController(BaseEnv):
         max_action_delta: int = 0,
         action_penalty: float = 0.0,
         control_penalty: float = 0.0,
+        barrier_penalty: float = 0.0,
+        terminal_penalty: float = 0.0,
+        alive_bonus: float = 0.0,
         normalize_obs: bool = False,
     ):
         super().__init__()
@@ -52,6 +55,9 @@ class NeuralController(BaseEnv):
         self._action_type = action_type
         self._action_penalty = action_penalty
         self._control_penalty = control_penalty
+        self._barrier_penalty = barrier_penalty
+        self._terminal_penalty = terminal_penalty
+        self._alive_bonus = alive_bonus
         self._control_midpoint = (control_min + control_max) / 2.0
         self._control_half_range = (control_max - control_min) / 2.0
 
@@ -193,7 +199,11 @@ class NeuralController(BaseEnv):
         return observation
 
     def _compute_reward(
-        self, observation: np.ndarray, action_norm: float, control_output: int
+        self,
+        observation: np.ndarray,
+        action_norm: float,
+        control_output: int,
+        terminated: bool,
     ) -> dict[str, float]:
         # TODO: есть проблема с нормализацией PV
         error = float(np.clip(observation[0], -1, 1)) 
@@ -208,12 +218,28 @@ class NeuralController(BaseEnv):
             deviation = abs(control_output - self._control_midpoint) / self._control_half_range
             control_cost = self._control_penalty * deviation
 
-        total_cost = error_cost + action_cost + control_cost
+        barrier_cost = 0.0
+        if self._barrier_penalty != 0.0:
+            u_norm = normalize_to_minus1_plus1(
+                float(control_output),
+                min_val=float(self._control_min),
+                max_val=float(self._control_max),
+            )
+            barrier_cost = self._barrier_penalty * float(-np.log(1.0 - abs(u_norm) + 1e-6))
+
+        terminal_cost = self._terminal_penalty if terminated else 0.0
+        alive_reward = self._alive_bonus if not terminated else 0.0
+
+        total_cost = error_cost + action_cost + control_cost + barrier_cost + terminal_cost
+        reward = -total_cost + alive_reward
         return {
             "cost_error": error_cost,
             "cost_action": action_cost,
             "cost_control": control_cost,
-            "reward": -total_cost,
+            "cost_barrier": barrier_cost,
+            "cost_terminal": terminal_cost,
+            "reward_alive": alive_reward,
+            "reward": reward,
         }
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
@@ -228,7 +254,12 @@ class NeuralController(BaseEnv):
         if self._normalize_obs:
             observation = self._normalize_observation(observation)
 
-        reward_info = self._compute_reward(observation, action_norm, control_output)
+        reward_info = self._compute_reward(
+            observation,
+            action_norm,
+            control_output,
+            terminated,
+        )
 
         truncated = False
 
@@ -328,6 +359,9 @@ class NeuralController(BaseEnv):
         reward_config = config.args.get("reward", {})
         action_penalty = float(reward_config.get("action_penalty", 0.0))
         control_penalty = float(reward_config.get("control_penalty", 0.0))
+        barrier_penalty = float(reward_config.get("barrier_penalty", 0.0))
+        terminal_penalty = float(reward_config.get("terminal_penalty", 0.0))
+        alive_bonus = float(reward_config.get("alive_bonus", 0.0))
 
         return cls(
             backend=backend,
@@ -344,5 +378,8 @@ class NeuralController(BaseEnv):
             max_action_delta=max_action_delta,
             action_penalty=action_penalty,
             control_penalty=control_penalty,
+            barrier_penalty=barrier_penalty,
+            terminal_penalty=terminal_penalty,
+            alive_bonus=alive_bonus,
             normalize_obs=bool(config.args.get("normalize_obs", False)),
         )
