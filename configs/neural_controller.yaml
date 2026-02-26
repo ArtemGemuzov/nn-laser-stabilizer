@@ -50,13 +50,7 @@ training:
   log_file: train.jsonl
 
 exploration:
-  type: pid
-  steps: 25_000
-  kp: 3.5
-  ki: 11.0
-  kd: 0.002
-  dt: 0.005
-  max_delta: 25.0
+  type: none
 
 collector:
   _include: "{CONFIGS_DIR}/collectors/async"
