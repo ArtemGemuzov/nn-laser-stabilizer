@@ -2,8 +2,6 @@ name: NeuralController
 wrappers:
   step_tracking:
     time_multiplier: 1e6
-  reward_ema:
-    alpha: 0.5
 args:
   backend:
     type: arx
@@ -37,8 +35,7 @@ args:
   observe_prev_prev_error: true
   observe_control_output: true
 
-  reward:
-    action_penalty: 0.01
-    control_penalty: 0.1
-
   normalize_obs: true
+
+  reward:
+    alive_bonus: 1.0
