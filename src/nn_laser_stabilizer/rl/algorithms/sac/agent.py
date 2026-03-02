@@ -67,9 +67,6 @@ class SACAgent(Agent):
         critic_config = algorithm_config.critic
 
         network_config = actor_config.network
-        network_type = NetworkType.from_str(network_config.type)
-        if network_type != NetworkType.MLP:
-            raise ValueError(f"SAC currently supports only MLP actor, got: {network_type}")
 
         actor_network = make_actor_network_from_config(
             network_config=network_config,
