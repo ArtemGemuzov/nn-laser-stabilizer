@@ -29,10 +29,17 @@ class ARXPlantBackend:
         disturbances: list[tuple[float, float]],
         noise_std: float,
         dt: float,
+        setpoint_override_probability: float = 0.0,
         pv_min: float = 0.0,
         pv_max: float = 1023.0,
         logger: Optional[Logger] = None,
     ):
+        if not 0.0 <= setpoint_override_probability <= 1.0:
+            raise ValueError(
+                "setpoint_override_probability must be in [0, 1], "
+                f"got {setpoint_override_probability}"
+            )
+
         self._setpoint = setpoint
         self._a = list(a)
         self._b = list(b)
@@ -40,6 +47,7 @@ class ARXPlantBackend:
         self._disturbances = list(disturbances)
         self._noise_std = noise_std
         self._dt = dt
+        self._setpoint_override_probability = setpoint_override_probability
         self._pv_min = pv_min
         self._pv_max = pv_max
         self._logger = logger
@@ -89,6 +97,12 @@ class ARXPlantBackend:
         self._co_history.append(control_output)
 
         process_variable = int(round(pv))
+        setpoint_override_triggered = (
+            self._setpoint_override_probability > 0.0
+            and np.random.random() < self._setpoint_override_probability
+        )
+        if setpoint_override_triggered:
+            process_variable = int(self._setpoint)
 
         if self._logger is not None:
             self._logger.log(json.dumps({
@@ -97,6 +111,7 @@ class ARXPlantBackend:
                 "step": self._step,
                 "control_output": control_output,
                 "process_variable": process_variable,
+                "setpoint_override_triggered": setpoint_override_triggered,
                 "disturbance": round(disturbance, 4),
                 "pv_raw": round(pv, 4),
             }))

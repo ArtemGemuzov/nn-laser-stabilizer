@@ -322,6 +322,9 @@ class NeuralController(BaseEnv):
                 disturbances=disturbances,
                 noise_std=float(backend_config.get("noise_std", 0.0)),
                 dt=float(backend_config.get("dt", 0.005)),
+                setpoint_override_probability=float(
+                    backend_config.get("setpoint_override_probability", 0.0)
+                ),
                 pv_min=float(backend_config.get("pv_min", 0.0)),
                 pv_max=float(backend_config.get("pv_max", 1023.0)),
                 logger=logger,
