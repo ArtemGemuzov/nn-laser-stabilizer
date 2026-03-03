@@ -15,8 +15,8 @@ args:
       - { freq: 29.78, amp: 0.0530 }
     noise_std: 0.9
     dt: 0.005
-    pv_min: 0.0
-    pv_max: 1023.0
+    pv_min: 40
+    pv_max: 200
 
   setpoint: 120
 
@@ -35,7 +35,7 @@ args:
   observe_prev_error: true
   observe_prev_prev_error: true
   observe_control_output: true
-  error_normalixation_factor: 100
+  error_normalixation_factor: 60
 
   normalize_obs: true
 
