@@ -26,7 +26,7 @@ env:
 
     action:
       type: delta
-      max_delta: 25
+      max_delta: 20
 
     process_variable_min: 1000
     process_variable_max: 2000
