@@ -8,7 +8,7 @@ env:
   args:
     backend:
       type: experimental
-      port: localhost:8080
+      port: COM3
       timeout: 0.1
       baudrate: 115200
       log_connection: true

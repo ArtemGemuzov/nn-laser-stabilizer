@@ -1,5 +1,5 @@
 train_start_step: 5_000        
-sync_start_step: 5_000        
+sync_start_step: 0        
 num_steps: -1
 log_frequency: 1
 log_dir: "."
