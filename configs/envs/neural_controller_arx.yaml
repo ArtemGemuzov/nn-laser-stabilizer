@@ -27,7 +27,7 @@ args:
 
   action:
     type: delta
-    max_delta: 25
+    max_delta: 20
 
   process_variable_min: 100
   process_variable_max: 500
@@ -35,11 +35,11 @@ args:
   observe_prev_error: true
   observe_prev_prev_error: true
   observe_control_output: false
-  error_normalixation_factor: 400
+  error_normalixation_factor: 100
 
   normalize_obs: true
 
-  setpoint_override_probability: 0.33
+  setpoint_override_probability: 0.0
 
   reward:
     alive_bonus: 1.0
