@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Optional
 
 import numpy as np
@@ -49,6 +48,7 @@ class NeuralController(BaseEnv):
         terminal_penalty: float = 0.0,
         alive_bonus: float = 0.0,
         normalize_obs: bool = False,
+        error_normalixation_factor: float = 60.0,
     ):
         super().__init__()
 
@@ -71,14 +71,14 @@ class NeuralController(BaseEnv):
                 raise ValueError(
                     "max_action_delta must be > 0 for action type 'delta'"
                 )
-            self._denormalize_action = partial(
-                denormalize_from_minus1_plus1,
+            self._denormalize_action = lambda value: denormalize_from_minus1_plus1(
+                value,
                 min_val=-float(max_action_delta),
                 max_val=float(max_action_delta),
             )
         elif action_type == ActionType.ABSOLUTE:
-            self._denormalize_action = partial(
-                denormalize_from_minus1_plus1,
+            self._denormalize_action = lambda value: denormalize_from_minus1_plus1(
+                value,
                 min_val=float(control_min),
                 max_val=float(control_max),
             )
@@ -100,6 +100,9 @@ class NeuralController(BaseEnv):
         self._observe_prev_prev_error = observe_prev_prev_error
         self._observe_control_output = observe_control_output
         self._normalize_obs = normalize_obs
+        if error_normalixation_factor <= 0:
+            raise ValueError("error_normalixation_factor must be > 0")
+        self._error_normalixation_factor = float(error_normalixation_factor)
 
         self.action_space = gym.spaces.Box(
             low=np.array([-1.0], dtype=np.float32),
@@ -180,15 +183,18 @@ class NeuralController(BaseEnv):
 
         return observation, info
 
+    def _normalize_error(self, value: float) -> float:
+        return float(np.clip(value / self._error_normalixation_factor, -1.0, 1.0))
+
     def _normalize_observation(self, observation: np.ndarray) -> np.ndarray:
         idx = 0
-        observation[idx] /= self._pv_range
+        observation[idx] = self._normalize_error(float(observation[idx]))
         idx += 1
         if self._observe_prev_error:
-            observation[idx] /= self._pv_range
+            observation[idx] = self._normalize_error(float(observation[idx]))
             idx += 1
         if self._observe_prev_prev_error:
-            observation[idx] /= self._pv_range
+            observation[idx] = self._normalize_error(float(observation[idx]))
             idx += 1
         if self._observe_control_output:
             observation[idx] = normalize_to_minus1_plus1(
@@ -385,4 +391,7 @@ class NeuralController(BaseEnv):
             terminal_penalty=terminal_penalty,
             alive_bonus=alive_bonus,
             normalize_obs=bool(config.args.get("normalize_obs", False)),
+            error_normalixation_factor=float(
+                config.args.get("error_normalixation_factor", 60.0)
+            ),
         )
