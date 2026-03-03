@@ -8,7 +8,7 @@ env:
   args:
     backend:
       type: experimental
-      port: COM3
+      port: localhost:8080
       timeout: 0.1
       baudrate: 115200
       log_connection: true
@@ -44,7 +44,7 @@ env:
 
 training:
   train_start_step: 5_000        
-  sync_start_step: 5_000        
+  sync_start_step: 0        
   num_steps: -1
   log_frequency: 1
   log_dir: "."
