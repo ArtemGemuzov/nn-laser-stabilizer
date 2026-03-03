@@ -34,7 +34,7 @@ args:
 
   observe_prev_error: true
   observe_prev_prev_error: true
-  observe_control_output: false
+  observe_control_output: true
   error_normalixation_factor: 100
 
   normalize_obs: true
