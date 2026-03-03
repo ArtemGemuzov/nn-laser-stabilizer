@@ -39,6 +39,10 @@ class ARXPlantBackend:
                 "setpoint_override_probability must be in [0, 1], "
                 f"got {setpoint_override_probability}"
             )
+        if pv_min > pv_max:
+            raise ValueError(
+                f"pv_min must be <= pv_max, got pv_min={pv_min}, pv_max={pv_max}"
+            )
 
         self._setpoint = setpoint
         self._a = list(a)
@@ -64,8 +68,12 @@ class ARXPlantBackend:
     def setpoint(self) -> int:
         return self._setpoint
 
+    def _clip_pv(self, pv: float) -> float:
+        return float(np.clip(pv, self._pv_min, self._pv_max))
+
     def reset(self) -> None:
-        self._pv_history = deque([float(self._setpoint)] * self._na, maxlen=self._na)
+        initial_pv = self._clip_pv(float(self._setpoint))
+        self._pv_history = deque([initial_pv] * self._na, maxlen=self._na)
         self._co_history = deque([0] * max(self._nb - 1, 1), maxlen=max(self._nb - 1, 1))
         self._step = 0
         self._disturbance_phases = [
@@ -91,7 +99,7 @@ class ARXPlantBackend:
         for j in range(1, self._nb):
             pv += self._b[j] * self._co_history[-j]
 
-        pv = float(np.clip(pv, self._pv_min, self._pv_max))
+        pv = self._clip_pv(pv)
 
         self._pv_history.append(pv)
         self._co_history.append(control_output)
@@ -102,7 +110,7 @@ class ARXPlantBackend:
             and np.random.random() < self._setpoint_override_probability
         )
         if setpoint_override_triggered:
-            process_variable = int(self._setpoint)
+            process_variable = int(round(self._clip_pv(float(self._setpoint))))
 
         if self._logger is not None:
             self._logger.log(json.dumps({
