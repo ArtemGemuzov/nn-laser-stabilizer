@@ -42,4 +42,6 @@ args:
   setpoint_override_probability: 0.0
 
   reward:
-    alive_bonus: 1.0
+    type: exponential
+    params:
+      sigma: 20

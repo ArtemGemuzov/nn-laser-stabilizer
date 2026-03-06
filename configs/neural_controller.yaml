@@ -39,7 +39,9 @@ env:
     normalize_obs: true
 
     reward:
-      alive_bonus: 0.5
+      type: exponential
+      params:
+        sigma: 20
 
 
 training:
