@@ -26,6 +26,61 @@ class ActionType(BaseEnum):
     ABSOLUTE = "absolute"
 
 
+class RewardType(BaseEnum):
+    LINEAR = "linear"
+    QUADRATIC = "quadratic"
+    EXPONENTIAL = "exponential"
+    GAUSSIAN = "gaussian"
+
+
+class ErrorTermFn:
+    def compute(self, error: float) -> float:
+        raise NotImplementedError
+
+
+class LinearErrorTermFn(ErrorTermFn):
+    def __init__(self, *, denominator: float) -> None:
+        if denominator <= 0:
+            raise ValueError("reward.params.linear_denominator must be > 0")
+        self._inv_denominator = 1.0 / denominator
+
+    def compute(self, error: float) -> float:
+        return -self._inv_denominator * abs(error)
+
+
+class QuadraticErrorTermFn(ErrorTermFn):
+    def __init__(self, *, denominator: float) -> None:
+        if denominator <= 0:
+            raise ValueError("reward.params.quadratic_denominator must be > 0")
+        self._inv_denominator = 1.0 / denominator
+
+    def compute(self, error: float) -> float:
+        normalized_abs_error = self._inv_denominator * abs(error)
+        return -(normalized_abs_error ** 2)
+
+
+class ExponentialErrorTermFn(ErrorTermFn):
+    def __init__(self, *, sigma: float) -> None:
+        if sigma <= 0:
+            raise ValueError("reward.params.sigma must be > 0")
+        self._inv_sigma = 1.0 / sigma
+
+    def compute(self, error: float) -> float:
+        return float(np.exp(self._inv_sigma * abs(error)))
+
+
+class GaussianErrorTermFn(ErrorTermFn):
+    def __init__(self, *, sigma: float) -> None:
+        if sigma <= 0:
+            raise ValueError("reward.params.sigma must be > 0")
+        sigma2x2 = 2.0 * (sigma ** 2)
+        self._inv_sigma2x2 = 1.0 / sigma2x2
+
+    def compute(self, error: float) -> float:
+        abs_error = abs(error)
+        return float(np.exp(-(abs_error ** 2) * self._inv_sigma2x2))
+
+
 class NeuralController(BaseEnv):
     def __init__(
         self,
@@ -47,6 +102,8 @@ class NeuralController(BaseEnv):
         barrier_penalty: float = 0.0,
         terminal_penalty: float = 0.0,
         alive_bonus: float = 0.0,
+        reward_type: RewardType = RewardType.QUADRATIC,
+        reward_params: Optional[Config | dict[str, float]] = None,
         normalize_obs: bool = False,
         error_normalixation_factor: float = 60.0,
     ):
@@ -58,6 +115,15 @@ class NeuralController(BaseEnv):
         self._barrier_penalty = barrier_penalty
         self._terminal_penalty = terminal_penalty
         self._alive_bonus = alive_bonus
+        reward_params_cfg = (
+            reward_params
+            if isinstance(reward_params, Config)
+            else Config(reward_params or {})
+        )
+        self._error_term_fn = self._create_error_term_fn(
+            reward_type=reward_type,
+            reward_params=reward_params_cfg,
+        )
         self._control_midpoint = (control_min + control_max) / 2.0
         self._control_half_range = (control_max - control_min) / 2.0
 
@@ -206,14 +272,12 @@ class NeuralController(BaseEnv):
 
     def _compute_reward(
         self,
-        observation: np.ndarray,
+        error: float,
         action_norm: float,
         control_output: int,
         terminated: bool,
     ) -> dict[str, float]:
-        # TODO: есть проблема с нормализацией PV
-        error = float(np.clip(observation[0], -1, 1)) 
-        error_cost = abs(error) ** 2
+        error_term = self._error_term_fn.compute(error)
 
         action_cost = 0.0
         if self._action_penalty > 0:
@@ -236,10 +300,10 @@ class NeuralController(BaseEnv):
         terminal_cost = self._terminal_penalty if terminated else 0.0
         alive_reward = self._alive_bonus if not terminated else 0.0
 
-        total_cost = error_cost + action_cost + control_cost + barrier_cost + terminal_cost
-        reward = -total_cost + alive_reward
+        total_cost = action_cost + control_cost + barrier_cost + terminal_cost
+        reward = error_term - total_cost + alive_reward
         return {
-            "cost_error": error_cost,
+            "reward_error_term": error_term,
             "cost_action": action_cost,
             "cost_control": control_cost,
             "cost_barrier": barrier_cost,
@@ -247,6 +311,30 @@ class NeuralController(BaseEnv):
             "reward_alive": alive_reward,
             "reward": reward,
         }
+
+    @staticmethod
+    def _create_error_term_fn(
+        *,
+        reward_type: RewardType,
+        reward_params: Config,
+    ) -> ErrorTermFn:
+        if reward_type == RewardType.LINEAR:
+            return LinearErrorTermFn(
+                denominator=float(reward_params.linear_denominator),
+            )
+        if reward_type == RewardType.QUADRATIC:
+            return QuadraticErrorTermFn(
+                denominator=float(reward_params.quadratic_denominator),
+            )
+        if reward_type == RewardType.EXPONENTIAL:
+            return ExponentialErrorTermFn(
+                sigma=float(reward_params.sigma),
+            )
+        if reward_type == RewardType.GAUSSIAN:
+            return GaussianErrorTermFn(
+                sigma=float(reward_params.sigma),
+            )
+        raise ValueError(f"Unknown reward type: '{reward_type.value}'")
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         action_norm = self._unpack_action_value(action)
@@ -261,10 +349,10 @@ class NeuralController(BaseEnv):
             observation = self._normalize_observation(observation)
 
         reward_info = self._compute_reward(
-            observation,
-            action_norm,
-            control_output,
-            terminated,
+            error=info["error"],
+            action_norm=action_norm,
+            control_output=control_output,
+            terminated=terminated,
         )
 
         truncated = False
@@ -366,6 +454,8 @@ class NeuralController(BaseEnv):
         max_action_delta = int(action_config.get("max_delta", 0))
 
         reward_config = config.args.get("reward", {})
+        reward_type = RewardType.from_str(reward_config.type)
+        reward_params = reward_config.params
         action_penalty = float(reward_config.get("action_penalty", 0.0))
         control_penalty = float(reward_config.get("control_penalty", 0.0))
         barrier_penalty = float(reward_config.get("barrier_penalty", 0.0))
@@ -390,6 +480,8 @@ class NeuralController(BaseEnv):
             barrier_penalty=barrier_penalty,
             terminal_penalty=terminal_penalty,
             alive_bonus=alive_bonus,
+            reward_type=reward_type,
+            reward_params=reward_params,
             normalize_obs=bool(config.args.get("normalize_obs", False)),
             error_normalixation_factor=float(
                 config.args.get("error_normalixation_factor", 60.0)
