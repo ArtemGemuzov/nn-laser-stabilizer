@@ -39,7 +39,7 @@ env:
     normalize_obs: true
 
     reward:
-      type: exponential
+      type: gaussian
       params:
         sigma: 20
 
