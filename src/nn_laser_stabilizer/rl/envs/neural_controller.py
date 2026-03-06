@@ -66,7 +66,7 @@ class ExponentialErrorTermFn(ErrorTermFn):
         self._inv_sigma = 1.0 / sigma
 
     def compute(self, error: float) -> float:
-        return float(np.exp(self._inv_sigma * abs(error)))
+        return float(np.exp(-self._inv_sigma * abs(error)))
 
 
 class GaussianErrorTermFn(ErrorTermFn):
