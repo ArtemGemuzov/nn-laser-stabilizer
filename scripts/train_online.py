@@ -1,3 +1,4 @@
+import argparse
 from typing import Callable, Dict
 from functools import partial
 from pathlib import Path
@@ -16,6 +17,17 @@ from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.envs.factory import get_spaces_from_config, make_env_from_config
 from nn_laser_stabilizer.rl.algorithms.factory import build_agent
 from nn_laser_stabilizer.rl.policy.policy import Policy
+
+
+def _make_extra_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Online training.")
+    parser.add_argument(
+        "--resume-agent",
+        type=Path,
+        default=None,
+        help="Path to a saved agent directory to resume training from.",
+    )
+    return parser
 
 
 def evaluate(
@@ -53,7 +65,8 @@ def evaluate(
 
 @experiment(
     experiment_name="neural_controller-v3", 
-    config_name="neural_controller"
+    config_name="neural_controller",
+    extra_parser=_make_extra_parser(),
 )
 def main(context: ExperimentContext):
     LOG_SOURCE = "train"
@@ -83,6 +96,14 @@ def main(context: ExperimentContext):
         observation_space=observation_space,
         action_space=action_space,
     )
+    resume_agent_path = context.config.cli.resume_agent
+    if resume_agent_path is not None:
+        resume_agent_path = Path(resume_agent_path).resolve()
+        if not resume_agent_path.exists():
+            raise FileNotFoundError(f"Resume agent path not found: {resume_agent_path}")
+        context.logger.log(f"Loading agent from {resume_agent_path}...")
+        agent.load(resume_agent_path)
+        context.logger.log("Agent loaded. Resuming training.")
 
     policy = agent.exploration_policy(
         exploration_config=context.config.exploration,

@@ -21,6 +21,12 @@ def _make_extra_parser() -> argparse.ArgumentParser:
         required=True,
         help="Path to saved ReplayBuffer (.pth) file.",
     )
+    parser.add_argument(
+        "--resume-agent",
+        type=Path,
+        default=None,
+        help="Path to a saved agent directory to resume training from.",
+    )
     return parser
 
 
@@ -41,6 +47,14 @@ def main(context: ExperimentContext) -> None:
         observation_space=observation_space,
         action_space=action_space,
     )
+    resume_agent_path = context.config.cli.resume_agent
+    if resume_agent_path is not None:
+        resume_agent_path = Path(resume_agent_path).resolve()
+        if not resume_agent_path.exists():
+            raise FileNotFoundError(f"Resume agent path not found: {resume_agent_path}")
+        context.logger.log(f"Loading agent from: {resume_agent_path}")
+        agent.load(resume_agent_path)
+        context.logger.log("Agent loaded. Resuming offline training.")
 
     sampler = make_sampler_from_config(buffer=buffer, sampler_config=config.sampler)
 
