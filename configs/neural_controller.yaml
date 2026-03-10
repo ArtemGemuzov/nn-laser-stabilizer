@@ -39,9 +39,9 @@ env:
     normalize_obs: true
 
     reward:
-      type: gaussian
+      type: exponential
       params:
-        sigma: 15
+        sigma: 20
 
 
 training:
