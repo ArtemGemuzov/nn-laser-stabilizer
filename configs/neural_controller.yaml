@@ -41,7 +41,7 @@ env:
     reward:
       type: gaussian
       params:
-        sigma: 20
+        sigma: 15
 
 
 training:
@@ -62,7 +62,7 @@ evaluation:
   _include: "{CONFIGS_DIR}/common/evaluation_none"
 
 buffer:
-  _include: "{CONFIGS_DIR}/buffers/1000k"
+  capacity: 2_000_000
 
 sampler:
   _include: "{CONFIGS_DIR}/samplers/single"
