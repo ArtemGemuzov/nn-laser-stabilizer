@@ -39,13 +39,12 @@ env:
     normalize_obs: true
 
     reward:
-      type: exponential
+      type: gaussian
       params:
-        sigma: 20
-
+        sigma: 10
 
 training:
-  train_start_step: 5_000        
+  train_start_step: 100_000        
   sync_start_step: 0        
   num_steps: -1
   log_frequency: 1
@@ -53,7 +52,13 @@ training:
   log_file: train.jsonl
 
 exploration:
-  type: none
+  type: pid
+  steps: 100_000
+  kp: 3.5
+  ki: 11.0
+  kd: 0.002
+  dt: 0.005
+  max_delta: 20.0
 
 collector:
   _include: "{CONFIGS_DIR}/collectors/async"
