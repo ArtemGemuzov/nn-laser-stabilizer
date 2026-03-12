@@ -96,7 +96,7 @@ def main(context: ExperimentContext):
         observation_space=observation_space,
         action_space=action_space,
     )
-    resume_agent_path = context.config.cli.resume_agent
+    resume_agent_path = context.config.cli.get('resume_agent', None)
     if resume_agent_path is not None:
         resume_agent_path = Path(resume_agent_path).resolve()
         if not resume_agent_path.exists():
