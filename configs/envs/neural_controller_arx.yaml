@@ -42,6 +42,6 @@ args:
   setpoint_override_probability: 0.0
 
   reward:
-    type: exponential
+    type: gaussian
     params:
-      sigma: 20
+      sigma: 10
