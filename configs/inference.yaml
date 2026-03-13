@@ -2,6 +2,9 @@ seed: 1
 
 env:
   name: NeuralController
+  wrappers:
+    step_tracking:
+      time_multiplier: 1e6
   args:
     backend:
       type: experimental
@@ -23,22 +26,25 @@ env:
 
     action:
       type: delta
-      max_delta: 25
+      max_delta: 20
 
     process_variable_min: 1000
     process_variable_max: 2000
 
     observe_prev_error: true
     observe_prev_prev_error: true
-    observe_control_output: false
+    observe_control_output: true
+    error_normalixation_factor: 60
 
     normalize_obs: true
 
     reward:
-      action_penalty: 0.0
+      type: gaussian
+      params:
+        sigma: 10
 
 inference:
-  agent_path: path/to/experiment/agent_sac
+  agent_path: "{RESOURCES_DIR}/agent_sac"
   num_steps: -1
   log_frequency: -1
 
