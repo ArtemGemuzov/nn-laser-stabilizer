@@ -10,8 +10,8 @@ from nn_laser_stabilizer.rl.envs.factory import make_env_from_config, get_spaces
 
 
 @experiment(
-    experiment_name="inference", 
-    config_name="inference"
+    experiment_name="neural-controller-v3_inference", 
+    config_name="neural_controller_inference"
 )
 def main(context: ExperimentContext):
     context.logger.log("Creating components...")
