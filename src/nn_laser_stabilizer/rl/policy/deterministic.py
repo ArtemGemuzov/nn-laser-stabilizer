@@ -10,6 +10,7 @@ from nn_laser_stabilizer.rl.policy.policy import Policy
 class DeterministicPolicy(Policy):
     def __init__(self, actor: DeterministicActor):
         self._actor = actor
+        self._training = False
 
     @torch.no_grad()
     def act(self, observation: torch.Tensor, options: dict[str, Any]) -> tuple[torch.Tensor, dict[str, Any]]:
@@ -18,6 +19,8 @@ class DeterministicPolicy(Policy):
         if output.state is not None:
             options['hidden_state'] = output.state
         options['policy_info'] = {
+            "type": self.__class__.__name__,
+            "policy_mode": "train" if self._training else "eval",
             "distribution": "deterministic",
             "action": output.action.detach().cpu().tolist(),
         }
@@ -37,12 +40,12 @@ class DeterministicPolicy(Policy):
         return self._actor.load_state_dict(state_dict)
 
     def train(self, mode: bool = True) -> "DeterministicPolicy":
+        self._training = mode
         self._actor.train(mode)
         return self
 
     def eval(self) -> "DeterministicPolicy":
-        self._actor.eval()
-        return self
+        return self.train(False)
 
     def warmup(self, observation_space: Box, num_steps: int = 100) -> None:
         self._actor.eval()

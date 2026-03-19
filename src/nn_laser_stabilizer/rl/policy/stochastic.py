@@ -22,6 +22,7 @@ class StochasticPolicy(Policy):
 
         options['policy_info'] = {
             "type": self.__class__.__name__,
+            "policy_mode": "train" if self._training else "eval",
             "distribution": "gaussian_tanh",
             "mean_raw": output.mean.detach().cpu().tolist(),
             "mean_action": output.mean_action.detach().cpu().tolist(),
