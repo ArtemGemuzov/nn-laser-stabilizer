@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Any, cast
+from typing import Optional, Tuple, Any, cast, NoReturn
 
 import torch.multiprocessing as mp
 from multiprocessing.connection import PipeConnection
@@ -57,6 +57,12 @@ class CollectorConnection:
     
     def send_weight_update_done(self) -> None:
         self.send_command(CollectorCommand.WEIGHT_UPDATE_DONE, None)
+
+    def request_evaluation(self, num_steps: int) -> None:
+        self.send_command(CollectorCommand.REQUEST_EVALUATION, int(num_steps))
+
+    def send_evaluation_done(self, metrics: dict[str, float]) -> None:
+        self.send_command(CollectorCommand.EVALUATION_DONE, metrics)
     
     def wait_for_ready(self, timeout: Optional[float] = None) -> None:
         self._check_timeout(timeout, CollectorCommand.WORKER_READY)
@@ -94,6 +100,18 @@ class CollectorConnection:
         else:
             self._raise_unexpected_command_error(command, CollectorCommand.SHUTDOWN_COMPLETE, CollectorCommand.WORKER_ERROR)
 
+    def wait_for_evaluation_done(self, timeout: Optional[float] = None) -> dict[str, float]:
+        self._check_timeout(timeout, CollectorCommand.EVALUATION_DONE)
+
+        command, data = self.recv_command()
+        if command == CollectorCommand.EVALUATION_DONE:
+            return cast(dict[str, float], data)
+        elif command == CollectorCommand.WORKER_ERROR:
+            error = cast(CollectorWorkerErrorInfo, data)
+            error.raise_exception()
+        else:
+            self._raise_unexpected_command_error(command, CollectorCommand.EVALUATION_DONE, CollectorCommand.WORKER_ERROR)
+
     def poll_worker_error(self, timeout: Optional[float] = None) -> None:
         """
         Проверяет наличие ошибки от воркера и выбрасывает исключение, если ошибка получена.
@@ -118,7 +136,7 @@ class CollectorConnection:
         self, 
         received_command: CollectorCommand, 
         *expected_commands: CollectorCommand
-    ) -> None:
+    ) -> NoReturn:
         expected_str = " or ".join(str(cmd) for cmd in expected_commands)
         raise ValueError(f"Unexpected command received: {received_command}, expected {expected_str}")
 

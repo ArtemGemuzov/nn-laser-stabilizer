@@ -6,7 +6,13 @@ from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
-from nn_laser_stabilizer.rl.collector.utils import CollectorCommand, CollectorWorkerErrorInfo, collect_step, warmup_step
+from nn_laser_stabilizer.rl.collector.utils import (
+    CollectorCommand,
+    CollectorWorkerErrorInfo,
+    collect_step,
+    evaluate_policy,
+    warmup_step,
+)
 from nn_laser_stabilizer.rl.collector.utils import make_step_logger
 from nn_laser_stabilizer.utils.logger import Logger
 
@@ -71,13 +77,28 @@ class CollectorWorker:
             
             while True:
                 if self.connection.poll():
-                    command, _ = self.connection.recv_command()
+                    command, data = self.connection.recv_command()
                     if command == CollectorCommand.REQUEST_WEIGHT_UPDATE:
                         policy.load_state_dict(self.shared_state_dict)
                         self.connection.send_weight_update_done()
+                    elif command == CollectorCommand.REQUEST_EVALUATION:
+                        try:
+                            policy.eval()
+                            num_steps = int(data) if data is not None else 0
+                            metrics, observation, options = evaluate_policy(
+                                policy=policy,
+                                env=env,
+                                observation=observation,
+                                options=options,
+                                num_steps=num_steps,
+                                step_logger=step_logger,
+                            )
+                        finally:
+                            policy.train()
+                        self.connection.send_evaluation_done(metrics)
                     elif command == CollectorCommand.SHUTDOWN:
                         self.connection.send_shutdown_complete()
-                        break 
+                        break
                 
                 observation, options = collect_step(
                     policy=policy,

@@ -13,6 +13,7 @@ from nn_laser_stabilizer.rl.collector.connection import CollectorConnection
 from nn_laser_stabilizer.utils.logger import Logger
 from nn_laser_stabilizer.rl.collector.utils import (
     collect_step,
+    evaluate_policy,
     warmup_step,
     CollectorWorkerError,
     make_step_logger,
@@ -39,6 +40,10 @@ class BaseCollector(ABC):
 
     @abstractmethod
     def collect(self, num_steps: int) -> None:
+        ...
+
+    @abstractmethod
+    def evaluate(self, num_steps: int) -> dict[str, float]:
         ...
 
     def sync(self) -> None:
@@ -137,6 +142,26 @@ class SyncCollector(BaseCollector):
                 step_logger=self._step_logger,
             )
 
+    def evaluate(self, num_steps: int) -> dict[str, float]:
+        self._check_running()
+        assert self._current_observation is not None
+
+        policy = self._policy.eval()
+        try:
+            metrics, observation, options = evaluate_policy(
+                policy=policy,
+                env=self._env,
+                observation=self._current_observation,
+                options=self._options,
+                num_steps=num_steps,
+                step_logger=self._step_logger,
+            )
+            self._current_observation = observation
+            self._options = options
+            return metrics
+        finally:
+            policy.train()
+
     def _on_stop(self) -> None:
         self._step_logger.close()
         if self._env is not None:
@@ -146,6 +171,7 @@ class SyncCollector(BaseCollector):
 class AsyncCollector(BaseCollector):
     READY_TIMEOUT_SEC = 600.0
     WEIGHT_UPDATE_DONE_TIMEOUT_SEC = 10.0
+    EVALUATION_DONE_TIMEOUT_SEC = 1800.0
     PROCESS_JOIN_TIMEOUT_SEC = 5.0
 
     def __init__(
@@ -217,6 +243,15 @@ class AsyncCollector(BaseCollector):
         self._connection.request_weight_update()
         self._connection.wait_for_weight_update_done(
             timeout=AsyncCollector.WEIGHT_UPDATE_DONE_TIMEOUT_SEC
+        )
+
+    def evaluate(self, num_steps: int) -> dict[str, float]:
+        self._check_running()
+
+        self._connection.poll_worker_error()
+        self._connection.request_evaluation(num_steps=num_steps)
+        return self._connection.wait_for_evaluation_done(
+            timeout=AsyncCollector.EVALUATION_DONE_TIMEOUT_SEC
         )
 
     def _on_stop(self) -> None:
