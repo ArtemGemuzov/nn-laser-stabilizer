@@ -1,11 +1,8 @@
 import argparse
-from typing import Callable, Dict
 from functools import partial
 from pathlib import Path
 import json
 import time
-
-import numpy as np
 
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
@@ -13,10 +10,8 @@ from nn_laser_stabilizer.utils.logger import SyncFileLogger
 from nn_laser_stabilizer.rl.data.replay_buffer import ReplayBuffer
 from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.collector.collector import make_collector_from_config
-from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.envs.factory import get_spaces_from_config, make_env_from_config
 from nn_laser_stabilizer.rl.algorithms.factory import build_agent
-from nn_laser_stabilizer.rl.policy.policy import Policy
 
 
 def _make_extra_parser() -> argparse.ArgumentParser:
@@ -28,39 +23,6 @@ def _make_extra_parser() -> argparse.ArgumentParser:
         help="Path to a saved agent directory to resume training from.",
     )
     return parser
-
-
-def evaluate(
-    policy: Policy,
-    env_factory: Callable[[], TorchEnvWrapper],
-    num_steps: int,
-) -> Dict[str, float]:
-    policy.eval()
-    env = env_factory()
-    
-    rewards = np.empty(num_steps)
-
-    obs, _ = env.reset()
-    options = {}  
-    for i in range(num_steps):
-        action, options = policy.act(obs, options) 
-        obs, reward, terminated, truncated, _ = env.step(action)
-        done = terminated or truncated
-        rewards[i] = reward
-        
-        if done:
-            options = {}
-            obs, _ = env.reset()
-    
-    env.close()
-    policy.train()
-    return {
-        "episodes": rewards.size,
-        "reward_mean": rewards.mean(),
-        "reward_sum": rewards.sum(),
-        "reward_max": rewards.max(),
-        "reward_min": rewards.min()
-    }
 
 
 @experiment(
@@ -129,7 +91,6 @@ def main(context: ExperimentContext):
     evaluation_num_steps = context.config.evaluation.num_steps
     evaluation_enabled = evaluation_num_steps > 0 and evaluation_frequency > 0
 
-    env_config = context.config.env
     collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
     sync_frequency = context.config.collector.sync_frequency
 
@@ -169,11 +130,7 @@ def main(context: ExperimentContext):
                     }))
                 
                 if evaluation_enabled and step % evaluation_frequency == 0:
-                    eval_metrics = evaluate(
-                        agent.default_policy().eval(),
-                        lambda: make_env_from_config(env_config),
-                        num_steps=evaluation_num_steps,
-                    )
+                    eval_metrics = collector.evaluate(num_steps=evaluation_num_steps)
                     train_logger.log(json.dumps({
                         "source": LOG_SOURCE,
                         "event": "evaluation",
