@@ -26,7 +26,7 @@ env:
 
     action:
       type: delta
-      max_delta: 20
+      max_delta: 40
 
     process_variable_min: 1000
     process_variable_max: 2000
@@ -58,7 +58,7 @@ exploration:
   ki: 11.0
   kd: 0.002
   dt: 0.005
-  max_delta: 20.0
+  max_delta: 40.0
 
 collector:
   _include: "{CONFIGS_DIR}/collectors/async"
