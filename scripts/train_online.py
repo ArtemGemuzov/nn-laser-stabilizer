@@ -146,9 +146,9 @@ def main(context: ExperimentContext):
 
             context.logger.log("Training completed.")
             
-            if final_eval_enabled and final_eval_num_steps > 0:
+            if final_eval_enabled:
                 context.logger.log(
-                    f"Running final evaluation for {final_eval_num_steps} steps..."
+                    f"Running final evaluation ..."
                 )
                 final_eval_metrics = collector.evaluate(num_steps=final_eval_num_steps)
                 train_logger.log(

@@ -53,6 +53,8 @@ class CollectorWorkerError(Exception):
 
 _NOOP_LOGGER = NoOpLogger()
 
+INFINITE_STEPS = -1
+
 
 def make_step_logger(step_logging_config: dict[str, Any] | None) -> Logger:
     if not step_logging_config or not bool(step_logging_config.get("enabled", False)):
@@ -152,8 +154,8 @@ def evaluate_policy(
     num_steps: int,
     step_logger: Logger = _NOOP_LOGGER,
 ) -> tuple[dict[str, float], torch.Tensor, dict[str, Any]]:
-    if num_steps < 0:
-        raise ValueError("num_steps must be >= 0")
+    if num_steps < 0 and num_steps != INFINITE_STEPS:
+        raise ValueError("num_steps must be >= 0 or -1 for infinite evaluation")
 
     if num_steps == 0:
         return (
@@ -162,26 +164,39 @@ def evaluate_policy(
             {} if options is None else dict(options)
         )
 
-    rewards = np.empty(num_steps, dtype=np.float32)
     if options is None:
         options = {}
 
-    for i in range(num_steps):
-        _, _, reward, observation, _, options = _env_step(
-            policy=policy,
-            env=env,
-            obs=observation,
-            options=options,
-            step_logger=step_logger,
-        )
-        rewards[i] = float(reward.item())
+    steps = 0
+    reward_sum = 0.0
+    reward_min = float("inf")
+    reward_max = float("-inf")
+    try:
+        while num_steps == INFINITE_STEPS or steps < num_steps:
+            _, _, reward, observation, _, options = _env_step(
+                policy=policy,
+                env=env,
+                obs=observation,
+                options=options,
+                step_logger=step_logger,
+            )
+            r = float(reward.item())
+            reward_sum += r
+            reward_min = min(reward_min, r)
+            reward_max = max(reward_max, r)
+            steps += 1
+    except KeyboardInterrupt:
+        pass
 
-    metrics = {
-        "episodes": float(num_steps),
-        "reward_mean": float(np.mean(rewards)),
-        "reward_sum": float(np.sum(rewards)),
-        "reward_max": float(np.max(rewards)),
-        "reward_min": float(np.min(rewards)),
-    }
+    if steps == 0:
+        metrics = {"episodes": 0.0}
+    else:
+        metrics = {
+            "episodes": float(steps),
+            "reward_mean": float(reward_sum / steps),
+            "reward_sum": float(reward_sum),
+            "reward_max": float(reward_max),
+            "reward_min": float(reward_min),
+        }
 
     return metrics, observation, options

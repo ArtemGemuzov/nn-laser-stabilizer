@@ -17,9 +17,8 @@ from nn_laser_stabilizer.rl.collector.utils import (
     warmup_step,
     CollectorWorkerError,
     make_step_logger,
+    INFINITE_STEPS,
 )
-
-INFINITE_STEPS = -1
 
 
 class BaseCollector(ABC):
