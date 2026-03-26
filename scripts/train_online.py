@@ -91,6 +91,11 @@ def main(context: ExperimentContext):
     evaluation_num_steps = context.config.evaluation.num_steps
     evaluation_enabled = evaluation_num_steps > 0 and evaluation_frequency > 0
 
+    final_eval_enabled = bool(context.config.evaluation.get("final.enabled", False))
+    final_eval_num_steps = int(
+        context.config.evaluation.get("final.num_steps", evaluation_num_steps)
+    )
+
     collect_steps_per_iteration = context.config.collector.collect_steps_per_iteration
     sync_frequency = context.config.collector.sync_frequency
 
@@ -138,9 +143,26 @@ def main(context: ExperimentContext):
                         "time": time.time(),
                         **eval_metrics,
                     }))
-            
+
             context.logger.log("Training completed.")
-            context.logger.log(f"Final buffer size: {len(buffer)}")
+            
+            if final_eval_enabled and final_eval_num_steps > 0:
+                context.logger.log(
+                    f"Running final evaluation for {final_eval_num_steps} steps..."
+                )
+                final_eval_metrics = collector.evaluate(num_steps=final_eval_num_steps)
+                train_logger.log(
+                    json.dumps(
+                        {
+                            "source": LOG_SOURCE,
+                            "event": "final_evaluation",
+                            "step": step,
+                            "time": time.time(),
+                            **final_eval_metrics,
+                        }
+                    )
+                )
+
         finally:
             context.logger.log("Saving agent...")
             agent.save()
