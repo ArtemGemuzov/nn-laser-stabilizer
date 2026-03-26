@@ -26,7 +26,7 @@ env:
 
     action:
       type: delta
-      max_delta: 40
+      max_delta: 50
 
     process_variable_min: 1000
     process_variable_max: 2000
@@ -48,7 +48,7 @@ env:
 training:
   train_start_step: 100_000        
   sync_start_step: 0        
-  num_steps: -1
+  num_steps: 750_000
   log_frequency: 1
   log_dir: "."
   log_file: train.jsonl
@@ -60,7 +60,7 @@ exploration:
   ki: 11.0
   kd: 0.002
   dt: 0.005
-  max_delta: 40.0
+  max_delta: 50.0
 
 collector:
   _include: "{CONFIGS_DIR}/collectors/async"
