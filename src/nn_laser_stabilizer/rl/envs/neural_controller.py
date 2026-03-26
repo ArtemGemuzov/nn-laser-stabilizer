@@ -94,7 +94,8 @@ class NeuralController(BaseEnv):
         reset_steps: int,
         observe_prev_error: bool,
         observe_prev_prev_error: bool,
-        observe_control_output: bool,
+        observe_prev_control_output: bool,
+        observe_prev_prev_control_output: bool,
         action_type: ActionType,
         max_action_delta: int = 0,
         action_penalty: float = 0.0,
@@ -161,10 +162,13 @@ class NeuralController(BaseEnv):
         self._current_control_output = BoundedValue(control_min, control_max, 0)
         self._error_prev: float = 0.0
         self._error_prev_prev: float = 0.0
+        self._control_output_prev: int = int(reset_value)
+        self._control_output_prev_prev: int = int(reset_value)
 
         self._observe_prev_error = observe_prev_error
         self._observe_prev_prev_error = observe_prev_prev_error
-        self._observe_control_output = observe_control_output
+        self._observe_prev_control_output = observe_prev_control_output
+        self._observe_prev_prev_control_output = observe_prev_prev_control_output
         self._normalize_obs = normalize_obs
         if error_normalixation_factor <= 0:
             raise ValueError("error_normalixation_factor must be > 0")
@@ -181,7 +185,9 @@ class NeuralController(BaseEnv):
             obs_dim += 1
         if observe_prev_prev_error:
             obs_dim += 1
-        if observe_control_output:
+        if observe_prev_control_output:
+            obs_dim += 1
+        if observe_prev_prev_control_output:
             obs_dim += 1
 
         if normalize_obs:
@@ -200,7 +206,10 @@ class NeuralController(BaseEnv):
             if observe_prev_prev_error:
                 obs_low.append(-error_bound)
                 obs_high.append(error_bound)
-            if observe_control_output:
+            if observe_prev_control_output:
+                obs_low.append(float(control_min))
+                obs_high.append(float(control_max))
+            if observe_prev_prev_control_output:
                 obs_low.append(float(control_min))
                 obs_high.append(float(control_max))
             self.observation_space = gym.spaces.Box(
@@ -234,18 +243,24 @@ class NeuralController(BaseEnv):
             components.append(self._error_prev)
         if self._observe_prev_prev_error:
             components.append(self._error_prev_prev)
-        if self._observe_control_output:
-            components.append(float(control_output))
+        if self._observe_prev_control_output:
+            components.append(float(self._control_output_prev))
+        if self._observe_prev_prev_control_output:
+            components.append(float(self._control_output_prev_prev))
 
         observation = np.array(components, dtype=np.float32)
         info = {
             "error": error,
             "prev_error": self._error_prev,
             "prev_prev_error": self._error_prev_prev,
+            "prev_control_output": int(self._control_output_prev),
+            "prev_prev_control_output": int(self._control_output_prev_prev),
         }
 
         self._error_prev_prev = self._error_prev
         self._error_prev = error
+        self._control_output_prev_prev = self._control_output_prev
+        self._control_output_prev = int(control_output)
 
         return observation, info
 
@@ -262,7 +277,14 @@ class NeuralController(BaseEnv):
         if self._observe_prev_prev_error:
             observation[idx] = self._normalize_error(float(observation[idx]))
             idx += 1
-        if self._observe_control_output:
+        if self._observe_prev_control_output:
+            observation[idx] = normalize_to_minus1_plus1(
+                float(observation[idx]),
+                min_val=float(self._control_min),
+                max_val=float(self._control_max),
+            )
+            idx += 1
+        if self._observe_prev_prev_control_output:
             observation[idx] = normalize_to_minus1_plus1(
                 float(observation[idx]),
                 min_val=float(self._control_min),
@@ -379,6 +401,8 @@ class NeuralController(BaseEnv):
 
         self._error_prev = 0.0
         self._error_prev_prev = 0.0
+        self._control_output_prev = int(self._reset_value)
+        self._control_output_prev_prev = 0
 
         self._backend.reset()
         self._current_control_output.value = self._reset_value
@@ -472,7 +496,10 @@ class NeuralController(BaseEnv):
             reset_steps=config.args.reset_steps,
             observe_prev_error=bool(config.args.observe_prev_error),
             observe_prev_prev_error=bool(config.args.observe_prev_prev_error),
-            observe_control_output=bool(config.args.observe_control_output),
+            observe_prev_control_output=bool(config.args.observe_prev_control_output),
+            observe_prev_prev_control_output=bool(
+                config.args.get("observe_prev_prev_control_output", False)
+            ),
             action_type=action_type,
             max_action_delta=max_action_delta,
             action_penalty=action_penalty,
