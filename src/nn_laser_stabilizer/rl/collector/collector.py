@@ -19,6 +19,8 @@ from nn_laser_stabilizer.rl.collector.utils import (
     make_step_logger,
 )
 
+INFINITE_STEPS = -1
+
 
 class BaseCollector(ABC):
     def __init__(self, buffer: ReplayBuffer):
@@ -119,7 +121,9 @@ class SyncCollector(BaseCollector):
     def ensure(self, min_size: int) -> None:
         self._check_running()
         assert self._current_observation is not None
-        while len(self.buffer) < min_size:
+
+        infinite = min_size == INFINITE_STEPS
+        while infinite or len(self.buffer) < min_size:
             self._current_observation, self._options = collect_step(
                 self._policy,
                 self._env,
@@ -132,7 +136,10 @@ class SyncCollector(BaseCollector):
     def collect(self, num_steps: int) -> None:
         self._check_running()
         assert self._current_observation is not None
-        for _ in range(num_steps):
+
+        infinite = num_steps == INFINITE_STEPS
+        step = 0
+        while infinite or step < num_steps:
             self._current_observation, self._options = collect_step(
                 self._policy,
                 self._env,
@@ -141,6 +148,7 @@ class SyncCollector(BaseCollector):
                 self._options,
                 step_logger=self._step_logger,
             )
+            step += 1
 
     def evaluate(self, num_steps: int) -> dict[str, float]:
         self._check_running()
@@ -223,17 +231,19 @@ class AsyncCollector(BaseCollector):
 
     def ensure(self, min_size: int) -> None:
         self._check_running()
-        
-        while len(self.buffer) < min_size:
+
+        infinite = min_size == INFINITE_STEPS
+        while infinite or len(self.buffer) < min_size:
             self._connection.poll_worker_error()
             time.sleep(self._check_interval)
 
     def collect(self, num_steps: int) -> None:
         self._check_running()
 
-        if num_steps <= 0:
-            return
-        self.ensure(len(self.buffer) + num_steps)
+        if num_steps == INFINITE_STEPS:
+            self.ensure(INFINITE_STEPS)
+        else:
+            self.ensure(len(self.buffer) + num_steps)
 
     def sync(self) -> None:
         self._check_running()
