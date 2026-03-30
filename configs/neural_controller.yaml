@@ -46,7 +46,7 @@ env:
         sigma: 10
 
 training:
-  train_start_step: 20_000        
+  train_start_step: 5_000        
   sync_start_step: 0        
   num_steps: 750_000
   log_frequency: 1
