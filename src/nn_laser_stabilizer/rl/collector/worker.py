@@ -76,7 +76,7 @@ class CollectorWorker:
                 observation, options = warmup_step(policy, env, observation, options)
             
             while True:
-                if self.connection.poll():
+                if self.connection.poll(0.0):
                     command, data = self.connection.recv_command()
                     if command == CollectorCommand.REQUEST_WEIGHT_UPDATE:
                         policy.load_state_dict(self.shared_state_dict)

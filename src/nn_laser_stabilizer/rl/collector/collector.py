@@ -176,9 +176,6 @@ class SyncCollector(BaseCollector):
 
 
 class AsyncCollector(BaseCollector):
-    READY_TIMEOUT_SEC = 600.0
-    WEIGHT_UPDATE_DONE_TIMEOUT_SEC = 10.0
-    EVALUATION_DONE_TIMEOUT_SEC = 1800.0
     PROCESS_JOIN_TIMEOUT_SEC = 5.0
 
     def __init__(
@@ -226,7 +223,7 @@ class AsyncCollector(BaseCollector):
         if not self._process.is_alive():
             raise RuntimeError("Failed to start collector process")
 
-        self._connection.wait_for_ready(timeout=AsyncCollector.READY_TIMEOUT_SEC)
+        self._connection.wait_for_ready()
 
     def ensure(self, min_size: int) -> None:
         self._check_running()
@@ -250,18 +247,14 @@ class AsyncCollector(BaseCollector):
         self._connection.poll_worker_error()
 
         self._connection.request_weight_update()
-        self._connection.wait_for_weight_update_done(
-            timeout=AsyncCollector.WEIGHT_UPDATE_DONE_TIMEOUT_SEC
-        )
+        self._connection.wait_for_weight_update_done()
 
     def evaluate(self, num_steps: int) -> dict[str, float]:
         self._check_running()
 
         self._connection.poll_worker_error()
         self._connection.request_evaluation(num_steps=num_steps)
-        return self._connection.wait_for_evaluation_done(
-            timeout=AsyncCollector.EVALUATION_DONE_TIMEOUT_SEC
-        )
+        return self._connection.wait_for_evaluation_done()
 
     def _on_stop(self) -> None:
         self._shutdown(wait_for_shutdown=True)
@@ -271,9 +264,7 @@ class AsyncCollector(BaseCollector):
 
         self._connection.send_shutdown()
         if wait_for_shutdown:
-            self._connection.wait_for_shutdown_complete(
-                timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC
-            )
+            self._connection.wait_for_shutdown_complete()
 
         if self._process is not None:
             self._process.stop(timeout=AsyncCollector.PROCESS_JOIN_TIMEOUT_SEC)

@@ -33,12 +33,12 @@ class CollectorConnection:
         Проверяет, есть ли данные для чтения.
         
         Args:
-            timeout: Время ожидания в секундах (None для неблокирующей проверки)
+            timeout: Время ожидания в секундах. None означает бесконечное ожидание.
         
         Returns:
             True если есть данные для чтения, False иначе
         """
-        return self._connection.poll(timeout if timeout is not None else 0)
+        return self._connection.poll(timeout)
     
     def send_worker_ready(self) -> None:
         self.send_command(CollectorCommand.WORKER_READY, None)
@@ -117,7 +117,7 @@ class CollectorConnection:
         Проверяет наличие ошибки от воркера и выбрасывает исключение, если ошибка получена.
         
         Args:
-            timeout: Время ожидания в секундах (None для неблокирующей проверки)
+            timeout: Время ожидания в секундах. None означает бесконечное ожидание.
         
         Raises:
             RuntimeError: Если получена ошибка от воркера
