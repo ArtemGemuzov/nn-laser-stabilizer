@@ -11,11 +11,13 @@ class NoisyExplorationPolicy(BaseExplorationPolicy):
         self,
         inner: Policy,
         action_space: Box,
-        exploration_steps: int,
+        *,
+        start_step: int,
+        end_step: int | None,
         policy_noise: float,
         noise_clip: float,
     ):
-        super().__init__(inner, action_space, exploration_steps)
+        super().__init__(inner, action_space, start_step=start_step, end_step=end_step)
         self._policy_noise = policy_noise
         self._noise_clip = noise_clip
 
@@ -27,19 +29,29 @@ class NoisyExplorationPolicy(BaseExplorationPolicy):
         return NoisyExplorationPolicy(
             inner=self._inner.clone(),
             action_space=self._action_space,
-            exploration_steps=self._exploration_steps,
+            start_step=self._start_step,
+            end_step=self._end_step,
             policy_noise=self._policy_noise,
             noise_clip=self._noise_clip,
         )
 
     @classmethod
     def from_config(cls, exploration_config: Config, *, policy: Policy, action_space: Box) -> "NoisyExplorationPolicy":
-        steps = int(exploration_config.steps)
+        start_step = int(exploration_config.get("start_step", 0))
+        steps = int(exploration_config.get("steps", 0))
+        end_step_raw = exploration_config.get("end_step", None)
+        end_step = None if end_step_raw is None else int(end_step_raw)
         policy_noise = float(exploration_config.policy_noise)
         noise_clip = float(exploration_config.noise_clip)
 
+        if start_step < 0:
+            raise ValueError("exploration.start_step must be >= 0 for noisy exploration")
         if steps < 0:
             raise ValueError("exploration.steps must be >= 0 for noisy exploration")
+        if end_step is None:
+            end_step = start_step + steps
+        if end_step < start_step:
+            raise ValueError("exploration.end_step must be >= exploration.start_step for noisy exploration")
         if policy_noise <= 0.0:
             raise ValueError("exploration.policy_noise must be > 0")
         if noise_clip <= 0.0:
@@ -48,7 +60,8 @@ class NoisyExplorationPolicy(BaseExplorationPolicy):
         return cls(
             inner=policy,
             action_space=action_space,
-            exploration_steps=steps,
+            start_step=start_step,
+            end_step=end_step,
             policy_noise=policy_noise,
             noise_clip=noise_clip,
         )

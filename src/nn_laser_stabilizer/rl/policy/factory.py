@@ -14,6 +14,7 @@ class ExplorationType(BaseEnum):
     NOISY = "noisy"
     OU = "ou"
     PID = "pid"
+    SEQUENCE = "sequence"
     
 
 def make_exploration_policy_from_config(
@@ -25,6 +26,23 @@ def make_exploration_policy_from_config(
 
     if exploration_type == ExplorationType.NONE:
         return policy
+
+    elif exploration_type == ExplorationType.SEQUENCE:
+        wrappers = exploration_config.get("wrappers", None)
+        if wrappers is None:
+            raise ValueError("exploration.wrappers must be provided for exploration.type=sequence")
+        if not isinstance(wrappers, list):
+            raise ValueError("exploration.wrappers must be a list for exploration.type=sequence")
+        wrapped = policy
+        for wrapper_cfg in wrappers:
+            if not isinstance(wrapper_cfg, dict):
+                raise ValueError("Each item in exploration.wrappers must be a dict")
+            wrapped = make_exploration_policy_from_config(
+                policy=wrapped,
+                action_space=action_space,
+                exploration_config=Config(wrapper_cfg),
+            )
+        return wrapped
 
     elif exploration_type == ExplorationType.RANDOM:
         return RandomExplorationPolicy.from_config(

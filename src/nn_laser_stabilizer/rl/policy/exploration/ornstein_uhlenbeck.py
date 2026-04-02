@@ -22,13 +22,15 @@ class OrnsteinUhlenbeckExplorationPolicy(BaseExplorationPolicy):
         self,
         inner: Policy,
         action_space: Box,
-        exploration_steps: int,
+        *,
+        start_step: int,
+        end_step: int | None,
         theta: float,
         sigma: float,
         mu: float,
         dt: float,
     ):
-        super().__init__(inner, action_space, exploration_steps)
+        super().__init__(inner, action_space, start_step=start_step, end_step=end_step)
         self._theta = theta
         self._sigma = sigma
         self._mu = mu
@@ -54,7 +56,8 @@ class OrnsteinUhlenbeckExplorationPolicy(BaseExplorationPolicy):
         return OrnsteinUhlenbeckExplorationPolicy(
             inner=self._inner.clone(),
             action_space=self._action_space,
-            exploration_steps=self._exploration_steps,
+            start_step=self._start_step,
+            end_step=self._end_step,
             theta=self._theta,
             sigma=self._sigma,
             mu=self._mu,
@@ -65,14 +68,23 @@ class OrnsteinUhlenbeckExplorationPolicy(BaseExplorationPolicy):
     def from_config(
         cls, exploration_config: Config, *, policy: Policy, action_space: Box,
     ) -> "OrnsteinUhlenbeckExplorationPolicy":
-        steps = int(exploration_config.steps)
+        start_step = int(exploration_config.get("start_step", 0))
+        steps = int(exploration_config.get("steps", 0))
+        end_step_raw = exploration_config.get("end_step", None)
+        end_step = None if end_step_raw is None else int(end_step_raw)
         sigma = float(exploration_config.sigma)
         theta = float(exploration_config.theta)
         mu = float(exploration_config.mu)
         dt = float(exploration_config.dt)
 
+        if start_step < 0:
+            raise ValueError("exploration.start_step must be >= 0 for OU exploration")
         if steps < 0:
             raise ValueError("exploration.steps must be >= 0 for OU exploration")
+        if end_step is None:
+            end_step = start_step + steps
+        if end_step < start_step:
+            raise ValueError("exploration.end_step must be >= exploration.start_step for OU exploration")
         if sigma <= 0.0:
             raise ValueError("exploration.sigma must be > 0")
         if theta <= 0.0:
@@ -83,7 +95,8 @@ class OrnsteinUhlenbeckExplorationPolicy(BaseExplorationPolicy):
         return cls(
             inner=policy,
             action_space=action_space,
-            exploration_steps=steps,
+            start_step=start_step,
+            end_step=end_step,
             theta=theta,
             sigma=sigma,
             mu=mu,
