@@ -6,7 +6,7 @@ import torch
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
-from nn_laser_stabilizer.rl.policy.exploration.base_exploaration import BaseExplorationPolicy
+from nn_laser_stabilizer.rl.policy.exploration.base_exploration import BaseExplorationPolicy
 
 
 class OrnsteinUhlenbeckExplorationPolicy(BaseExplorationPolicy):

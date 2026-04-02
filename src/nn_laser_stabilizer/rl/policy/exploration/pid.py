@@ -6,7 +6,7 @@ from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.utils.pid import PIDDelta
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
-from nn_laser_stabilizer.rl.policy.exploration.base_exploaration import BaseExplorationPolicy
+from nn_laser_stabilizer.rl.policy.exploration.base_exploration import BaseExplorationPolicy
 
 
 class PIDExplorationPolicy(BaseExplorationPolicy):
@@ -56,7 +56,7 @@ class PIDExplorationPolicy(BaseExplorationPolicy):
         steps = int(exploration_config.get("steps", 0))
         end_step_raw = exploration_config.get("end_step", None)
         end_step = None if end_step_raw is None else int(end_step_raw)
-        
+
         kp = float(exploration_config.kp)
         ki = float(exploration_config.ki)
         kd = float(exploration_config.kd)
