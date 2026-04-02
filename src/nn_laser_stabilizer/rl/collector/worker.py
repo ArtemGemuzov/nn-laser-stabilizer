@@ -65,8 +65,8 @@ class CollectorWorker:
             env = self.env_factory(logger=step_logger)
             
             policy = self.policy_factory()
-            policy.train()
             policy.warmup(env.observation_space)
+            policy.train()
 
             observation, options = env.reset()
 
