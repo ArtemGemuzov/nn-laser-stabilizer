@@ -230,8 +230,7 @@ class AsyncCollector(BaseCollector):
 
         infinite = min_size == INFINITE_STEPS
         while infinite or len(self.buffer) < min_size:
-            self._connection.poll_worker_error()
-            time.sleep(self._check_interval)
+            self._connection.poll_worker_error(self._check_interval)
 
     def collect(self, num_steps: int) -> None:
         self._check_running()

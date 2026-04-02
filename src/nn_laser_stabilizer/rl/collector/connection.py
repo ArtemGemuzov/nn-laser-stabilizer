@@ -112,7 +112,7 @@ class CollectorConnection:
         else:
             self._raise_unexpected_command_error(command, CollectorCommand.EVALUATION_DONE, CollectorCommand.WORKER_ERROR)
 
-    def poll_worker_error(self, timeout: Optional[float] = None) -> None:
+    def poll_worker_error(self, timeout: float = 0.0) -> None:
         """
         Проверяет наличие ошибки от воркера и выбрасывает исключение, если ошибка получена.
         
