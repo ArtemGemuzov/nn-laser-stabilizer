@@ -49,7 +49,7 @@ env:
 training:
   train_start_step: 100_000        
   sync_start_step: 0        
-  num_steps: 750_000
+  num_steps: -1
   log_frequency: 1
   log_dir: "."
   log_file: train.jsonl
@@ -67,11 +67,11 @@ collector:
   _include: "{CONFIGS_DIR}/collectors/async"
 
 evaluation:
-  frequency: 200_000
+  frequency: 300_000
   num_steps: 100_000
   final:
-    enabled: true
-    num_steps: -1
+    enabled: false
+    num_steps: 0
 
 buffer:
   capacity: 2_000_000
@@ -81,7 +81,7 @@ sampler:
 
 algorithm:
   type: sac
-  gamma: 0.9
+  gamma: 0.99
   tau: 0.005
   initial_alpha: 0.2
 
