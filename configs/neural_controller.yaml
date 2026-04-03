@@ -19,8 +19,8 @@ env:
 
     setpoint: 1200
 
-    control_min: 500
-    control_max: 3000
+    control_min: 0
+    control_max: 4000
 
     reset_value: 2000
     reset_steps: 1000
