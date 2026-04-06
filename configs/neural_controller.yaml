@@ -74,7 +74,7 @@ evaluation:
     num_steps: 0
 
 buffer:
-  capacity: 2_000_000
+  capacity: 2_500_000
 
 sampler:
   _include: "{CONFIGS_DIR}/samplers/single"
