@@ -47,7 +47,7 @@ env:
         sigma: 10
 
 training:
-  train_start_step: 100_000        
+  train_start_step: 1_000_000        
   sync_start_step: 0        
   num_steps: -1
   log_frequency: 1
@@ -56,7 +56,7 @@ training:
 
 exploration:
   type: pid
-  steps: 100_000
+  steps: 1_000_000
   kp: 3.5
   ki: 11.0
   kd: 0.002
