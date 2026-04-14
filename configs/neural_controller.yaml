@@ -27,7 +27,7 @@ env:
 
     action:
       type: delta
-      max_delta: 75
+      max_delta: 50
 
     process_variable_min: 1000
     process_variable_max: 2000
@@ -47,7 +47,7 @@ env:
         sigma: 10
 
 training:
-  train_start_step: 1_000_000        
+  train_start_step: 100_000        
   sync_start_step: 0        
   num_steps: -1
   log_frequency: 1
@@ -56,12 +56,12 @@ training:
 
 exploration:
   type: pid
-  steps: 1_000_000
+  steps: 100_000
   kp: 3.5
   ki: 11.0
   kd: 0.002
   dt: 0.005
-  max_delta: 75
+  max_delta: 50
 
 collector:
   _include: "{CONFIGS_DIR}/collectors/async"
@@ -81,7 +81,7 @@ sampler:
 
 algorithm:
   type: sac
-  gamma: 0.9
+  gamma: 0.7
   tau: 0.005
   initial_alpha: 0.2
 
