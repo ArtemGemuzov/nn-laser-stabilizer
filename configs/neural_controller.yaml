@@ -47,7 +47,7 @@ env:
         sigma: 10
 
 training:
-  train_start_step: 100_000        
+  train_start_step: 5_000        
   sync_start_step: 0        
   num_steps: -1
   log_frequency: 1
@@ -64,7 +64,15 @@ exploration:
   max_delta: 100
 
 collector:
-  _include: "{CONFIGS_DIR}/collectors/async"
+  is_async: true
+  collect_steps_per_iteration: 0
+  sync_frequency: 10
+  warmup_steps: 100_000
+  step_logging:
+    enabled: true
+    log_dir: "."
+    log_file: "collector.jsonl"
+    mode: async
 
 evaluation:
   frequency: 300_000
