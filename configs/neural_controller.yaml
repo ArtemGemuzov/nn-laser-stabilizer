@@ -48,7 +48,7 @@ env:
       action_penalty: 0.1
 
 training:
-  train_start_step: 5_000        
+  train_start_step: 100_000        
   sync_start_step: 0        
   num_steps: -1
   log_frequency: 1
@@ -65,15 +65,7 @@ exploration:
   max_delta: 50
 
 collector:
-  is_async: true
-  collect_steps_per_iteration: 0
-  sync_frequency: 10
-  warmup_steps: 100_000
-  step_logging:
-    enabled: true
-    log_dir: "."
-    log_file: "collector.jsonl"
-    mode: async
+  _include: "{CONFIGS_DIR}/collectors/async"
 
 evaluation:
   frequency: 300_000
