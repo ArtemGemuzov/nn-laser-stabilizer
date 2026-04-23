@@ -140,7 +140,18 @@ def main(context: ExperimentContext) -> None:
         reset_steps=BUFFER_RESET_STEPS,
         observe_prev_error=bool(env_args.get("observe_prev_error", True)),
         observe_prev_prev_error=bool(env_args.get("observe_prev_prev_error", True)),
-        observe_control_output=bool(env_args.get("observe_control_output", True)),
+        observe_prev_control_output=bool(
+            env_args.get("observe_prev_control_output", True)
+        ),
+        observe_prev_prev_control_output=bool(
+            env_args.get("observe_prev_prev_control_output", False)
+        ),
+        observe_prev_action_norm=bool(
+            env_args.get("observe_prev_action_norm", False)
+        ),
+        observe_prev_prev_action_norm=bool(
+            env_args.get("observe_prev_prev_action_norm", False)
+        ),
         action_type=action_type,
         max_action_delta=max_action_delta,
     )
