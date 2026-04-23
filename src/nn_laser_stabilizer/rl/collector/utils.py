@@ -117,12 +117,15 @@ def warmup_step(
     env: TorchEnvWrapper,
     obs: torch.Tensor,
     options: dict[str, Any] | None = None,
+    step_logger: Logger = _NOOP_LOGGER,
 ) -> tuple[torch.Tensor, dict[str, Any]]:
+    """Шаг среды без записи в буфер."""
     _, _, _, next_obs, _, options = _env_step(
         policy=policy,
         env=env,
         obs=obs,
         options=options,
+        step_logger=step_logger,
     )
     return next_obs, options
 

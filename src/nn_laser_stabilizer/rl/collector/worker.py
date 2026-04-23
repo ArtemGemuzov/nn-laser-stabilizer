@@ -73,7 +73,9 @@ class CollectorWorker:
             self.connection.send_worker_ready()
 
             for _ in range(self.warmup_steps):
-                observation, options = warmup_step(policy, env, observation, options)
+                observation, options = warmup_step(
+                    policy, env, observation, options, step_logger=step_logger
+                )
             
             while True:
                 if self.connection.poll(0.0):

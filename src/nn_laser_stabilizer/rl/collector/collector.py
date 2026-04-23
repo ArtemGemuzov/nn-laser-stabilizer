@@ -115,6 +115,7 @@ class SyncCollector(BaseCollector):
                 self._env,
                 self._current_observation,
                 self._options,
+                step_logger=self._step_logger,
             )
 
     def ensure(self, min_size: int) -> None:
