@@ -1,4 +1,5 @@
 import json
+import warnings
 
 from nn_laser_stabilizer.hardware.connection import BaseConnection
 from nn_laser_stabilizer.connection.phase_shifter_protocol import PhaseShifterProtocol
@@ -6,6 +7,8 @@ from nn_laser_stabilizer.utils.logger import Logger
 
 
 class ConnectionToPhaseShifter:
+    MAX_READ_ATTEMPTS_FOR_PARSE = 10
+
     def __init__(self, connection: BaseConnection):
         self._connection = connection
 
@@ -20,8 +23,25 @@ class ConnectionToPhaseShifter:
         self._connection.send(command)
 
     def read_response(self) -> int:
-        raw = self._connection.read()
-        return PhaseShifterProtocol.parse_response(raw)
+        last_error: ValueError | None = None
+        for attempt in range(1, self.MAX_READ_ATTEMPTS_FOR_PARSE + 1):
+            raw = self._connection.read()
+            try:
+                return PhaseShifterProtocol.parse_response(raw)
+            except ValueError as e:
+                last_error = e
+                warnings.warn(
+                    f"Ignoring unparsable serial line (attempt {attempt}/"
+                    f"{self.MAX_READ_ATTEMPTS_FOR_PARSE}): {raw!r}. {e}. "
+                    f"Reading next line...",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+        assert last_error is not None
+        raise ValueError(
+            f"Failed to parse phase shifter response after "
+            f"{self.MAX_READ_ATTEMPTS_FOR_PARSE} attempts"
+        ) from last_error
 
     def exchange(self, *, control_output: int) -> int:
         self.send_command(control_output=control_output)
