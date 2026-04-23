@@ -35,7 +35,7 @@ env:
     observe_prev_error: true
     observe_prev_prev_error: true
     observe_prev_control_output: true
-    observe_prev_prev_control_output: false
+    observe_prev_prev_control_output: true
 
     error_normalixation_factor: 60
 
