@@ -273,7 +273,7 @@ class AsyncCollector(BaseCollector):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self._running:
             return
-        if exc_type is KeyboardInterrupt or CollectorWorkerError:
+        if exc_type is not None and issubclass(exc_type, (KeyboardInterrupt, CollectorWorkerError)):
             self._shutdown(wait_for_shutdown=False)
         else:
             self._shutdown(wait_for_shutdown=True)
