@@ -1,5 +1,4 @@
 from typing import Optional, TypeGuard
-import warnings
 
 import serial
 
@@ -47,32 +46,22 @@ class COMPort:
     def read(self) -> str:
         if not self._check_connected(self._serial):
             raise ConnectionError("Serial connection is not open.")
-        
-        while True:
-            try:
-                raw_data = self._serial.readline()
-                if not raw_data:
-                    continue
-                
-                try:
-                    data = raw_data.decode("utf-8")
-                    if data:
-                        return data
-                except UnicodeDecodeError as e:
-                    warnings.warn(
-                        f"Failed to decode data from serial port: {e}. "
-                        f"Raw data: {raw_data!r}. Retrying...",
-                        RuntimeWarning,
-                        stacklevel=2
-                    )
-                    continue
-            except Exception as e:
-                warnings.warn(
-                    f"Error reading from serial port: {e}. Retrying...",
-                    RuntimeWarning,
-                    stacklevel=2
-                )
-                continue
+
+        try:
+            raw_data = self._serial.readline()
+        except Exception as e:
+            raise ConnectionError("Error reading from serial port.") from e
+
+        try:
+            data = raw_data.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise ValueError(
+                f"Failed to decode data from serial port: {e}. Raw data: {raw_data!r}."
+            ) from e
+
+        if not data:
+            raise ValueError("Received empty decoded data from serial port.")
+        return data
     
     def send(self, data : str):
         if not self._check_connected(self._serial):

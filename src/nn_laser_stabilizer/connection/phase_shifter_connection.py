@@ -7,7 +7,7 @@ from nn_laser_stabilizer.utils.logger import Logger
 
 
 class ConnectionToPhaseShifter:
-    MAX_READ_ATTEMPTS_FOR_PARSE = 10
+    MAX_EXCHANGE_ATTEMPTS = 10
 
     def __init__(self, connection: BaseConnection):
         self._connection = connection
@@ -23,29 +23,29 @@ class ConnectionToPhaseShifter:
         self._connection.send(command)
 
     def read_response(self) -> int:
-        last_error: ValueError | None = None
-        for attempt in range(1, self.MAX_READ_ATTEMPTS_FOR_PARSE + 1):
-            raw = self._connection.read()
+        raw = self._connection.read()
+        return PhaseShifterProtocol.parse_response(raw)
+
+    def exchange(self, *, control_output: int) -> int:
+        last_error: Exception | None = None
+        for attempt in range(1, self.MAX_EXCHANGE_ATTEMPTS + 1):
+            self.send_command(control_output=control_output)
             try:
-                return PhaseShifterProtocol.parse_response(raw)
-            except ValueError as e:
+                return self.read_response()
+            except (ValueError, TimeoutError, ConnectionError) as e:
                 last_error = e
                 warnings.warn(
-                    f"Ignoring unparsable serial line (attempt {attempt}/"
-                    f"{self.MAX_READ_ATTEMPTS_FOR_PARSE}): {raw!r}. {e}. "
-                    f"Reading next line...",
+                    f"Exchange failed (attempt {attempt}/"
+                    f"{self.MAX_EXCHANGE_ATTEMPTS}) for control_output="
+                    f"{control_output}: {e}. Retrying full exchange...",
                     RuntimeWarning,
                     stacklevel=2,
                 )
         assert last_error is not None
         raise ValueError(
-            f"Failed to parse phase shifter response after "
-            f"{self.MAX_READ_ATTEMPTS_FOR_PARSE} attempts"
+            f"Failed to complete exchange after {self.MAX_EXCHANGE_ATTEMPTS} attempts "
+            f"for control_output={control_output}"
         ) from last_error
-
-    def exchange(self, *, control_output: int) -> int:
-        self.send_command(control_output=control_output)
-        return self.read_response()
 
 
 class LoggingConnectionToPhaseShifter(ConnectionToPhaseShifter):
@@ -83,8 +83,7 @@ class LoggingConnectionToPhaseShifter(ConnectionToPhaseShifter):
         return process_variable
 
     def exchange(self, *, control_output: int) -> int:
-        self._phase_shifter.send_command(control_output=control_output)
-        process_variable = self._phase_shifter.read_response()
+        process_variable = self._phase_shifter.exchange(control_output=control_output)
         self._logger.log(json.dumps({
             "source": self.LOG_SOURCE,
             "event": "exchange",
