@@ -3,6 +3,7 @@ from functools import partial
 from pathlib import Path
 import json
 import time
+from collections import deque
 
 from nn_laser_stabilizer.experiment.decorator import experiment
 from nn_laser_stabilizer.experiment.context import ExperimentContext
@@ -12,6 +13,12 @@ from nn_laser_stabilizer.rl.data.sampler import make_sampler_from_config
 from nn_laser_stabilizer.rl.collector.collector import make_collector_from_config
 from nn_laser_stabilizer.rl.envs.factory import get_spaces_from_config, make_env_from_config
 from nn_laser_stabilizer.rl.algorithms.factory import build_agent
+
+
+def _format_seconds_human(seconds: float) -> str:
+    total_seconds = max(0, int(round(seconds)))
+    minutes, secs = divmod(total_seconds, 60)
+    return f"{minutes} мин {secs} сек"
 
 
 def _make_extra_parser() -> argparse.ArgumentParser:
@@ -90,6 +97,10 @@ def main(context: ExperimentContext):
     evaluation_frequency = context.config.evaluation.frequency
     evaluation_num_steps = context.config.evaluation.num_steps
     evaluation_enabled = evaluation_num_steps > 0 and evaluation_frequency > 0
+    countdown_log_frequency = int(
+        context.config.evaluation.get("countdown_log_frequency", log_frequency if log_frequency > 0 else 1)
+    )
+    countdown_log_enabled = countdown_log_frequency > 0
 
     final_eval_enabled = bool(context.config.evaluation.get("final.enabled", False))
     final_eval_num_steps = int(
@@ -112,6 +123,8 @@ def main(context: ExperimentContext):
             context.logger.log("Training started")
 
             step = 0
+            step_durations = deque(maxlen=20)
+            previous_step_ts = time.time()
             while infinite_steps or step < num_steps:
                 step += 1
 
@@ -133,9 +146,46 @@ def main(context: ExperimentContext):
                         "time": time.time(),
                         **metrics,
                     }))
+
+                step_end_ts = time.time()
+                step_duration = step_end_ts - previous_step_ts
+                previous_step_ts = step_end_ts
+                step_durations.append(step_duration)
+
+                if evaluation_enabled and countdown_log_enabled and step % countdown_log_frequency == 0:
+                    steps_until_evaluation = (evaluation_frequency - (step % evaluation_frequency)) % evaluation_frequency
+                    if steps_until_evaluation > 0:
+                        step_in_evaluation_cycle = step % evaluation_frequency
+                        avg_step_duration = sum(step_durations) / len(step_durations) if step_durations else None
+                        eta_seconds = (
+                            avg_step_duration * steps_until_evaluation
+                            if avg_step_duration is not None
+                            else None
+                        )
+                        eta_message = _format_seconds_human(eta_seconds) if eta_seconds is not None else "n/a"
+                        context.logger.log(
+                            (
+                                "Обратный отсчет до оценивания: "
+                                f"текущий шаг обучения={step}, "
+                                f"шаг в текущем интервале оценивания={step_in_evaluation_cycle}/{evaluation_frequency}, "
+                                f"осталось шагов обучения={steps_until_evaluation}, "
+                                f"примерное время до начала оценивания={eta_message}"
+                            )
+                        )
                 
                 if evaluation_enabled and step % evaluation_frequency == 0:
+                    context.logger.log("Оценивание началось")
+                    evaluation_start_ts = time.time()
                     eval_metrics = collector.evaluate(num_steps=evaluation_num_steps)
+                    evaluation_duration = time.time() - evaluation_start_ts
+                    context.logger.log(
+                        (
+                            "Оценивание завершено: "
+                            f"длительность={_format_seconds_human(evaluation_duration)}."
+                        )
+                    )
+                    # Skip evaluation wall-clock time in ETA statistics.
+                    previous_step_ts = time.time()
                     train_logger.log(json.dumps({
                         "source": LOG_SOURCE,
                         "event": "evaluation",
