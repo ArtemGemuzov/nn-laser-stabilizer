@@ -166,8 +166,7 @@ def main(context: ExperimentContext):
                         context.logger.log(
                             (
                                 "Обратный отсчет до оценивания: "
-                                f"текущий шаг обучения={step}, "
-                                f"шаг в текущем интервале оценивания={step_in_evaluation_cycle}/{evaluation_frequency}, "
+                                f"текущий шаг обучения={step_in_evaluation_cycle}, "
                                 f"осталось шагов обучения={steps_until_evaluation}, "
                                 f"примерное время до начала оценивания={eta_message}"
                             )
@@ -198,7 +197,7 @@ def main(context: ExperimentContext):
             
             if final_eval_enabled:
                 context.logger.log(
-                    f"Running final evaluation ..."
+                    f"Запуск финального оценивания ..."
                 )
                 final_eval_metrics = collector.evaluate(num_steps=final_eval_num_steps)
                 train_logger.log(
