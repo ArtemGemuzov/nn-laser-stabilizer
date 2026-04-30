@@ -9,6 +9,7 @@ from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.base_env import BaseEnv
 from nn_laser_stabilizer.utils.bounded_value import BoundedValue
 from nn_laser_stabilizer.rl.envs.arx_plant_backend import ARXPlantBackend
+from nn_laser_stabilizer.rl.envs.numerical_sin_plant_backend import NumericalSinPlantBackend
 from nn_laser_stabilizer.rl.envs.plant_backend import ExperimentalPlantBackend, PlantBackend
 from nn_laser_stabilizer.utils.normalize import (
     denormalize_from_minus1_plus1,
@@ -19,6 +20,7 @@ from nn_laser_stabilizer.utils.normalize import (
 class BackendType(BaseEnum):
     EXPERIMENTAL = "experimental"
     ARX = "arx"
+    NUMERICAL_SIN = "numerical_sin"
 
 
 class ActionType(BaseEnum):
@@ -498,6 +500,17 @@ class NeuralController(BaseEnv):
                 control_max=config.args.control_max,
                 log_connection=backend_config.log_connection,
                 base_logger=logger,
+            )
+        elif backend_type == BackendType.NUMERICAL_SIN:
+            pv_min = backend_config.get("pv_min", None)
+            pv_max = backend_config.get("pv_max", None)
+            return NumericalSinPlantBackend(
+                setpoint=int(config.args.setpoint),
+                noise_min=float(backend_config.get("noise_min", -2.0)),
+                noise_max=float(backend_config.get("noise_max", 2.0)),
+                pv_min=float(pv_min) if pv_min is not None else None,
+                pv_max=float(pv_max) if pv_max is not None else None,
+                logger=logger,
             )
         else:
             raise ValueError(f"Unknown backend type: '{backend_type.value}'")
