@@ -60,7 +60,7 @@ class NumericalSinPlantBackend:
     def exchange(self, control_output: int) -> int:
         self._step += 1
 
-        signal = 1500.0 + 500.0 * math.sin((float(control_output) / 100.0) * 2.0 * math.pi)
+        signal = 150.0 + 50.0 * math.sin((float(control_output) / 100.0) * 2.0 * math.pi)
         noise = float(np.random.uniform(self._noise_min, self._noise_max))
         pv_raw = signal + noise
         pv = self._clip_pv(pv_raw)
