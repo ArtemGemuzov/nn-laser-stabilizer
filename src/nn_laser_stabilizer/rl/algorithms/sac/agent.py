@@ -16,6 +16,12 @@ from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.policy.stochastic import StochasticPolicy
 from nn_laser_stabilizer.rl.policy.factory import make_exploration_policy_from_config
+from nn_laser_stabilizer.utils.enum import BaseEnum
+
+
+class TargetEntropyType(BaseEnum):
+    AUTO = "auto"
+    FIXED = "fixed"
 
 
 class SACAgent(Agent):
@@ -95,7 +101,21 @@ class SACAgent(Agent):
             raise ValueError("algorithm.tau must be > 0")
 
         log_alpha = nn.Parameter(torch.tensor(initial_alpha).log())
-        target_entropy = -float(action_space.dim)
+        target_entropy_mode = TargetEntropyType.from_str(algorithm_config.get("target_entropy", TargetEntropyType.AUTO.value))
+        if target_entropy_mode == TargetEntropyType.AUTO:
+            target_entropy_multiplier = float(
+                algorithm_config.get("target_entropy_multiplier", 1.0)
+            )
+            if target_entropy_multiplier <= 0.0:
+                raise ValueError("algorithm.target_entropy_multiplier must be > 0")
+            target_entropy = -float(action_space.dim) * target_entropy_multiplier
+        elif target_entropy_mode == TargetEntropyType.FIXED:
+            if algorithm_config.get("target_entropy_value", None) is None:
+                raise ValueError(
+                    "algorithm.target_entropy_value is required when "
+                    "algorithm.target_entropy is 'fixed'"
+                )
+            target_entropy = float(algorithm_config.target_entropy_value)
 
         actor_optimizer = Optimizer(actor.parameters(), lr=float(actor_config.optimizer.lr))
         critic_optimizer = Optimizer(
