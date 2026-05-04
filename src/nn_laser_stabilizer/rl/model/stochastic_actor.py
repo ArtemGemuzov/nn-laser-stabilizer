@@ -57,6 +57,23 @@ class StochasticActor(BaseModel):
         scaled_action = self._scaler(sampled_raw_action)
         scaled_mean_action = self._scaler(action_mean)
 
+        # TEMP HACK: STE quantization for delta action with deltaUmax=75
+        delta_u_max = 75.0
+
+        # [-1, 1] -> [-75, 75]
+        u = scaled_action * delta_u_max
+        u_mean = scaled_mean_action * delta_u_max
+
+        u_int = torch.round(u)
+        u_mean_int = torch.round(u_mean)
+
+        u_ste = u + (u_int - u).detach()
+        u_mean_ste = u_mean + (u_mean_int - u_mean).detach()
+
+        scaled_action = torch.clamp(u_ste / delta_u_max, -1.0, 1.0)
+        scaled_mean_action = torch.clamp(u_mean_ste / delta_u_max, -1.0, 1.0)
+        # TEMP HACK
+
         action_rescale_factor = (self._action_space.high - self._action_space.low) / 2.0
         action_log_prob = gaussian_log_prob(action_distribution, sampled_raw_action, action_rescale_factor)
 
