@@ -1,0 +1,9 @@
+type: dqn
+gamma: 0.99
+tau: 0.005
+
+network:
+  _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+
+optimizer:
+  lr: 0.001

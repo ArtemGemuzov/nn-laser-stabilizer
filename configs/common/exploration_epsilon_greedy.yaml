@@ -1,0 +1,4 @@
+type: epsilon_greedy
+epsilon_start: 1.0
+epsilon_end: 0.05
+epsilon_decay_steps: 50000
