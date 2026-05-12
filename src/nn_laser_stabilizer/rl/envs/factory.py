@@ -6,6 +6,7 @@ from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.envs.envs import CUSTOM_ENV_MAP
 from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
+from nn_laser_stabilizer.rl.envs.wrappers.discrete_action import DiscreteActionWrapper
 from nn_laser_stabilizer.rl.envs.wrappers.step_tracking import StepTrackingWrapper
 from nn_laser_stabilizer.rl.envs.wrappers.info_logging import InfoLoggingWrapper
 from nn_laser_stabilizer.rl.envs.wrappers.reward_ema import RewardEMAWrapper
@@ -29,6 +30,11 @@ def _apply_wrappers(
 ) -> gym.Env:
     if wrappers_config is None:
         return env
+
+    discrete_action = wrappers_config.get("discrete_action", None)
+    if discrete_action is not None:
+        max_delta = int(discrete_action.get("max_delta"))
+        env = DiscreteActionWrapper(env, max_delta=max_delta)
 
     step_tracking = wrappers_config.get("step_tracking", None)
     if step_tracking is not None:
