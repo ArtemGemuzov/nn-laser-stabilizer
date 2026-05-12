@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 import torch
 from torch import Tensor
@@ -32,13 +32,13 @@ class EpsilonGreedyPolicy(BaseExplorationPolicy):
 
     def _explore(self, action: Tensor, options: dict[str, Any]) -> Tensor:
         if torch.rand(1).item() < self._epsilon:
-            return torch.randint(0, self._action_space.n, (1,)).float()
+            return torch.randint(0, cast(Discrete, self._action_space).n, (1,)).float()
         return action
 
     def clone(self) -> "EpsilonGreedyPolicy":
         return EpsilonGreedyPolicy(
             inner=self._inner.clone(),
-            action_space=self._action_space,
+            action_space=cast(Discrete, self._action_space),
             epsilon_start=self._epsilon_start,
             epsilon_end=self._epsilon_end,
             epsilon_decay_steps=self._epsilon_decay_steps,
