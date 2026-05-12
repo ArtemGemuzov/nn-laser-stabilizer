@@ -1,7 +1,9 @@
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.utils.enum import BaseEnum
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.discrete import Discrete
 from nn_laser_stabilizer.rl.policy.policy import Policy
+from nn_laser_stabilizer.rl.policy.exploration.epsilon_greedy import EpsilonGreedyPolicy
 from nn_laser_stabilizer.rl.policy.exploration.noisy import NoisyExplorationPolicy
 from nn_laser_stabilizer.rl.policy.exploration.ornstein_uhlenbeck import OrnsteinUhlenbeckExplorationPolicy
 from nn_laser_stabilizer.rl.policy.exploration.pid import PIDExplorationPolicy
@@ -15,11 +17,12 @@ class ExplorationType(BaseEnum):
     OU = "ou"
     PID = "pid"
     SEQUENCE = "sequence"
-    
+    EPSILON_GREEDY = "epsilon_greedy"
+
 
 def make_exploration_policy_from_config(
     policy: Policy,
-    action_space: Box,
+    action_space: Box | Discrete,
     exploration_config: Config,
 ) -> Policy:
     exploration_type = ExplorationType.from_str(exploration_config.type)
@@ -61,6 +64,11 @@ def make_exploration_policy_from_config(
 
     elif exploration_type == ExplorationType.PID:
         return PIDExplorationPolicy.from_config(
+            exploration_config, policy=policy, action_space=action_space,
+        )
+
+    elif exploration_type == ExplorationType.EPSILON_GREEDY:
+        return EpsilonGreedyPolicy.from_config(
             exploration_config, policy=policy, action_space=action_space,
         )
 

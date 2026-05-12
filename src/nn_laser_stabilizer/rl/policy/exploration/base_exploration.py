@@ -4,6 +4,7 @@ from typing import Any
 import torch
 
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.discrete import Discrete
 from nn_laser_stabilizer.rl.policy.policy import Policy
 
 
@@ -11,7 +12,7 @@ class BaseExplorationPolicy(Policy, ABC):
     def __init__(
         self,
         inner: Policy,
-        action_space: Box,
+        action_space: Box | Discrete,
         *,
         start_step: int = 0,
         end_step: int | None = None,

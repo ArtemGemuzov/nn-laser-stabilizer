@@ -14,7 +14,7 @@ from nn_laser_stabilizer.rl.envs.spaces.box import Box
 from nn_laser_stabilizer.rl.envs.spaces.discrete import Discrete
 from nn_laser_stabilizer.rl.policy.policy import Policy
 from nn_laser_stabilizer.rl.policy.greedy import GreedyPolicy
-from nn_laser_stabilizer.rl.policy.exploration.epsilon_greedy import EpsilonGreedyPolicy
+from nn_laser_stabilizer.rl.policy.factory import make_exploration_policy_from_config
 
 
 class DQNAgent(Agent):
@@ -78,15 +78,10 @@ class DQNAgent(Agent):
 
     def exploration_policy(self, exploration_config: Config) -> Policy:
         base_policy = GreedyPolicy(q_network=self._q_online).train()
-        epsilon_start = float(exploration_config.get("epsilon_start", 1.0))
-        epsilon_end = float(exploration_config.get("epsilon_end", 0.05))
-        epsilon_decay_steps = int(exploration_config.get("epsilon_decay_steps", 10_000))
-        return EpsilonGreedyPolicy(
-            inner=base_policy,
-            num_actions=self._action_space.n,
-            epsilon_start=epsilon_start,
-            epsilon_end=epsilon_end,
-            epsilon_decay_steps=epsilon_decay_steps,
+        return make_exploration_policy_from_config(
+            policy=base_policy,
+            action_space=self._action_space,
+            exploration_config=exploration_config,
         )
 
     def default_policy(self) -> Policy:
