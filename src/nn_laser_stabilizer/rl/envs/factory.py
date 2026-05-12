@@ -4,6 +4,7 @@ import gymnasium as gym
 
 from nn_laser_stabilizer.config.config import Config
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.discrete import Discrete
 from nn_laser_stabilizer.rl.envs.envs import CUSTOM_ENV_MAP
 from nn_laser_stabilizer.rl.envs.torch_wrapper import TorchEnvWrapper
 from nn_laser_stabilizer.rl.envs.wrappers.discrete_action import DiscreteActionWrapper
@@ -87,7 +88,7 @@ def make_env_from_config(
 def get_spaces_from_config(
     env_config: Config,
     seed: Optional[int] = None,
-) -> tuple[Box, Box]:
+) -> tuple[Box, Box | Discrete]:
     env = make_env_from_config(env_config, seed=seed)
     observation_space = env.observation_space
     action_space = env.action_space
