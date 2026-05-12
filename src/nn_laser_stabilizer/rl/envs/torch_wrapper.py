@@ -5,9 +5,10 @@ import numpy as np
 import gymnasium as gym
 
 from nn_laser_stabilizer.rl.envs.spaces.box import Box
+from nn_laser_stabilizer.rl.envs.spaces.discrete import Discrete
 
 
-class TorchEnvWrapper: 
+class TorchEnvWrapper:
     def __init__(
         self,
         env: gym.Env
@@ -17,10 +18,13 @@ class TorchEnvWrapper:
         if not isinstance(env.observation_space, gym.spaces.Box):
             raise ValueError(f"Unsupported observation space type: {type(env.observation_space)}")
         self.observation_space : Box = Box.from_gymnasium(env.observation_space)
-        
-        if not isinstance(env.action_space, gym.spaces.Box):
-             raise ValueError(f"Unsupported action space type: {type(env.action_space)}")
-        self.action_space : Box = Box.from_gymnasium(env.action_space)
+
+        if isinstance(env.action_space, gym.spaces.Box):
+            self.action_space: Box | Discrete = Box.from_gymnasium(env.action_space)
+        elif isinstance(env.action_space, gym.spaces.Discrete):
+            self.action_space: Box | Discrete = Discrete.from_gymnasium(env.action_space)
+        else:
+            raise ValueError(f"Unsupported action space type: {type(env.action_space)}")
         
         self._seed: Optional[int] = None
         
