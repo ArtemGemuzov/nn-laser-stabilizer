@@ -213,3 +213,4 @@ experiments/*
 data/**
 report/**
 **/draft
+notebooks/output/**
