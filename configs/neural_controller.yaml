@@ -70,7 +70,7 @@ collector:
 evaluation:
   frequency: 200_000
   num_steps: 100_000
-  countdown_log_frequency: 20_000
+  countdown_log_frequency: -1
   final:
     enabled: true
     num_steps: -1
