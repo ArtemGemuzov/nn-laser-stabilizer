@@ -45,6 +45,7 @@ env:
       type: gaussian
       params:
         sigma: 10
+      action_penalty: 0.1
 
 training:
   train_start_step: 100_000        
@@ -85,6 +86,9 @@ algorithm:
   gamma: 0.9
   tau: 0.005
   initial_alpha: 0.2
+
+  target_entropy: fixed
+  target_entropy_value: -3
 
   actor:
     network:
