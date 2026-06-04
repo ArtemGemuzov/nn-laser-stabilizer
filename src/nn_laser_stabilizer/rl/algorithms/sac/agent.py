@@ -221,6 +221,7 @@ class SACAgent(Agent):
             "actor_loss": actor_result["actor_loss"].item(),
             "alpha_loss": alpha_loss.item(),
             "alpha": self.alpha.item(),
+            "entropy": -actor_result["actor_log_prob"].mean().item(),
         }
 
     def save(self, path: Path | None = None) -> None:
