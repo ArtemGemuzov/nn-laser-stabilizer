@@ -244,6 +244,7 @@ def _flatten_record(record: dict) -> dict:
 def read_jsonl(
     path: PathLike,
     *,
+    source: Optional[str] = None,
     event: Optional[str] = None,
     flatten: bool = True,
 ) -> pd.DataFrame:
@@ -259,6 +260,8 @@ def read_jsonl(
 
     Args:
         path: путь к ``.jsonl`` файлу.
+        source: если задан, оставить только записи с этим ``source``
+            (напр. ``"train"``, ``"phase_shifter"``, ``"NeuralController"``).
         event: если задан, оставить только записи с этим ``event``
             (напр. ``"step"`` для train.jsonl, ``"exchange"`` для collector).
         flatten: расплющивать вложенные ``env_info``/``policy_info`` в
@@ -286,6 +289,10 @@ def read_jsonl(
                 rows.append(_flatten_record(record))
         df = pd.DataFrame(rows)
 
+    if source is not None and "source" in df.columns:
+        df = df[df["source"] == source]
     if event is not None and "event" in df.columns:
-        df = df[df["event"] == event].reset_index(drop=True)
+        df = df[df["event"] == event]
+    if source is not None or event is not None:
+        df = df.reset_index(drop=True)
     return df
