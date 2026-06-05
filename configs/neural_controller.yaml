@@ -88,7 +88,7 @@ algorithm:
   initial_alpha: 0.2
 
   target_entropy: fixed
-  target_entropy_value: -3
+  target_entropy_value: -5
 
   actor:
     network:
