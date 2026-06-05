@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import NamedTuple, Optional
 import os
+import re
 from pathlib import Path
 
 
@@ -7,6 +8,19 @@ EXPERIMENTS_DIR_NAME = "experiments"
 CONFIGS_DIR_NAME = "configs"
 DATA_DIR_NAME = "data"
 RESOURCES_DIR_NAME = "resources"
+DOCS_DIR_NAME = "docs"
+
+# Имя директории эксперимента: "<date>_<time>_<name>",
+# например "2026-03-02_10-33-18_neural_controller-v3".
+EXPERIMENT_DIR_NAME_RE = re.compile(
+    r"(?P<date>\d{4}-\d{2}-\d{2})_(?P<time>\d{2}-\d{2}-\d{2})_(?P<name>.+)"
+)
+
+
+class ExperimentDirName(NamedTuple):
+    date: str
+    time: str
+    name: str
 
 
 def find_project_root() -> Path:
@@ -60,6 +74,10 @@ def get_resources_dir() -> Path:
     return get_dir(RESOURCES_DIR_NAME)
 
 
+def get_docs_dir() -> Path:
+    return get_dir(DOCS_DIR_NAME)
+
+
 def get_experiments_dir() -> Path:
     return get_dir(EXPERIMENTS_DIR_NAME)
 
@@ -75,6 +93,17 @@ def get_experiment_dir_name(
     experiment_time: str,
 ) -> str:
     return f"{experiment_date}_{experiment_time}_{experiment_name}"
+
+
+def parse_experiment_dir_name(dir_name: str) -> Optional[ExperimentDirName]:
+    match = EXPERIMENT_DIR_NAME_RE.fullmatch(dir_name)
+    if match is None:
+        return None
+    return ExperimentDirName(
+        date=match["date"],
+        time=match["time"],
+        name=match["name"],
+    )
 
 
 def get_experiment_dir(
