@@ -407,3 +407,7 @@
 ## 2026-06-04_15-14-31_neural_controller-v3
 
 Прогон линейки neural_controller-v3 (SAC, установка); базовый — `2026-02-25_15-29-11_neural_controller-v3`. Отличие: эксперимент по влиянию энтропии (v8.5.1) на установке. Снижение энтропии заметно улучшает стабилизацию (показано ранее на численной модели). Анализ — `neural_controller-v3_analysis.ipynb`.
+
+## 2026-06-05_14-36-04_neural_controller-v3
+
+Прогон линейки neural_controller-v3 (SAC, установка); базовый — `2026-02-25_15-29-11_neural_controller-v3`. Отличие: целевая энтропия равна минус 5. Анализ — `neural_controller-v3_analysis.ipynb`.
