@@ -148,7 +148,7 @@ $$
 
 ## 2026-01-16_20-32-47_setpoint_determination
 
-Запуск скрипта автоопределения setpoint (v5.0.4): границы выходного сигнала линейно поднимаются 0→2000, ищутся input min/max, далее setpoint = min + 0.1·(max−min). Это измерение, не обучение. Анализ — `22_setpoint_determination_analysis.ipynb`.
+Запуск скрипта автоопределения setpoint (v5.0.4): границы выходного сигнала линейно поднимаются 0→2000, ищутся input min/max, далее setpoint = min + 0.1·(max−min). Это измерение, не обучение. Анализ — `setpoint_determination_analysis.ipynb`.
 
 ## 2026-01-16_20-36-02_setpoint_determination
 
