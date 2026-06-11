@@ -21,12 +21,13 @@ env:
 
     control_min: 0
     control_max: 4095
+
     reset_value: 2000
     reset_steps: 1000
 
     action:
       type: delta
-      max_delta: 20
+      max_delta: 100
 
     process_variable_min: 1000
     process_variable_max: 2000
@@ -35,7 +36,7 @@ env:
     observe_prev_prev_error: true
     observe_prev_control_output: true
     observe_prev_prev_control_output: false
-    
+
     error_normalixation_factor: 60
 
     normalize_obs: true
@@ -44,6 +45,7 @@ env:
       type: gaussian
       params:
         sigma: 10
+      action_penalty: 0.1
 
 inference:
   agent_path: "{RESOURCES_DIR}/agent_sac"
@@ -57,4 +59,25 @@ buffer:
   _include: "{CONFIGS_DIR}/buffers/10k"
 
 algorithm:
-  _include: "{CONFIGS_DIR}/algorithms/sac_default"
+  type: sac
+  gamma: 0.9
+  tau: 0.005
+  initial_alpha: 0.2
+
+  target_entropy: fixed
+  target_entropy_value: -5
+
+  actor:
+    network:
+      _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+    optimizer:
+      lr: 0.0003
+
+  critic:
+    network:
+      _include: "{CONFIGS_DIR}/networks/mlp_256_256"
+    optimizer:
+      lr: 0.0003
+
+  alpha_optimizer:
+    lr: 0.0003
