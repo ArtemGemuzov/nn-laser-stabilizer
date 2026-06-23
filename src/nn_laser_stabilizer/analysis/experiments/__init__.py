@@ -1,20 +1,17 @@
-"""Типизированный доступ к экспериментам: ``repo.get(...).expect(NeuralController)``.
+"""Доступ к экспериментам: ``NeuralControllerExperiment(ExperimentId(...))``.
 
-Пилот: репозиторий → базовый ``Experiment`` → специализация ``NeuralController``
-(неймспейсы ``plant`` / ``interaction`` / ``train`` поверх канонических таблиц,
-которые адаптер формата строит из лог-файлов поколения).
+Базовый ``Experiment``/``ExperimentId`` живут уровнем выше
+(``analysis/experiment.py``); конкретные эксперименты — самодостаточные файлы
+в этом пакете (читают и канонизируют свои логи, собирают дерево узлов).
 """
 
-from nn_laser_stabilizer.analysis.experiments.experiment import (
-    Experiment, ExperimentRepository,
-)
+from nn_laser_stabilizer.analysis.experiment import Experiment, ExperimentId
 from nn_laser_stabilizer.analysis.experiments.neural_controller import (
-    NeuralController, NeuralControllerParams,
+    NeuralControllerExperiment,
 )
 
 __all__ = [
-    "ExperimentRepository",
     "Experiment",
-    "NeuralController",
-    "NeuralControllerParams",
+    "ExperimentId",
+    "NeuralControllerExperiment",
 ]
