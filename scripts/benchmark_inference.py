@@ -31,7 +31,6 @@ def main():
     parser.add_argument("--config", type=str, default="neural_controller",
                         help="имя конфига внутри configs/ (без .yaml)")
     parser.add_argument("--iters", type=int, default=10_000)
-    parser.add_argument("--batch", type=int, default=1)
     parser.add_argument("--warmup", type=int, default=500)
     args = parser.parse_args()
 
@@ -105,7 +104,7 @@ def main():
     print(f"  ИТОГО буфер        : {fmt_bytes(total_buffer)}")
     print()
 
-    obs = torch.randn(args.batch, obs_dim, dtype=torch.float32)
+    obs = torch.randn(1, obs_dim, dtype=torch.float32)
     for _ in range(args.warmup):
         policy.act(obs, {})
 
@@ -117,15 +116,14 @@ def main():
 
     us = times_ns / 1000.0
     print("=" * 66)
-    print(f"ВРЕМЯ ИНФЕРЕНСА  (policy.act, batch={args.batch}, 1 поток)")
+    print(f"ВРЕМЯ ИНФЕРЕНСА  (policy.act, 1 поток)")
     print("=" * 66)
     print(f"  итераций           : {args.iters:,}")
     print(f"  среднее            : {us.mean():.2f} мкс")
     print(f"  медиана            : {np.median(us):.2f} мкс")
     print(f"  p90 / p99          : {np.percentile(us, 90):.2f} / {np.percentile(us, 99):.2f} мкс")
     print(f"  min / max          : {us.min():.2f} / {us.max():.2f} мкс")
-    if args.batch == 1:
-        print(f"  пропускная способн.: {1e6 / us.mean():,.0f} шагов/с")
+    print(f"  пропускная способн.: {1e6 / us.mean():,.0f} шагов/с")
     print()
 
 
