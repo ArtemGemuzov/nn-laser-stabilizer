@@ -29,9 +29,9 @@ def fmt_bytes(n: float) -> str:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=str, default="neural_controller",
-                        help="имя конфига внутри configs/ (без .yaml)")
-    parser.add_argument("--iters", type=int, default=10_000)
-    parser.add_argument("--warmup", type=int, default=500)
+                        help="имя конфига внутри configs/")
+    parser.add_argument("--iters", type=int, default=200_000)
+    parser.add_argument("--warmup", type=int, default=1000)
     args = parser.parse_args()
 
     torch.manual_seed(0)
@@ -116,7 +116,7 @@ def main():
 
     us = times_ns / 1000.0
     print("=" * 66)
-    print(f"ВРЕМЯ ИНФЕРЕНСА  (policy.act, 1 поток)")
+    print(f"ВРЕМЯ ИНФЕРЕНСА")
     print("=" * 66)
     print(f"  итераций           : {args.iters:,}")
     print(f"  среднее            : {us.mean():.2f} мкс")
