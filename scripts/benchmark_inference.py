@@ -26,6 +26,27 @@ def fmt_bytes(n: float) -> str:
     return f"{n:.2f} TB"
 
 
+def measure(fn, iters: int, warmup: int) -> np.ndarray:
+    """Замеряет время вызова fn() iters раз, возвращает массив времён в мкс."""
+    for _ in range(warmup):
+        fn()
+    times_ns = np.empty(iters, dtype=np.int64)
+    for i in range(iters):
+        t0 = time.perf_counter_ns()
+        fn()
+        times_ns[i] = time.perf_counter_ns() - t0
+    return times_ns / 1000.0
+
+
+def print_timing(title: str, us: np.ndarray) -> None:
+    print(f"  {title}")
+    print(f"    среднее / std    : {us.mean():.2f} / {us.std():.2f} мкс")
+    print(f"    медиана          : {np.median(us):.2f} мкс")
+    print(f"    p90 / p99        : {np.percentile(us, 90):.2f} / {np.percentile(us, 99):.2f} мкс")
+    print(f"    min / max        : {us.min():.2f} / {us.max():.2f} мкс")
+    print(f"    пропускная способн.: {1e6 / us.mean():,.0f} шагов/с")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=str, default="neural_controller",
@@ -105,26 +126,32 @@ def main():
     print()
 
     obs = torch.randn(1, obs_dim, dtype=torch.float32)
-    for _ in range(args.warmup):
+    actor = modules["actor"]
+
+    def bare_mlp():
+        with torch.no_grad():
+            return actor._network(obs)
+
+    def deploy():
+        with torch.no_grad():
+            out = actor._network(obs)
+            mean = out.output.chunk(2, dim=-1)[0]
+            return actor._scaler(mean)
+
+    def full_act():
         policy.act(obs, {})
 
-    times_ns = np.empty(args.iters, dtype=np.int64)
-    for i in range(args.iters):
-        t0 = time.perf_counter_ns()
-        policy.act(obs, {})
-        times_ns[i] = time.perf_counter_ns() - t0
-
-    us = times_ns / 1000.0
     print("=" * 66)
     print(f"ВРЕМЯ ИНФЕРЕНСА")
     print("=" * 66)
-    print(f"  итераций           : {args.iters:,}")
-    print(f"  среднее            : {us.mean():.2f} мкс")
-    print(f"  std                : {us.std():.2f} мкс")
-    print(f"  медиана            : {np.median(us):.2f} мкс")
-    print(f"  p90 / p99          : {np.percentile(us, 90):.2f} / {np.percentile(us, 99):.2f} мкс")
-    print(f"  min / max          : {us.min():.2f} / {us.max():.2f} мкс")
-    print(f"  пропускная способн.: {1e6 / us.mean():,.0f} шагов/с")
+    print_timing("Прямой проход MLP:",
+                 measure(bare_mlp, args.iters, args.warmup))
+    print()
+    print_timing("Путь развёртывания (mean + tanh + scale):",
+                 measure(deploy, args.iters, args.warmup))
+    print()
+    print_timing("Полный policy.act (сэмплирование + log_prob + логирование):",
+                 measure(full_act, args.iters, args.warmup))
     print()
 
 
