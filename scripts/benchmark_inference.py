@@ -120,6 +120,7 @@ def main():
     print("=" * 66)
     print(f"  итераций           : {args.iters:,}")
     print(f"  среднее            : {us.mean():.2f} мкс")
+    print(f"  std                : {us.std():.2f} мкс")
     print(f"  медиана            : {np.median(us):.2f} мкс")
     print(f"  p90 / p99          : {np.percentile(us, 90):.2f} / {np.percentile(us, 99):.2f} мкс")
     print(f"  min / max          : {us.min():.2f} / {us.max():.2f} мкс")
