@@ -19,11 +19,11 @@ from nn_laser_stabilizer.rl.envs.factory import get_spaces_from_config
 
 
 def fmt_bytes(n: float) -> str:
-    for unit in ("B", "KiB", "MiB", "GiB"):
-        if n < 1024.0:
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1000.0:
             return f"{n:.2f} {unit}"
-        n /= 1024.0
-    return f"{n:.2f} TiB"
+        n /= 1000.0
+    return f"{n:.2f} TB"
 
 
 def main():
